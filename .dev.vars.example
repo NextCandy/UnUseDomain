@@ -1,0 +1,7 @@
+ADMIN_EMAIL=<lowercase-admin-email>
+BOOTSTRAP_ADMIN_PASSWORD=<set-a-strong-one-time-password>
+SESSION_SECRET=<generate-at-least-32-random-bytes>
+CREDENTIALS_ENCRYPTION_KEY=<generate-a-base64-encoded-32-byte-key>
+TELEGRAM_BOT_TOKEN=<optional>
+RESEND_API_KEY=<optional>
+EMAIL_FROM=<optional>

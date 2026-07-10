@@ -1,0 +1,17 @@
+{
+  "name": "WanMi",
+  "short_name": "WanMi",
+  "description": "WanMi 域名展示与管理系统",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffaf5",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
