@@ -76,6 +76,50 @@ describe.sequential("WanMi API 集成", () => {
     expect(response.status).toBe(403);
   });
 
+  it("CSV API dry-run 完整解析 662 条", async () => {
+    const source = await fs.readFile("data/source/domains-1783619533.csv", "utf8");
+    const form = new FormData();
+    form.set("file", new File([source], "domains-1783619533.csv", { type: "text/csv" }));
+    form.set("dryRun", "true");
+    const response = await request("/api/admin/domains/import", {
+      method: "POST",
+      headers: { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf },
+      body: form,
+    });
+    const body = await response.json() as { data: { report: { parsedCount: number; uniqueCount: number; invalidCount: number } } };
+    expect(response.status).toBe(200);
+    expect(body.data.report).toMatchObject({ parsedCount: 662, uniqueCount: 662, invalidCount: 0 });
+  });
+
+  it("添加重复域名返回冲突", async () => {
+    const response = await request("/api/admin/domains", {
+      method: "POST",
+      headers: { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" },
+      body: JSON.stringify({ fullDomain: "02cloud.com" }),
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it("精品状态会影响默认排序", async () => {
+    const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
+    expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: true }) })).status).toBe(200);
+    const featured = await (await request("/api/public/domains?pageSize=10")).json() as { data: { items: Array<{ domain: string }> } };
+    expect(featured.data.items[0].domain).toBe("02cloud.com");
+    expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: false }) })).status).toBe(200);
+  });
+
+  it("DNS API 失败时不修改本地缓存", async () => {
+    const before = await env.DB.prepare("SELECT COUNT(*) AS count FROM dns_records_cache WHERE domain_id = ?").bind(targetId).first<{ count: number }>();
+    const response = await request(`/api/admin/domains/${targetId}/dns`, {
+      method: "POST",
+      headers: { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "A", name: "@", content: "192.0.2.10", ttl: 600 }),
+    });
+    const after = await env.DB.prepare("SELECT COUNT(*) AS count FROM dns_records_cache WHERE domain_id = ?").bind(targetId).first<{ count: number }>();
+    expect(response.status).toBe(502);
+    expect(after?.count).toBe(before?.count);
+  });
+
   it("隐藏和重新上架会立即影响公共 API", async () => {
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isListed: false }) })).status).toBe(200);

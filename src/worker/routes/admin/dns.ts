@@ -28,6 +28,17 @@ async function replaceCache(db: D1Database, domainId: number, records: DnsRecord
   await db.batch(statements);
 }
 
+async function upsertCache(db: D1Database, domainId: number, record: DnsRecord): Promise<void> {
+  await db.prepare(`INSERT INTO dns_records_cache (
+    domain_id, provider_record_id, type, name, content, ttl, priority, proxied, last_synced_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(domain_id, provider_record_id) DO UPDATE SET type=excluded.type, name=excluded.name,
+    content=excluded.content, ttl=excluded.ttl, priority=excluded.priority, proxied=excluded.proxied,
+    last_synced_at=CURRENT_TIMESTAMP`)
+    .bind(domainId, record.id, record.type, record.name, record.content, record.ttl, record.priority, record.proxied === null ? null : record.proxied ? 1 : 0)
+    .run();
+}
+
 export const dnsRoutes = new Hono<AppBindings>();
 
 dnsRoutes.get("/domains/:id/dns", async (c) => {
@@ -47,13 +58,7 @@ dnsRoutes.post("/domains/:id/dns", async (c) => {
   if (!domain) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
   try {
     const record = await (await loadProvider(c, domain)).createDnsRecord(domain.normalized_domain, parsed.data);
-    await c.env.DB.prepare(`INSERT INTO dns_records_cache (
-      domain_id, provider_record_id, type, name, content, ttl, priority, proxied, last_synced_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(domain_id, provider_record_id) DO UPDATE SET type=excluded.type, name=excluded.name,
-      content=excluded.content, ttl=excluded.ttl, priority=excluded.priority, proxied=excluded.proxied,
-      last_synced_at=CURRENT_TIMESTAMP`)
-      .bind(domain.id, record.id, record.type, record.name, record.content, record.ttl, record.priority, record.proxied === null ? null : record.proxied ? 1 : 0).run();
+    await upsertCache(c.env.DB, domain.id, record);
     return ok(c, record, 201);
   } catch (error) { return providerFailure(c, error); }
 });
@@ -90,6 +95,7 @@ dnsRoutes.post("/dns/bulk", async (c) => {
     if (!domain) { results.push({ domainId, success: false, error: "域名不存在" }); continue; }
     try {
       const record = await (await loadProvider(c, domain)).createDnsRecord(domain.normalized_domain, parsed.data.record);
+      await upsertCache(c.env.DB, domain.id, record);
       results.push({ domainId, domain: domain.normalized_domain, success: true, record });
     } catch (error) { results.push({ domainId, domain: domain.normalized_domain, success: false, error: error instanceof Error ? error.message : "DNS 更新失败" }); }
   }
