@@ -1,0 +1,81 @@
+name: WanMi Cloudflare
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm types
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm db:migrate:local
+      - run: pnpm domains:validate
+      - run: pnpm domains:import:local -- --dry-run
+      - run: pnpm domains:import:local
+      - run: pnpm domains:verify
+      - run: pnpm build
+      - run: pnpm verify:no-demo-data
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+        env:
+          ADMIN_EMAIL: admin@example.com
+          BOOTSTRAP_ADMIN_PASSWORD: Integration-Test-Password-2026
+          SESSION_SECRET: integration-session-secret-at-least-32-bytes
+          CREDENTIALS_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}
+      - name: 写入临时 Secret 文件
+        shell: bash
+        run: |
+          umask 077
+          printf '%s\n' \
+            "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" \
+            "BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}" \
+            "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
+            "CREDENTIALS_ENCRYPTION_KEY=${{ secrets.CREDENTIALS_ENCRYPTION_KEY }}" \
+            > "$RUNNER_TEMP/wanmi-secrets.env"
+      - run: pnpm wrangler deploy --secrets-file "$RUNNER_TEMP/wanmi-secrets.env"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - run: pnpm db:migrate:remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
