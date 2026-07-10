@@ -5,6 +5,10 @@ export interface SqlStatement {
   params: Array<string | number | null>;
 }
 
+export function buildRemoteQueryBody(statements: SqlStatement[]): { batch: SqlStatement[] } {
+  return { batch: statements };
+}
+
 const STAGING_COLUMNS = [
   "import_id",
   "row_number",

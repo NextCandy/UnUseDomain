@@ -3,7 +3,7 @@
 ## 管理员密码
 
 - 首次登录前从 `ADMIN_EMAIL` 与 `BOOTSTRAP_ADMIN_PASSWORD` Secret 引导管理员。
-- 邮箱转小写；密码使用 Web Crypto PBKDF2-SHA-256、随机 16 字节盐和 310,000 次迭代。
+- 邮箱转小写；密码使用 Web Crypto PBKDF2-SHA-256、随机 16 字节盐和 Cloudflare Workers Web Crypto 支持上限 100,000 次迭代。
 - D1 仅保存哈希、盐、算法和迭代次数。
 - 管理员已存在时，部署不会重置密码。
 - 改密会递增密码版本并撤销全部旧会话，再签发新会话。

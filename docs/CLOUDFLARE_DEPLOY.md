@@ -88,6 +88,15 @@ pnpm wrangler secret delete BOOTSTRAP_ADMIN_PASSWORD
 
 删除前必须确认管理员已写入 D1，且当前密码可登录。代码不会因 Secret 消失而重置已有管理员。
 
-## 当前外部阻塞
+## 当前生产状态
 
-本次本地执行时 `wrangler whoami` 报告登录已过期，因此没有创建远程 D1/R2、设置生产 Secret 或部署 Worker。恢复 Cloudflare 登录后按本文件顺序继续，禁止将本地成功描述为生产成功。
+当前生产部署已完成：
+
+- URL：<https://wanmi.1n.workers.dev>
+- Worker：`wanmi`
+- D1：`wanmi-db`，绑定 `DB`
+- R2：`wanmi-assets`，绑定 `UPLOADS`
+- Static Assets：绑定 `ASSETS`
+- Cron：`0 1 * * *`
+
+远程 migration、两次幂等导入和 `662/662/662` 验证均已通过。生产冒烟已验证公共查询、`/admin` SPA 刷新、错误密码、真实登录、隐藏/恢复和退出。以后每次部署仍必须先执行检查、备份或确认 migration 风险，并通过 Secret/CI 环境提供 Token。

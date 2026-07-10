@@ -13,6 +13,7 @@
     {
       "binding": "DB",
       "database_name": "wanmi-db",
+      "database_id": "eb8a3ae3-db53-4c25-ac63-51e997bff20c",
       "migrations_dir": "migrations"
     }
   ],

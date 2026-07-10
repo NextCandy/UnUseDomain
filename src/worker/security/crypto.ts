@@ -1,4 +1,5 @@
-const PASSWORD_ITERATIONS = 310_000;
+// Cloudflare Workers Web Crypto currently caps PBKDF2 at 100,000 iterations.
+const PASSWORD_ITERATIONS = 100_000;
 const PASSWORD_ALGORITHM = "PBKDF2-SHA-256";
 
 function bytesToBase64(bytes: Uint8Array): string {

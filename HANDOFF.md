@@ -31,9 +31,11 @@
 
 ## Cloudflare 资源
 
-计划 Worker `wanmi`，D1 `wanmi-db`（绑定 `DB`），R2 `wanmi-assets`（绑定 `UPLOADS`），Static Assets `ASSETS`，Cron `0 1 * * *`。本地 Wrangler D1 migration 和导入已完成。
+Worker `wanmi`，D1 `wanmi-db`（绑定 `DB`），R2 `wanmi-assets`（绑定 `UPLOADS`），Static Assets `ASSETS`，Cron `0 1 * * *`。本地和远程 migration、导入均已完成。
 
-生产 URL：尚无。当前 `wrangler whoami` 报告登录过期，远程资源创建、Secret、migration、导入和部署未执行。
+生产 URL：<https://wanmi.1n.workers.dev>
+
+远程 D1 已连续执行两次幂等导入，最终为域名 662、市场记录 662、公开展示 662；R2 Bucket 位于 APAC，Worker Secret 已通过 Wrangler 安全上传。生产浏览器和 API 冒烟均通过。
 
 ## 测试结果
 
@@ -44,6 +46,8 @@
 - `pnpm build`：通过；构建 Secret 安全扫描通过。
 - `pnpm domains:verify`：662/662/662 通过；重复导入仍为 662。
 - `pnpm verify:no-demo-data`：62 个生产文件通过。
+- 生产 API：错误密码 401、真实登录、后台 662、隐藏/恢复、退出及旧会话 401 全部通过。
+- 生产浏览器：前台 662、搜索 `wanmi.org`、`/admin` 刷新、登录、概览和退出通过。
 
 ## Git
 
@@ -64,16 +68,14 @@
 
 ## 尚未完成 / 当前阻塞
 
-1. Cloudflare 登录已过期，无法创建/确认远程 D1 与 R2、设置 Secret、部署和生产验收。
-2. 本机没有 GitHub CLI `gh`，GitHub 发布技能要求在推送/PR 前具备已认证的 `gh`。
-3. 六家注册商适配器没有用户真实凭据，已实现真实 API 路径但未做线上连接实测。
+1. 本机没有 GitHub CLI `gh`，GitHub 发布技能要求在推送/PR 前具备已认证的 `gh`。
+2. 六家注册商适配器没有用户真实凭据，已实现真实 API 路径但未做线上连接实测。
 
 ## 下一步
 
-1. 运行 `pnpm wrangler login`，按 `docs/CLOUDFLARE_DEPLOY.md` 创建资源、交互设置 Secret、remote migration、部署、remote import 和验收。
-2. 安装并登录 `gh`，推送当前分支并创建 draft PR。
-3. 为实际使用的注册商配置最小权限凭据，执行连接、只读同步和非关键 DNS CRUD 冒烟。
-4. 首次管理员确认后删除一次性引导密码 Secret。
+1. 安装并登录 `gh`，推送当前分支并创建 draft PR。
+2. 为实际使用的注册商配置最小权限凭据，执行连接、只读同步和非关键 DNS CRUD 冒烟。
+3. 如决定删除一次性引导密码 Secret，先确认管理员仍可登录并同步调整后续部署 Secret 清单。
 
 ## 已踩过且不能重复的坑
 
@@ -82,3 +84,5 @@
 - Cloudflare Vite Plugin 预览输出可能复制 `.dev.vars`；构建后必须清理并扫描泄漏。
 - Playwright 页面不应依赖远程字体；外部字体可导致 `load` 等待和测试抖动。
 - CSV Listing Status 不能用作 WanMi 的展示开关；只有 Hidden 或管理员设置决定 `is_listed`。
+- Cloudflare D1 Query API 的当前批量请求必须包装为 `{ batch: [...] }`，顶层数组会返回 code 7400。
+- Cloudflare Workers Web Crypto 的 PBKDF2 上限为 100,000 次；更高迭代数会在生产返回 `NotSupportedError`。

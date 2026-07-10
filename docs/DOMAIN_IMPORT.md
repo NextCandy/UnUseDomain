@@ -56,6 +56,8 @@ pnpm domains:verify
 
 初次 662 行通过 D1 暂存表和集合式 UPSERT 组成一个不超过 1,000 statement 的 batch。远程使用 D1 HTTP batch；本地使用同一 migration 下的 Wrangler Miniflare SQLite 状态文件和显式事务。
 
+当前 Cloudflare D1 Query API 的批量请求体为 `{ "batch": [{ "sql": "...", "params": [...] }] }`，不能直接发送顶层数组。生产环境已连续导入两次，最终仍为域名 662、市场记录 662、公开展示 662。
+
 ## 后台更新 CSV
 
 后台上传先执行 dry-run，显示成功、重复、错误数量。正式导入合法记录；异常行写入 `domain_import_errors`，并提供 UTF-8 BOM 错误 CSV 下载。单次上限 900 条、文件上限 5 MB。

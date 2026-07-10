@@ -2,6 +2,17 @@
 
 WanMi 是一个面向自有域名资产的中文展示与管理系统。前台用于公开展示经管理员上架的域名，后台用于管理域名、市场数据、注册商账户、DNS、站点设置、到期提醒和安全会话。前后台与 API 同源，并共享同一个 Cloudflare D1 数据库。
 
+## 线上环境
+
+- 生产地址：<https://wanmi.1n.workers.dev>
+- 管理后台：<https://wanmi.1n.workers.dev/admin>
+- Cloudflare Worker：`wanmi`
+- D1：`wanmi-db`（绑定 `DB`）
+- R2：`wanmi-assets`（绑定 `UPLOADS`）
+- Cron：每天 `01:00 UTC`，即 `Asia/Shanghai 09:00`
+
+生产 D1 已完成 migration 和两次幂等 CSV 导入验证：域名 662、市场记录 662、公开展示 662。生产冒烟已覆盖错误密码、真实登录、后台统计、隐藏/恢复域名、退出和旧会话失效。
+
 ## 功能
 
 - 从唯一源文件 `data/source/domains-1783619533.csv` 全字段导入 662 个真实域名。
@@ -57,6 +68,8 @@ pnpm domains:import:remote
 pnpm domains:verify
 pnpm verify:no-demo-data
 ```
+
+远程导入和部署所需 Token 只通过环境变量或 Wrangler Secret 提供，不得写入仓库。完整上线与轮换流程见部署文档。
 
 ## 目录
 

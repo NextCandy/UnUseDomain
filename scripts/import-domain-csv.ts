@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { assertExpectedReport, readAndParseSource, writeGenerated } from "./domain-csv-common";
-import { buildImportStatements, statementsToSql } from "./import-plan";
+import { assertExpectedReport, readAndParseSource } from "./domain-csv-common";
+import { buildImportStatements, buildRemoteQueryBody, statementsToSql } from "./import-plan";
 
 const args = new Set(process.argv.slice(2));
 const remote = args.has("--remote");
@@ -14,7 +14,6 @@ const currency = currencyArg?.slice("--currency=".length) || null;
 const defaultListed = args.has("--default-listed") ? true : null;
 const result = await readAndParseSource();
 assertExpectedReport(result);
-await writeGenerated(result);
 
 const importId = crypto.randomUUID();
 const statements = buildImportStatements(result.records, { importId, currency, defaultListed });
@@ -37,16 +36,21 @@ if (remote) {
     {
       method: "POST",
       headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify(statements),
+      body: JSON.stringify(buildRemoteQueryBody(statements)),
     },
   );
-  const body: unknown = await response.json();
+  const body: {
+    success?: boolean;
+    errors?: Array<{ code?: number; message?: string }>;
+    result?: Array<{ success?: boolean }>;
+  } = await response.json();
   if (!response.ok) throw new Error(`远程 D1 导入失败：HTTP ${response.status} ${JSON.stringify(body)}`);
+  if (body.success !== true || !Array.isArray(body.result) || body.result.some((result) => result.success !== true)) {
+    throw new Error(`远程 D1 导入未完整提交：${JSON.stringify(body)}`);
+  }
   console.log(`远程 D1 导入完成：${result.records.length} 条，import_id=${importId}`);
 } else if (local) {
-  const sqlPath = path.resolve("data/generated/domains.import.sql");
   const sql = statementsToSql(statements);
-  await fs.writeFile(sqlPath, sql, "utf8");
   const stateDirectory = path.resolve(".wrangler/state/v3/d1/miniflare-D1DatabaseObject");
   const stateFiles = await fs.readdir(stateDirectory);
   const databaseFile = stateFiles.find((file) => file.endsWith(".sqlite") && file !== "metadata.sqlite");

@@ -6,7 +6,7 @@ describe("密码和会话安全", () => {
   it("PBKDF2 哈希可验证正确密码并拒绝错误密码", async () => {
     const digest = await hashPassword("Correct-Horse-Battery-99");
     expect(digest.algorithm).toBe("PBKDF2-SHA-256");
-    expect(digest.iterations).toBeGreaterThanOrEqual(100_000);
+    expect(digest.iterations).toBe(100_000);
     await expect(verifyPassword("Correct-Horse-Battery-99", digest)).resolves.toBe(true);
     await expect(verifyPassword("wrong-password", digest)).resolves.toBe(false);
   });
