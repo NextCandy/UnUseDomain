@@ -223,14 +223,12 @@ export function PublicPage() {
                   <div className={`domain-card${domain.is_featured ? " featured" : ""}`} key={domain.id} style={{ animationDelay: `${Math.min(index * 22, 420)}ms` }}>
                     {domain.is_featured && <span className="premium-corner">精品</span>}
                     <a className="card-cover" href={`/d/${encodeURIComponent(domain.domain)}`} aria-label={`查看 ${domain.domain} 详情`} />
-                    <div className="domain-card-top">
-                      <button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}>⧉</button>
-                    </div>
                     <div className={`domain-name${long}`}><strong>{domain.name}</strong><span>.{domain.tld}</span></div>
                     <div className="domain-meta">
                       <span className="chip chip-brand">.{domain.tld}</span>
                       <span className="chip">{domain.name.length} 位</span>
                     </div>
+                    <button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}>⧉</button>
                   </div>
                 );
               })}

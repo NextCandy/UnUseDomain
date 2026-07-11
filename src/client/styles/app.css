@@ -269,10 +269,10 @@ a { color: inherit; text-decoration: none; }
 /* 域名卡片 */
 .domain-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
 .domain-card {
-  position: relative; min-width: 0; min-height: 150px; padding: 14px 15px; overflow: visible;
+  position: relative; min-width: 0; padding: 16px 15px 13px; overflow: visible;
   border: 1px solid var(--border); border-radius: var(--radius-l); background: var(--surface-2);
   text-align: left; cursor: pointer; color: inherit;
-  display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
+  display: flex; flex-direction: column; gap: 11px;
   box-shadow: var(--shadow-s);
   transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
   animation: card-in .5s var(--ease) backwards;
@@ -289,10 +289,9 @@ a { color: inherit; text-decoration: none; }
   box-shadow: inset 0 1px 0 color-mix(in oklab, oklch(100% 0 0) 50%, transparent);
 }
 .card-cover { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
-.domain-card-top { display: flex; justify-content: flex-start; align-items: center; min-height: 20px; }
-.domain-card .copy-button { position: relative; z-index: 2; }
 .copy-button {
-  margin-left: auto; border: 0; background: transparent; cursor: pointer;
+  position: absolute; right: 9px; bottom: 9px; z-index: 2;
+  border: 0; background: transparent; cursor: pointer;
   width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
   color: var(--faint); font-size: 13px; opacity: 0; transform: translateX(4px);
   transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
@@ -305,11 +304,11 @@ a { color: inherit; text-decoration: none; }
 .domain-card:hover .domain-name span { color: color-mix(in oklab, var(--brand) 70%, var(--faint)); }
 .domain-name.domain-medium { font-size: clamp(16px, 1.5vw, 20px); }
 .domain-name.domain-long { font-size: clamp(13px, 1.2vw, 15px); letter-spacing: -.02em; }
-.domain-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 20px; }
+.domain-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 20px; padding-right: 28px; }
 .public-price { margin-left: auto; color: var(--brand); font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 
-.density-compact .domain-card { min-height: 128px; }
-.density-spacious .domain-card { min-height: 172px; }
+.density-compact .domain-card { padding: 12px 13px 10px; gap: 8px; }
+.density-spacious .domain-card { padding: 22px 17px 17px; gap: 15px; }
 
 .skeleton { background: linear-gradient(100deg, var(--surface-1) 25%, var(--bg) 42%, var(--surface-1) 60%); background-size: 400% 100%; animation: shimmer 1.5s infinite; border-color: transparent; box-shadow: none; }
 
@@ -744,7 +743,7 @@ a { color: inherit; text-decoration: none; }
   .filter-bar select { flex: none; }
   .clear-filter { flex: none; }
   .domain-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .domain-card { min-height: 128px; padding: 11px; }
+  .domain-card { padding: 12px 12px 10px; gap: 8px; }
   .public-footer { margin: 0 15px; padding: 24px 0; flex-wrap: wrap; }
   .footer-brand { width: 100%; }
   .admin-shell { display: block; }
@@ -773,5 +772,4 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 430px) {
   .domain-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .domain-card { min-height: 120px; }
 }
