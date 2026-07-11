@@ -218,7 +218,8 @@ export function PublicPage() {
           {!loading && !error && pageData && pageData.items.length > 0 && (
             <div className="domain-grid">
               {pageData.items.map((domain, index) => {
-                const long = domain.domain.length > 20 ? " domain-long" : domain.domain.length > 14 ? " domain-medium" : "";
+                const length = domain.domain.length;
+                const long = length > 20 ? " domain-long" : length > 14 ? " domain-medium" : length <= 7 ? " domain-short" : length <= 10 ? " domain-mid" : "";
                 return (
                   <div className={`domain-card${domain.is_featured ? " featured" : ""}`} key={domain.id} style={{ animationDelay: `${Math.min(index * 22, 420)}ms` }}>
                     {domain.is_featured && <span className="premium-corner">精品</span>}
