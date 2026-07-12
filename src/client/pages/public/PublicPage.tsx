@@ -187,6 +187,15 @@ export function PublicPage() {
         </nav>
       </header>
 
+      {facets && (
+        <div className="mobile-stats" aria-label="站点统计">
+          <span><strong>{facets.total}</strong> 域名</span>
+          <span><strong>{facets.tldCount}</strong> 后缀</span>
+          <span><strong>{facets.featuredCount}</strong> 精品</span>
+          {latestAdded && <span>更新 <strong>{latestAdded}</strong></span>}
+        </div>
+      )}
+
       <main>
         <section className="domain-section" id="domains">
           <div className="filter-bar">

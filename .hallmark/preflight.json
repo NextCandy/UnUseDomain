@@ -1,0 +1,8 @@
+{
+  "scannedAt": "2026-07-12",
+  "framework": "React 19 + Vite",
+  "palette": "OKLCH CSS custom properties",
+  "motion": "CSS motion-cut",
+  "spacing": "4px token scale",
+  "fonts": ["Manrope", "Noto Sans SC", "IBM Plex Mono"]
+}

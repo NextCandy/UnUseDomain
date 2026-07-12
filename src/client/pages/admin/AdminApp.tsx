@@ -290,25 +290,25 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       <span>{loading ? "读取中…" : `共 ${data?.total ?? 0} 个`}</span>
     </div>
     {selected.size > 0 && <div className="bulk-bar"><strong>已选 {selected.size}</strong><button onClick={() => void bulk("feature")}>设为精品</button><button onClick={() => void bulk("unfeature")}>取消精品</button><button onClick={() => void bulk("list")}>上架</button><button onClick={() => void bulk("hide")}>隐藏</button><button onClick={() => void bulk("categorize")}>设置分类</button><button onClick={() => exportSelected()}>导出选中</button><button onClick={() => void bulkDns()}>批量 DNS</button><button className="danger-text" onClick={() => void bulk("delete")}>删除</button><button onClick={() => setSelected(new Set())}>清空选择</button></div>}
-    <div className="admin-table-wrap"><table className="admin-table"><thead><tr>
+    <div className="admin-table-wrap domains-table-wrap"><table className="admin-table domains-table"><thead><tr>
       <th><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(data?.items.map((domain) => domain.id)))} aria-label="全选当前页" /></th>
       <th className="sortable" onClick={() => toggleSort("domain")}>域名{arrow("domain")}</th>
       {has("description") && <th>简介</th>}
       {has("category") && <th>分类</th>}
       <th>精品</th><th>前台展示</th><th>操作</th>
     </tr></thead><tbody>{data?.items.map((domain) => <tr key={domain.id}>
-      <td><input type="checkbox" checked={selected.has(domain.id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(domain.id)) next.delete(domain.id); else next.add(domain.id); return next; })} /></td>
-      <td><strong>{domain.full_domain}</strong><small>.{domain.tld}</small></td>
-      {has("description") && <td className="description-cell"><span>{domain.description}</span><button className="table-link" onClick={() => void editDescription(domain)}>编辑简介</button></td>}
-      {has("category") && <td><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && categories.some((item) => item.name === domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
+      <td data-label="选择"><input type="checkbox" checked={selected.has(domain.id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(domain.id)) next.delete(domain.id); else next.add(domain.id); return next; })} /></td>
+      <td data-label="域名"><strong>{domain.full_domain}</strong><small>.{domain.tld}</small></td>
+      {has("description") && <td data-label="简介" className="description-cell"><span>{domain.description}</span><button className="table-link" onClick={() => void editDescription(domain)}>编辑简介</button></td>}
+      {has("category") && <td data-label="分类"><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && categories.some((item) => item.name === domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
         <option value="">恢复自动（{domain.auto_category}）</option>
         {domain.category && !categories.some((item) => item.name === domain.category) && <option value={domain.category}>{domain.category}</option>}
         {categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
         <option value="__new__">＋ 新建分类…</option>
       </select></td>}
-      <td><button className={`switch ${domain.is_featured ? "on gold" : ""}`} onClick={() => void patch(domain.id, { isFeatured: !domain.is_featured }, domain.is_featured ? "已取消精品" : "已设为精品")}><i /></button></td>
-      <td><button className={`switch ${domain.is_listed ? "on" : ""}`} onClick={() => void patch(domain.id, { isListed: !domain.is_listed }, domain.is_listed ? "已从前台隐藏" : "已恢复展示")}><i /></button></td>
-      <td><button className="table-link danger-text" onClick={() => void removeDomain(domain)}>删除</button></td>
+      <td data-label="精品"><button className={`switch ${domain.is_featured ? "on gold" : ""}`} aria-label={`${domain.full_domain} 精品状态`} onClick={() => void patch(domain.id, { isFeatured: !domain.is_featured }, domain.is_featured ? "已取消精品" : "已设为精品")}><i /></button></td>
+      <td data-label="展示"><button className={`switch ${domain.is_listed ? "on" : ""}`} aria-label={`${domain.full_domain} 展示状态`} onClick={() => void patch(domain.id, { isListed: !domain.is_listed }, domain.is_listed ? "已从前台隐藏" : "已恢复展示")}><i /></button></td>
+      <td data-label="操作"><button className="table-link danger-text" onClick={() => void removeDomain(domain)}>删除</button></td>
     </tr>)}</tbody></table></div>
     {data && data.totalPages > 1 && <div className="pagination admin-pagination"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>上一页</button><span>第 {page} / {data.totalPages} 页</span><button disabled={page >= data.totalPages} onClick={() => setPage((value) => value + 1)}>下一页</button></div>}
   </Panel>;

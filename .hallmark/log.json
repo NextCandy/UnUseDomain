@@ -1,0 +1,10 @@
+[
+  {
+    "date": "2026-07-12",
+    "scope": "app",
+    "macrostructure": "Catalogue + Workbench",
+    "theme": "Coral",
+    "enrichment": "none",
+    "brief": "WanMi 前后台与移动端完整视觉重构"
+  }
+]
