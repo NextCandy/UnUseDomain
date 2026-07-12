@@ -51,7 +51,8 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByLabel("密码").fill(credentials.password);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "概览", exact: true })).toBeVisible();
-    await expect(page.getByText("874", { exact: true }).first()).toBeVisible();
+    const listedCard = page.locator(".stat-card").filter({ hasText: "前台展示" });
+    await expect(listedCard.getByText("859", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /域名管理/ }).click();
     await page.getByPlaceholder("搜索完整域名").fill("02cloud.com");
