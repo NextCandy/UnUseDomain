@@ -13,6 +13,7 @@ export interface PublicDomain {
   domain: string;
   name: string;
   tld: string;
+  description: string;
   category: string | null;
   is_featured: boolean;
   public_price?: string | null;

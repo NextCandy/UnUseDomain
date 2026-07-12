@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Toast, type ToastMessage } from "../../components/Toast";
@@ -24,8 +24,10 @@ interface SiteSettings {
 interface DomainFacets {
   tlds: string[];
   categories: string[];
+  categoryCounts: Record<string, number>;
   total: number;
   tldCount: number;
+  featuredCount: number;
   latestAddedAt: string | null;
 }
 
@@ -87,6 +89,7 @@ export function PublicPage() {
   const [error, setError] = useState("");
   const [contactOpen, setContactOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  const dataVersion = useRef("");
 
   const notify = useCallback((text: string, tone: "success" | "error" = "success") => {
     setToast({ id: Date.now(), text, tone });
@@ -131,6 +134,21 @@ export function PublicPage() {
       .finally(() => setLoading(false));
   }, [filters]);
 
+  useEffect(() => {
+    let active = true;
+    const check = async () => {
+      try {
+        const result = await api<{ version: string }>("/api/public/version");
+        if (!active) return;
+        if (dataVersion.current && result.version !== dataVersion.current) setFilters((current) => ({ ...current }));
+        dataVersion.current = result.version;
+      } catch { /* 网络短暂失败时等待下一轮 */ }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 8000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []);
+
   const hasContact = Boolean(settings?.contact_email || settings?.contact_wechat || settings?.contact_telegram);
   const hasActiveFilter = Boolean(filters.q || filters.tld || filters.category || filters.group !== "all" || filters.sort !== "default");
 
@@ -158,6 +176,7 @@ export function PublicPage() {
             <div className="header-stats" aria-label="站点统计">
               <span><strong>{facets.total}</strong> 域名</span>
               <span><strong>{facets.tldCount}</strong> 后缀</span>
+              <span><strong>{facets.featuredCount}</strong> 精品</span>
               {latestAdded && <span>更新于 <strong>{latestAdded}</strong></span>}
             </div>
           )}
@@ -183,7 +202,7 @@ export function PublicPage() {
             {(facets?.categories.length ?? 0) > 0 && (
               <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value, page: 1 }))} aria-label="分类筛选">
                 <option value="">全部分类</option>
-                {facets!.categories.map((category) => <option key={category} value={category}>{category}</option>)}
+                {facets!.categories.map((category) => <option key={category} value={category}>{category}（{facets!.categoryCounts[category]}）</option>)}
               </select>
             )}
             {hasActiveFilter && (
@@ -213,9 +232,11 @@ export function PublicPage() {
                     {domain.is_featured && <span className="premium-corner">精品</span>}
                     <a className="card-cover" href={`/d/${encodeURIComponent(domain.domain)}`} aria-label={`查看 ${domain.domain} 详情`} />
                     <div className={`domain-name${long}`}><strong>{domain.name}</strong><span>.{domain.tld}</span></div>
+                    <p className="domain-description">{domain.description}</p>
                     <div className="domain-meta">
                       <span className="chip chip-brand">.{domain.tld}</span>
                       <span className="chip">{domain.name.length} 位</span>
+                      {domain.category && <span className="chip">{domain.category}</span>}
                     </div>
                     <button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}>⧉</button>
                   </div>

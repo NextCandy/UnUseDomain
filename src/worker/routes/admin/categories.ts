@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { AUTO_CATEGORY_ORDER, classifyDomainName } from "../../../shared/auto-classify";
+import { AUTO_CATEGORY_ORDER, classifyDomain, classifyDomainName } from "../../../shared/auto-classify";
 import { categoryInputSchema } from "../../../shared/schemas/api";
 import { fail, ok, writeOperationLog } from "../../http";
 import type { AppBindings } from "../../types";
@@ -30,6 +30,13 @@ categoryRoutes.post("/categories/auto-classify", async (c) => {
     ),
   );
   for (let index = 0; index < inserts.length; index += 80) await c.env.DB.batch(inserts.slice(index, index + 80));
+  const classifications = domains.results.map((domain) => {
+    const value = classifyDomain(domain.name);
+    return c.env.DB.prepare(
+      "UPDATE domains SET auto_category = ?, auto_subcategory = ?, auto_category_confidence = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    ).bind(value.primary, value.subtype, value.confidence, domain.id);
+  });
+  for (let index = 0; index < classifications.length; index += 80) await c.env.DB.batch(classifications.slice(index, index + 80));
   const user = c.get("authUser");
   await writeOperationLog(c.env.DB, {
     action: "categories.auto_classify",

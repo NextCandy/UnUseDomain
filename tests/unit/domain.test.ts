@@ -5,9 +5,9 @@ import { compareDomains, domainNameLength, normalizeDomain } from "../../src/sha
 describe("域名标准化", () => {
   it("移除协议、路径、查询参数、空格与末尾点", () => {
     expect(normalizeDomain(" HTTPS://WWW.Example.COM/path?q=1. ", "com")).toEqual({
-      fullDomain: "www.example.com",
-      normalizedDomain: "www.example.com",
-      name: "www.example",
+      fullDomain: "example.com",
+      normalizedDomain: "example.com",
+      name: "example",
       tld: "com",
     });
   });

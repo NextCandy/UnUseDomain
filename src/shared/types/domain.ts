@@ -63,6 +63,8 @@ export interface ParsedDomainRecord extends NormalizedDomain {
   godaddyNs: string | null;
   dateAddedAt: string | null;
   rawMetadataJson: string;
+  initialDescription: string;
+  initialFeatured: boolean;
 }
 
 export interface DomainCsvIssue {

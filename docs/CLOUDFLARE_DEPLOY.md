@@ -99,4 +99,4 @@ pnpm wrangler secret delete BOOTSTRAP_ADMIN_PASSWORD
 - Static Assets：绑定 `ASSETS`
 - Cron：`0 1 * * *`
 
-远程 migration、两次幂等导入和 `662/662/662` 验证均已通过。生产冒烟已验证公共查询、`/admin` SPA 刷新、错误密码、真实登录、隐藏/恢复和退出。以后每次部署仍必须先执行检查、备份或确认 migration 风险，并通过 Secret/CI 环境提供 Token。
+远程 migration、两次幂等导入和 `859/859/859` 验证均已通过。生产冒烟已验证公共查询、`/admin` SPA 刷新、错误密码、真实登录、隐藏/恢复和退出。以后每次部署仍必须先执行检查、备份或确认 migration 风险，并通过 Secret/CI 环境提供 Token。

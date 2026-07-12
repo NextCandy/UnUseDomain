@@ -102,6 +102,8 @@ function parseMinimalDomainCsv(
 
   const startRow = headerless ? 0 : 1;
   const column = headerless ? 0 : domainColumn;
+  const descriptionColumn = headers.findIndex((header) => /^(description|简介)$/i.test(header));
+  const premiumColumn = headers.findIndex((header) => /^(premium|精品|是否精品)$/i.test(header));
   for (let index = startRow; index < matrix.length; index += 1) {
     const values = matrix[index];
     const rowNumber = index + 1;
@@ -152,6 +154,8 @@ function parseMinimalDomainCsv(
         godaddyNs: null,
         dateAddedAt: null,
         rawMetadataJson: JSON.stringify({ Domain: rawDomain }),
+        initialDescription: descriptionColumn >= 0 ? (values[descriptionColumn] ?? "").trim().slice(0, 500) : "",
+        initialFeatured: premiumColumn >= 0 && /^(1|y|yes|true|是|精品)$/i.test((values[premiumColumn] ?? "").trim()),
       });
     } catch (error) {
       const isDomainError = error instanceof DomainValidationError;
@@ -189,7 +193,7 @@ function parseMinimalDomainCsv(
 
 export function parseDomainCsv(
   csvText: string,
-  sourceFile = "domains-1783619533.csv",
+  sourceFile = "WanMi.csv",
 ): DomainCsvParseResult {
   const matrix = parse(csvText, {
     bom: true,
@@ -283,6 +287,8 @@ export function parseDomainCsv(
         godaddyNs: nullable(raw["GoDaddy NS"]),
         dateAddedAt: utcDate(raw["Date Added (UTC)"]),
         rawMetadataJson: JSON.stringify(raw),
+        initialDescription: "",
+        initialFeatured: false,
       });
     } catch (error) {
       const isDomainError = error instanceof DomainValidationError;

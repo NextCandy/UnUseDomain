@@ -1,4 +1,5 @@
 import type { NormalizedDomain } from "./types/domain";
+import { parse } from "tldts";
 
 export class DomainValidationError extends Error {
   readonly code: "invalid_domain" | "tld_mismatch";
@@ -46,18 +47,23 @@ function asciiHostname(input: string): string {
 }
 
 export function normalizeDomain(input: string, csvTld?: string): NormalizedDomain {
-  const normalizedDomain = asciiHostname(input);
+  const hostname = asciiHostname(input);
+  const parsed = parse(hostname, { allowPrivateDomains: false });
+  if (!parsed.domain || !parsed.publicSuffix || !parsed.domainWithoutSuffix) {
+    throw new DomainValidationError("invalid_domain", "无法识别可注册域名或公共后缀");
+  }
+  const normalizedDomain = parsed.domain;
   const rawTld = csvTld?.trim().toLowerCase().replace(/^\.+|\.+$/g, "");
-  const tld = rawTld ? asciiHostname(`x.${rawTld}`).slice(2) : normalizedDomain.split(".").at(-1)!;
+  const tld = parsed.publicSuffix;
 
-  if (!normalizedDomain.endsWith(`.${tld}`)) {
+  if (rawTld && rawTld !== tld) {
     throw new DomainValidationError(
       "tld_mismatch",
-      `域名与 CSV TLD 不一致：${normalizedDomain} / ${tld}`,
+      `域名与 CSV TLD 不一致：${normalizedDomain} / ${rawTld}`,
     );
   }
 
-  const name = normalizedDomain.slice(0, -(tld.length + 1));
+  const name = parsed.domainWithoutSuffix;
   if (!name) throw new DomainValidationError("invalid_domain", "域名主体为空");
 
   return {

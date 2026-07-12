@@ -4,23 +4,26 @@
 
 ## 线上环境
 
-- 生产地址：<https://wanmi.1n.workers.dev>
-- 管理后台：<https://wanmi.1n.workers.dev/admin>
+- 生产地址：<https://wanmi.org>
+- 管理后台：<https://wanmi.org/admin>
 - Cloudflare Worker：`wanmi`
 - D1：`wanmi-db`（绑定 `DB`）
 - R2：`wanmi-assets`（绑定 `UPLOADS`）
 - Cron：每天 `01:00 UTC`，即 `Asia/Shanghai 09:00`
 
-生产 D1 已完成 migration 和幂等 CSV 导入验证：域名 662、售卖平台记录 0、公开展示 662。生产冒烟已覆盖错误密码、真实登录、后台统计、隐藏/恢复域名、退出和旧会话失效。
+当前唯一业务源文件为 `data/source/WanMi.csv`：原始 859 条、有效唯一 859 条、重复 0、无效 0。导入会保留历史记录并将源文件中不存在的旧域名归档；本地连续导入两次后总记录 874、公开展示 859，证明同步幂等。
 
 ## 功能
 
-- 从源文件导入 662 个真实域名，仅使用域名和后缀，忽略报价、市场状态、流量、线索、Nameserver、上架日期和来源等售卖平台字段。
+- 按表头名称解析 UTF-8/BOM、CRLF、引号转义 CSV；使用 `tldts` 统一处理协议、路径、多级公共后缀、IDN/Punycode 与可注册域名主体。
+- 新增公开简介字段：后台可编辑或清空，前台卡片保留稳定的两行区域、详情页展示完整纯文本；CSV 重导不覆盖管理员简介。
+- 精品状态可在后台直接切换、筛选及批量设置/取消，前台使用克制标识并默认精品优先；CSV 重导不覆盖管理员精品状态。
 - 前台服务端搜索、后缀/位数/分类/精品筛选、排序（最新/位数/字母序）、分组视图（精品/二字符/三字符/数字）、分页、URL 可分享状态和动态联系方式；不展示任何导入报价字段。
 - 域名详情页 `/d/:domain`：RDAP Whois 摘要、无报价字段的求购意向表单（写入 leads 并触发通知渠道）和相关域名推荐。
 - 深浅色主题（跟随系统 + 手动切换，首帧无闪烁），oklch 语义设计令牌，等宽字体域名排版。
 - 后台真实登录、会话管理（含登录地）、改密、域名 CRUD、服务端排序、列显隐、批量管理、分类管理、求购线索、CSV 导入/导出，以及操作日志（筛选/导出/90 天自动清理）；域名 CSV 仅导出域名、注册日期、到期日期、注册商和后缀。
-- 自动分类使用独立多标签表，不覆盖人工分类；支持纯字母、纯数字、单拼、双拼、三拼及三到六数字，分类结果直接用于前台筛选。
+- 自动分类与人工分类分离，人工优先且可恢复自动；一级分类为数字、字母、拼音、英文、杂米、其他，并保留 `num3…num9`、`pinyin1…pinyin4`、`alpha3/alpha4`、`mixed2/mixed3` 等子类和置信度。
+- 公共列表与后台共享 D1；写操作由数据库触发器递增数据版本，已打开的前台每 8 秒检测版本并重新验证，刷新后立即读取最新数据。
 - 概览仪表盘：域名与展示统计、本站求购线索和 90 天到期列表；不展示任何售卖平台指标。
 - 注册商凭据 AES-GCM 加密，支持 Cloudflare、GoDaddy、NameSilo、Porkbun、DNSPod 和阿里云适配器。
 - DNS 远端成功后才更新 D1 缓存；支持 A、AAAA、CNAME、MX、TXT、NS、CAA、SRV，并明确报告服务商能力限制。
@@ -78,11 +81,35 @@ pnpm domains:validate
 pnpm domains:report
 pnpm domains:import:local
 pnpm domains:import:remote
-pnpm domains:verify
+pnpm domains:verify -- --remote
 pnpm verify:no-demo-data
 ```
 
-远程导入和部署所需 Token 只通过环境变量或 Wrangler Secret 提供，不得写入仓库。完整上线与轮换流程见部署文档。
+## 生产迁移与部署
+
+```bash
+pnpm db:backup
+pnpm domains:validate
+pnpm domains:import:remote -- --dry-run
+pnpm db:migrate:remote
+pnpm domains:import:remote -- --dry-run
+pnpm domains:import:remote
+pnpm domains:import:remote       # 幂等复验
+pnpm domains:verify -- --remote
+pnpm check
+pnpm wrangler deploy
+```
+
+备份写入已被 Git 忽略的 `backups/`。恢复前先停止写入并使用 `wrangler d1 execute wanmi-db --remote --file=<backup.sql>`；恢复后重新运行远程验证。生产验收需覆盖 `wanmi.org` 首页、详情页、`/admin` 直接刷新、桌面/手机布局、错误密码、登录、简介/精品/分类修改、最多 10 秒同步、清理测试值和退出登录。
+
+远程 API Token 只通过 `CLOUDFLARE_API_TOKEN`、`GH_TOKEN`/`GITHUB_TOKEN` 等环境变量或 Secret 注入；Worker 运行 Secret 使用 `wrangler secret put` 的标准输入或交互方式设置。真实值不得进入 README、`.env.example`、Wrangler 配置、构建产物或日志。Token 一旦出现在聊天、终端历史或提交中必须立即撤销并轮换；管理员已存在时不得通过重新部署重置密码。
+
+## 当前数据统计
+
+- CSV Premium 标记：87（只用于新增记录的初始值，管理员后续设置受保护）
+- 简介非空：0
+- 自动分类：字母 418、拼音 281、数字 107、杂米 43、其他 9、英文 1
+- 主要后缀：`.com` 194、`.org` 154、`.cn` 84、`.net` 83、`.xyz` 60、`.cc` 44、`.pm` 33、`.de` 28
 
 ## 目录
 

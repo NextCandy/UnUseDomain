@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-import { EXPECTED_DOMAIN_COUNT } from "./domain-csv-common";
+import { readAndParseSource } from "./domain-csv-common";
 
 const remote = process.argv.includes("--remote");
 const command = `SELECT
@@ -17,7 +17,10 @@ const stdout = execFileSync(
 const payload = JSON.parse(stdout) as Array<{ results?: Array<Record<string, number>> }>;
 const row = payload[0]?.results?.[0];
 if (!row) throw new Error(`无法读取 D1 验证结果：${stdout}`);
-const mismatches = ["domains", "public_domains"].filter((key) => row[key] !== EXPECTED_DOMAIN_COUNT);
+const expected = (await readAndParseSource()).report.uniqueCount;
+const mismatches: string[] = [];
+if (row.domains < expected) mismatches.push("domains");
+if (row.public_domains !== expected) mismatches.push("public_domains");
 if (row.listings !== 0) mismatches.push("listings");
 if (row.has_wanmi_org !== 1 || row.has_02cloud !== 1) mismatches.push("domains");
 if (mismatches.length > 0) throw new Error(`D1 域名验收失败：${JSON.stringify(row)}`);

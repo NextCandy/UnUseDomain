@@ -28,7 +28,7 @@ describe.sequential("WanMi API 集成", () => {
   beforeAll(async () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-api-"));
     const databasePath = path.join(directory, "wanmi.sqlite");
-    const [migration, source] = await Promise.all([readAllMigrations(), fs.readFile("data/source/domains-1783619533.csv", "utf8")]);
+    const [migration, source] = await Promise.all([readAllMigrations(), fs.readFile("data/source/WanMi.csv", "utf8")]);
     execFileSync("sqlite3", [databasePath], { input: migration });
     const records = parseDomainCsv(source).records;
     execFileSync("sqlite3", [databasePath], { input: statementsToSql(buildImportStatements(records, { importId: "api-import" })), maxBuffer: 50 * 1024 * 1024 });
@@ -66,15 +66,16 @@ describe.sequential("WanMi API 集成", () => {
     expect(setCookie).toContain("SameSite=Lax");
   });
 
-  it("公共 API 返回 662 且不泄露内部字段", async () => {
+  it("公共 API 返回真实数据且不泄露内部字段", async () => {
     const response = await request("/api/public/domains?pageSize=100&q=02cloud.com");
     const body = await response.json() as { data: { total: number; items: Array<Record<string, unknown>> } };
     expect(body.data.total).toBe(1);
     targetId = body.data.items[0].id as number;
     expect(body.data.items[0]).not.toHaveProperty("notes");
+    expect(body.data.items[0]).toHaveProperty("description", "");
     expect(body.data.items[0]).not.toHaveProperty("listing_status");
     const all = await (await request("/api/public/domains?pageSize=100")).json() as { data: { total: number } };
-    expect(all.data.total).toBe(662);
+    expect(all.data.total).toBe(859);
   });
 
   it("CSRF 缺失时拒绝写操作", async () => {
@@ -82,10 +83,10 @@ describe.sequential("WanMi API 集成", () => {
     expect(response.status).toBe(403);
   });
 
-  it("CSV API dry-run 完整解析 662 条", async () => {
-    const source = await fs.readFile("data/source/domains-1783619533.csv", "utf8");
+  it("CSV API dry-run 完整解析本次数据", async () => {
+    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
     const form = new FormData();
-    form.set("file", new File([source], "domains-1783619533.csv", { type: "text/csv" }));
+    form.set("file", new File([source], "WanMi.csv", { type: "text/csv" }));
     form.set("dryRun", "true");
     const response = await request("/api/admin/domains/import", {
       method: "POST",
@@ -94,7 +95,7 @@ describe.sequential("WanMi API 集成", () => {
     });
     const body = await response.json() as { data: { report: { parsedCount: number; uniqueCount: number; invalidCount: number } } };
     expect(response.status).toBe(200);
-    expect(body.data.report).toMatchObject({ parsedCount: 662, uniqueCount: 662, invalidCount: 0 });
+    expect(body.data.report).toMatchObject({ parsedCount: 859, uniqueCount: 859, invalidCount: 0 });
   });
 
   it("添加重复域名返回冲突", async () => {
@@ -109,9 +110,26 @@ describe.sequential("WanMi API 集成", () => {
   it("精品状态会影响默认排序", async () => {
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: true }) })).status).toBe(200);
-    const featured = await (await request("/api/public/domains?pageSize=10")).json() as { data: { items: Array<{ domain: string }> } };
-    expect(featured.data.items[0].domain).toBe("02cloud.com");
+    const featured = await (await request("/api/public/domains?pageSize=10")).json() as { data: { items: Array<{ domain: string; is_featured: boolean }> } };
+    expect(featured.data.items[0].is_featured).toBe(true);
+    const target = await (await request("/api/public/domains?q=02cloud.com")).json() as { data: { items: Array<{ is_featured: boolean }> } };
+    expect(target.data.items[0].is_featured).toBe(true);
+    for (const sort of ["domain_asc", "domain_desc", "added_desc", "length_asc"]) {
+      const sorted = await (await request(`/api/public/domains?pageSize=10&sort=${sort}`)).json() as { data: { items: Array<{ is_featured: boolean }> } };
+      expect(sorted.data.items[0].is_featured, `${sort} 仍应精品优先`).toBe(true);
+    }
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: false }) })).status).toBe(200);
+  });
+
+  it("管理员简介与精品修改会立即映射到公共 API 且可恢复", async () => {
+    const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
+    const changed = await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ description: "集成测试简介", isFeatured: true }) });
+    expect(changed.status).toBe(200);
+    const changedBody = await changed.json() as { data: { description: string; is_featured: number } };
+    expect(changedBody.data).toMatchObject({ description: "集成测试简介", is_featured: 1 });
+    const visible = await (await request("/api/public/domains?q=02cloud.com")).json() as { data: { items: Array<{ description: string; is_featured: boolean }> } };
+    expect(visible.data.items[0]).toMatchObject({ description: "集成测试简介", is_featured: true });
+    expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ description: "", isFeatured: false }) })).status).toBe(200);
   });
 
   it("DNS API 失败时不修改本地缓存", async () => {

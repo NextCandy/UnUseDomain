@@ -25,12 +25,18 @@ function csvRow(overrides: Partial<Record<DomainCsvHeader, string>> = {}): strin
 }
 
 describe("真实 CSV", () => {
-  it("完整解析 BOM 和 662 条记录", async () => {
-    const source = await fs.readFile("data/source/domains-1783619533.csv", "utf8");
+  it("完整解析本次中文表头 CSV", async () => {
+    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
     const result = parseDomainCsv(source);
-    expect(result.report).toMatchObject({ rawRecordCount: 662, parsedCount: 662, uniqueCount: 662, duplicateCount: 0, invalidCount: 0 });
-    expect(result.report.hiddenDistribution).toEqual({ N: 662 });
-    expect(result.report.listingStatusDistribution).toEqual({ Listed: 656, "Ownership Review": 3, "Failed Compliance": 3 });
+    expect(result.report).toMatchObject({ rawRecordCount: 859, parsedCount: 859, uniqueCount: 859, duplicateCount: 0, invalidCount: 0 });
+    expect(result.report.headers).toEqual(["域名", "注册日期", "到期日期", "注册商", "后缀", "简介", "Premium"]);
+    expect(result.records.filter((record) => record.initialFeatured)).toHaveLength(87);
+    expect(result.records.every((record) => record.initialDescription === "")).toBe(true);
+  });
+
+  it("按中文表头名称映射简介和精品，不依赖固定列序", () => {
+    const result = parseDomainCsv("Premium,简介,域名\r\nY,公开简介,wanmi.org\r\n");
+    expect(result.records[0]).toMatchObject({ normalizedDomain: "wanmi.org", initialDescription: "公开简介", initialFeatured: true });
   });
 });
 

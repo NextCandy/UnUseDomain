@@ -29,7 +29,7 @@ function localCredentials(): { email: string; password: string } {
 test.describe.serial("WanMi 生产流程", () => {
   test("前台读取 D1、搜索和后缀筛选", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("共 662 个域名")).toBeVisible();
+    await expect(page.getByText("共 859 个域名")).toBeVisible();
     const search = page.getByRole("textbox", { name: "搜索域名" });
     await search.fill("wanmi.org");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
@@ -41,7 +41,7 @@ test.describe.serial("WanMi 生产流程", () => {
     const orgOption = page.getByRole("option", { name: ".org", exact: true });
     await expect(orgOption).toBeAttached();
     await page.getByLabel("后缀筛选").selectOption("org");
-    await expect(page.getByText(/共 141 个域名/)).toBeVisible();
+    await expect(page.getByText(/共 154 个域名/)).toBeVisible();
   });
 
   test("管理员真实登录、隐藏与恢复域名、退出", async ({ page, context }) => {
@@ -51,7 +51,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByLabel("密码").fill(credentials.password);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "概览", exact: true })).toBeVisible();
-    await expect(page.getByText("662", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("874", { exact: true }).first()).toBeVisible();
 
     await page.getByRole("button", { name: /域名管理/ }).click();
     await page.getByPlaceholder("搜索完整域名").fill("02cloud.com");
@@ -76,5 +76,44 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
     await page.goto("/admin", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
+  });
+
+  test("简介与精品状态在前后台近实时同步并可恢复", async ({ page, context }) => {
+    const credentials = localCredentials();
+    await page.goto("/admin", { waitUntil: "domcontentloaded" });
+    await page.getByLabel("管理员邮箱").fill(credentials.email);
+    await page.getByLabel("密码").fill(credentials.password);
+    await page.getByRole("button", { name: "登录", exact: true }).click();
+    await page.getByRole("button", { name: /域名管理/ }).click();
+    await page.getByPlaceholder("搜索完整域名").fill("02cloud.com");
+    const row = page.getByRole("row").filter({ hasText: "02cloud.com" });
+    await expect(row).toBeVisible();
+    page.once("dialog", async (dialog) => dialog.accept("E2E 临时简介"));
+    await row.getByRole("button", { name: "编辑简介" }).click();
+    await expect(page.getByText("简介已保存")).toBeVisible();
+    const featuredSwitch = row.locator("button.switch").first();
+    const wasFeatured = (await featuredSwitch.getAttribute("class"))?.includes("on") ?? false;
+    if (!wasFeatured) await featuredSwitch.click();
+
+    const publicPage = await context.newPage();
+    await publicPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
+    await expect(publicPage.getByText("E2E 临时简介")).toBeVisible({ timeout: 10_000 });
+    await expect(publicPage.locator(".domain-card.featured")).toBeVisible();
+    await publicPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(publicPage.getByText("E2E 临时简介")).toBeVisible();
+
+    page.once("dialog", async (dialog) => dialog.accept(""));
+    await row.getByRole("button", { name: "编辑简介" }).click();
+    await expect(page.getByText("简介已清空")).toBeVisible();
+    if (!wasFeatured) await row.locator("button.switch").first().click();
+    await expect.poll(async () => publicPage.locator(".domain-description").textContent(), { timeout: 10_000 }).toBe("");
+    await publicPage.close();
+  });
+
+  test("手机端没有横向溢出", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+    expect(widths.scroll).toBeLessThanOrEqual(widths.client);
   });
 });

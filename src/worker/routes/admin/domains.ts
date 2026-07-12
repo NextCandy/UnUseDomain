@@ -43,7 +43,7 @@ function adminFilters(query: ReturnType<typeof adminDomainQuerySchema.parse>): {
     params.push(query.length);
   }
   if (query.category) {
-    clauses.push("d.category = ?");
+    clauses.push("COALESCE(NULLIF(d.category, ''), d.auto_category) = ?");
     params.push(query.category);
   }
   if (query.featured) {
@@ -71,7 +71,10 @@ function adminOrderBy(query: ReturnType<typeof adminDomainQuerySchema.parse>): s
   return "d.is_featured DESC, length(replace(d.name, '.', '')) ASC, d.normalized_domain ASC";
 }
 
-const DETAIL_SELECT = "SELECT d.* FROM domains d";
+const DETAIL_SELECT = `SELECT d.*,
+  COALESCE(NULLIF(d.category, ''), d.auto_category) AS effective_category,
+  CASE WHEN d.category IS NULL OR d.category = '' THEN 'auto' ELSE 'manual' END AS category_source
+  FROM domains d`;
 
 export const domainAdminRoutes = new Hono<AppBindings>();
 
@@ -282,6 +285,7 @@ domainAdminRoutes.patch("/:id", async (c) => {
     ["publicPriceCurrency", "public_price_currency", (value) => typeof value === "string" ? value.toUpperCase() : null],
     ["publicPriceApproved", "public_price_approved", (value) => (value ? 1 : 0)],
     ["notes", "notes", (value) => value as string | null],
+    ["description", "description", (value) => value as string],
   ];
   for (const [key, column, convert] of mapping) {
     if (parsed.data[key] !== undefined) {
@@ -291,20 +295,28 @@ domainAdminRoutes.patch("/:id", async (c) => {
   }
   if (fields.length === 0) return fail(c, 422, "NO_CHANGES", "没有可保存的修改");
   values.push(Number(c.req.param("id")));
+  const before = await c.env.DB.prepare("SELECT * FROM domains WHERE id = ?").bind(Number(c.req.param("id"))).first<Record<string, unknown>>();
+  if (!before) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
   const result = await c.env.DB.prepare(`UPDATE domains SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
     .bind(...values)
     .run();
   if (result.meta.changes === 0) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
   const user = c.get("authUser");
+  const changes = fields.map((field, index) => {
+    const column = field.slice(0, field.indexOf(" ="));
+    return { field: column, oldValue: before[column] ?? null, newValue: values[index] ?? null };
+  });
   await writeOperationLog(c.env.DB, {
     action: "domains.update",
     resourceType: "domain",
     resourceId: c.req.param("id"),
     message: "更新域名设置",
+    details: { domain: before.normalized_domain, changes },
     actorUserId: user.id,
     success: true,
   });
-  return ok(c, { changed: true });
+  const updated = await c.env.DB.prepare(`${DETAIL_SELECT} WHERE d.id = ?`).bind(Number(c.req.param("id"))).first();
+  return ok(c, updated);
 });
 
 domainAdminRoutes.delete("/:id", async (c) => {

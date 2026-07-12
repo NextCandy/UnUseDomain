@@ -127,6 +127,7 @@ export function DomainDetailPage({ name }: { name: string }) {
               {domain.is_featured && <span className="chip" style={{ background: "color-mix(in oklab, var(--premium) 18%, transparent)", borderColor: "color-mix(in oklab, var(--premium) 45%, transparent)", color: "var(--premium-fg)" }}>精品</span>}
               {domain.category && <span className="chip">{domain.category}</span>}
             </div>
+            {domain.description && <p className="detail-description">{domain.description}</p>}
             <div className="detail-grid">
               <div className="admin-stack">
                 <section className="detail-panel">

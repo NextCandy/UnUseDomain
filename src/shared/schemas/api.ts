@@ -84,6 +84,7 @@ export const domainInputSchema = z.object({
   publicPriceCurrency: z.string().trim().min(3).max(3).nullable().optional(),
   publicPriceApproved: z.boolean().optional(),
   notes: z.string().trim().max(4000).nullable().optional(),
+  description: z.string().max(500).optional(),
 });
 
 export const domainPatchSchema = domainInputSchema.partial().omit({ fullDomain: true, tld: true });

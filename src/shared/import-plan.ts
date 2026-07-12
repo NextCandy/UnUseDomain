@@ -1,4 +1,5 @@
 import type { ParsedDomainRecord } from "./types/domain";
+import { classifyDomain } from "./auto-classify";
 
 export interface SqlStatement {
   sql: string;
@@ -19,12 +20,18 @@ const STAGING_COLUMNS = [
   "is_listed",
   "source_file",
   "raw_metadata_json",
+  "description",
+  "is_featured",
+  "auto_category",
+  "auto_subcategory",
+  "auto_category_confidence",
 ] as const;
 
 function recordParams(
   importId: string,
   record: ParsedDomainRecord,
 ): Array<string | number | null> {
+  const classification = classifyDomain(record.name);
   return [
     importId,
     record.rowNumber,
@@ -35,6 +42,11 @@ function recordParams(
     1,
     "domain-list",
     "{}",
+    record.initialDescription,
+    record.initialFeatured ? 1 : 0,
+    classification.primary,
+    classification.subtype,
+    classification.confidence,
   ];
 }
 
@@ -64,16 +76,29 @@ export function buildImportStatements(
     },
     {
       sql: `INSERT INTO domains (
-          full_domain, normalized_domain, name, tld, is_listed, source, source_imported_at
+          full_domain, normalized_domain, name, tld, is_listed, source, source_imported_at, description, is_featured,
+          auto_category, auto_subcategory, auto_category_confidence
         )
-        SELECT full_domain, normalized_domain, name, tld, 1, 'domain-list', NULL
+        SELECT full_domain, normalized_domain, name, tld, 1, 'domain-list', NULL, description, is_featured,
+          auto_category, auto_subcategory, auto_category_confidence
         FROM domain_import_staging WHERE import_id = ?
         ON CONFLICT(normalized_domain) DO UPDATE SET
           full_domain = excluded.full_domain,
           name = excluded.name,
           tld = excluded.tld,
           source = excluded.source,
+          auto_category = excluded.auto_category,
+          auto_subcategory = excluded.auto_subcategory,
+          auto_category_confidence = excluded.auto_category_confidence,
           updated_at = CURRENT_TIMESTAMP`,
+      params: [options.importId],
+    },
+    {
+      sql: `UPDATE domains SET is_listed = 0, updated_at = CURRENT_TIMESTAMP
+        WHERE source = 'domain-list'
+          AND normalized_domain NOT IN (
+            SELECT normalized_domain FROM domain_import_staging WHERE import_id = ?
+          )`,
       params: [options.importId],
     },
     {

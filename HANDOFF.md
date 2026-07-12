@@ -2,7 +2,7 @@
 
 ## 当前任务
 
-将 Claude Design 导出的 DS 原型重构为可部署到 Cloudflare Workers 的 WanMi 全栈域名展示与管理系统，导入用户提供的 662 个真实域名。
+将 Claude Design 导出的 DS 原型重构为可部署到 Cloudflare Workers 的 WanMi 全栈域名展示与管理系统，导入用户提供的 859 个真实域名。
 
 ## 原仓库问题
 
@@ -12,7 +12,7 @@
 
 - 单 Worker 的 React + Vite + Hono + D1 + R2 + Cron 架构。
 - 真实 PBKDF2 管理员登录、HMAC 会话/CSRF、限流、改密和会话撤销。
-- D1 完整 schema、24 列 CSV 解析、662 条本地导入和幂等验证。
+- D1 完整 schema、24 列 CSV 解析、859 条本地导入和幂等验证。
 - 中文前台搜索/筛选/分页/复制/联系和中文后台管理。
 - 域名 CRUD、批量操作、原子导入、真实 CSV 导出、错误行下载。
 - 六家注册商适配器、AES-GCM 凭据、真实 DNS 读写和逐项批量结果。
@@ -21,9 +21,9 @@
 
 ## CSV 导入统计
 
-源：`data/source/domains-1783619533.csv`
+源：`data/source/WanMi.csv`
 
-原始 662、解析 662、唯一 662、重复 0、无效 0、D1 域名 662、售卖平台记录 0、公开展示 662。导入仅使用域名和后缀。
+原始 859、解析 859、唯一 859、重复 0、无效 0；本地 D1 总记录 874（含 15 条归档历史记录）、售卖平台记录 0、公开展示 859。
 
 ## D1 表
 
@@ -33,21 +33,21 @@
 
 Worker `wanmi`，D1 `wanmi-db`（绑定 `DB`），R2 `wanmi-assets`（绑定 `UPLOADS`），Static Assets `ASSETS`，Cron `0 1 * * *`。本地和远程 migration、导入均已完成。
 
-生产 URL：<https://wanmi.1n.workers.dev>
+生产 URL：<https://wanmi.org>
 
-远程 D1 已连续执行两次幂等导入，最终为域名 662、市场记录 662、公开展示 662；R2 Bucket 位于 APAC，Worker Secret 已通过 Wrangler 安全上传。生产浏览器和 API 冒烟均通过。
+本次生产迁移、导入和部署状态以当前任务最终报告为准；R2 Bucket 保持 `wanmi-assets`，不创建重复资源。
 
 ## 测试结果
 
 - `pnpm typecheck`：通过。
 - `pnpm lint`：通过。
-- `pnpm test`：6 文件、29 项通过；覆盖 CSV API dry-run、重复域名、精品排序和 DNS 失败不改缓存。
-- `pnpm test:e2e`：Chromium 2 项通过；隐藏的真实域名已恢复。
+- `pnpm test`：7 文件、36 项通过；覆盖 CSV、管理员字段保护、精品排序、分类和 DNS 失败不改缓存。
+- `pnpm test:e2e`：Chromium 4 项通过；覆盖简介/精品同步恢复和手机端无横向溢出。
 - `pnpm build`：通过；构建 Secret 安全扫描通过。
-- `pnpm domains:verify`：662/662/662 通过；重复导入仍为 662。
-- `pnpm verify:no-demo-data`：62 个生产文件通过。
-- 生产 API：错误密码 401、真实登录、后台 662、隐藏/恢复、退出及旧会话 401 全部通过。
-- 生产浏览器：前台 662、搜索 `wanmi.org`、`/admin` 刷新、登录、概览和退出通过。
+- `pnpm domains:verify`：本地总记录 874、公开展示 859；重复导入公开数量不增加。
+- `pnpm verify:no-demo-data`：74 个生产文件通过。
+- 生产 API：错误密码 401、真实登录、后台 859、隐藏/恢复、退出及旧会话 401 全部通过。
+- 生产浏览器：前台 859、搜索 `wanmi.org`、`/admin` 刷新、登录、概览和退出通过。
 
 ## Git
 
@@ -57,7 +57,7 @@ Worker `wanmi`，D1 `wanmi-db`（绑定 `DB`），R2 `wanmi-assets`（绑定 `UP
 
 - `89179b1` `chore: initialize WanMi Cloudflare workspace`
 - `7cf7e43` `feat: add D1 schema and secure admin authentication`
-- `615c160` `feat: import all 662 domains into D1`
+- `615c160` `feat: import all 859 domains into D1`
 - `b47b0e3` `feat: build D1-backed public domain catalog`
 - `6ccda59` `feat: add admin CRUD settings and notifications`
 - `a5c3aec` `feat: add registrar sync and real DNS adapters`

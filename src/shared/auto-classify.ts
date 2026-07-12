@@ -4,6 +4,20 @@ export const AUTO_CATEGORY_ORDER = [
 
 export type AutoCategory = (typeof AUTO_CATEGORY_ORDER)[number];
 
+export type PrimaryCategory = "数字" | "字母" | "拼音" | "英文" | "杂米" | "其他";
+export interface DomainClassification {
+  primary: PrimaryCategory;
+  subtype: string;
+  confidence: number;
+}
+
+const ENGLISH_WORDS = new Set([
+  "apple", "best", "book", "business", "buy", "car", "cat", "cloud", "code", "coin", "data",
+  "design", "digital", "dog", "domain", "fast", "finance", "game", "green", "home", "host", "house",
+  "life", "link", "love", "market", "media", "money", "music", "news", "online", "shop", "smart",
+  "space", "store", "studio", "tech", "travel", "video", "web", "world",
+]);
+
 // 不含声调的汉语拼音音节。分类取最少音节拆分，避免把一个完整音节拆成多个短音节。
 const PINYIN = new Set(`
 a ai an ang ao ba bai ban bang bao bei ben beng bi bian biao bie bin bing bo bu
@@ -61,4 +75,27 @@ export function classifyDomainName(rawName: string): AutoCategory[] {
     if (category) categories.push(category);
   }
   return categories;
+}
+
+export function classifyDomain(rawName: string): DomainClassification {
+  const name = rawName.trim().toLowerCase();
+  if (!name || name.startsWith("xn--") || name.includes(".")) return { primary: "其他", subtype: "other", confidence: 1 };
+  if (/^\d+$/.test(name)) {
+    const subtype = name.length >= 3 && name.length <= 9 ? `num${name.length}` : "num";
+    return { primary: "数字", subtype, confidence: 1 };
+  }
+  if (/^[a-z]+$/.test(name)) {
+    if (ENGLISH_WORDS.has(name)) return { primary: "英文", subtype: "english", confidence: 1 };
+    const syllables = pinyinSyllableCount(name);
+    // 单音节至少 2 字符；四音节以上只接受最多四拼，避免无限拆分造成误判。
+    if (syllables && syllables <= 4 && !(syllables === 1 && name.length === 1)) {
+      return { primary: "拼音", subtype: `pinyin${syllables}`, confidence: syllables === 1 ? 0.82 : 0.9 };
+    }
+    return { primary: "字母", subtype: name.length === 3 ? "alpha3" : name.length === 4 ? "alpha4" : "alpha", confidence: 0.9 };
+  }
+  if (/^[a-z0-9-]+$/.test(name)) {
+    const kinds = [/[a-z]/.test(name), /\d/.test(name), /-/.test(name)].filter(Boolean).length;
+    return { primary: "杂米", subtype: kinds >= 3 ? "mixed3" : kinds === 2 ? "mixed2" : "mixed", confidence: 1 };
+  }
+  return { primary: "其他", subtype: "other", confidence: 1 };
 }

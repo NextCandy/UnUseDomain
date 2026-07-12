@@ -31,6 +31,12 @@ interface AdminDomain {
   is_featured: number;
   is_listed: number;
   notes: string | null;
+  description: string;
+  auto_category: string;
+  auto_subcategory: string;
+  auto_category_confidence: number;
+  effective_category: string;
+  category_source: "auto" | "manual";
 }
 
 interface AdminDomainPage {
@@ -112,8 +118,8 @@ function OverviewView({ onTldClick }: { onTldClick: (tld: string) => void }) {
 }
 
 type DomainOrderBy = "domain";
-const OPTIONAL_COLUMNS: Array<[string, string]> = [["category", "人工分类"]];
-const DEFAULT_COLUMNS = ["category"];
+const OPTIONAL_COLUMNS: Array<[string, string]> = [["description", "简介"], ["category", "人工分类"]];
+const DEFAULT_COLUMNS = ["description", "category"];
 
 function loadColumns(): Set<string> {
   try {
@@ -129,6 +135,8 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
   const [data, setData] = useState<AdminDomainPage | null>(null);
   const [q, setQ] = useState("");
   const [listed, setListed] = useState("");
+  const [featured, setFeatured] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [tld, setTld] = useState(presetTld ?? "");
   const [page, setPage] = useState(1);
   const [orderBy, setOrderBy] = useState<DomainOrderBy | null>(null);
@@ -143,6 +151,8 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
     const params = new URLSearchParams({ page: String(page), pageSize: "50" });
     if (q) params.set("q", q);
     if (listed) params.set("listed", listed);
+    if (featured) params.set("featured", featured);
+    if (categoryFilter) params.set("category", categoryFilter);
     if (tld) params.set("tld", tld);
     if (orderBy) { params.set("orderBy", orderBy); params.set("dir", dir); }
     setLoading(true);
@@ -150,7 +160,7 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       .then(setData)
       .catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "域名加载失败", "error"))
       .finally(() => setLoading(false));
-  }, [dir, listed, notify, orderBy, page, q, tld]);
+  }, [categoryFilter, dir, featured, listed, notify, orderBy, page, q, tld]);
   useEffect(load, [load, refresh]);
   useEffect(() => { api<CategoryRow[]>("/api/admin/categories").then(setCategories).catch(() => setCategories([])); }, [refresh]);
 
@@ -189,6 +199,13 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       notify(message);
       setRefresh((value) => value + 1);
     } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); }
+  }
+
+  async function editDescription(domain: AdminDomain) {
+    const value = window.prompt(`编辑 ${domain.full_domain} 的公开简介（最多 500 字，可留空）`, domain.description);
+    if (value === null) return;
+    if (value.length > 500) { notify("简介不能超过 500 个字符", "error"); return; }
+    await patch(domain.id, { description: value }, value ? "简介已保存" : "简介已清空");
   }
 
   async function bulk(action: string) {
@@ -266,6 +283,8 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
     <div className="admin-toolbar">
       <input value={q} onChange={(event) => { setQ(event.target.value); setPage(1); }} placeholder="搜索完整域名" />
       <select value={listed} onChange={(event) => { setListed(event.target.value); setPage(1); }}><option value="">全部展示状态</option><option value="true">前台展示</option><option value="false">已隐藏</option></select>
+      <select value={featured} onChange={(event) => { setFeatured(event.target.value); setPage(1); }}><option value="">全部精品状态</option><option value="true">精品</option><option value="false">非精品</option></select>
+      <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部分类</option>{["数字", "字母", "拼音", "英文", "杂米", "其他"].map((item) => <option key={item}>{item}</option>)}</select>
       {tld && <button className="table-link" onClick={() => { setTld(""); setPage(1); }}>后缀 .{tld} ×</button>}
       <details className="column-picker"><summary>列显示 ▾</summary><div>{OPTIONAL_COLUMNS.map(([key, label]) => <label key={key}><input type="checkbox" checked={columns.has(key)} onChange={() => toggleColumn(key)} />{label}</label>)}</div></details>
       <span>{loading ? "读取中…" : `共 ${data?.total ?? 0} 个`}</span>
@@ -274,13 +293,15 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
     <div className="admin-table-wrap"><table className="admin-table"><thead><tr>
       <th><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(data?.items.map((domain) => domain.id)))} aria-label="全选当前页" /></th>
       <th className="sortable" onClick={() => toggleSort("domain")}>域名{arrow("domain")}</th>
+      {has("description") && <th>简介</th>}
       {has("category") && <th>分类</th>}
       <th>精品</th><th>前台展示</th><th>操作</th>
     </tr></thead><tbody>{data?.items.map((domain) => <tr key={domain.id}>
       <td><input type="checkbox" checked={selected.has(domain.id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(domain.id)) next.delete(domain.id); else next.add(domain.id); return next; })} /></td>
       <td><strong>{domain.full_domain}</strong><small>.{domain.tld}</small></td>
-      {has("category") && <td><select className="table-link" value={domain.category && categories.some((item) => item.name === domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
-        <option value="">未分类</option>
+      {has("description") && <td className="description-cell"><span>{domain.description}</span><button className="table-link" onClick={() => void editDescription(domain)}>编辑简介</button></td>}
+      {has("category") && <td><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && categories.some((item) => item.name === domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
+        <option value="">恢复自动（{domain.auto_category}）</option>
         {domain.category && !categories.some((item) => item.name === domain.category) && <option value={domain.category}>{domain.category}</option>}
         {categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
         <option value="__new__">＋ 新建分类…</option>
