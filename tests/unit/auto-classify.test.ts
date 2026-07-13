@@ -4,9 +4,9 @@ import { classifyDomain, classifyDomainName, pinyinSyllableCount } from "../../s
 
 describe("域名自动分类", () => {
   it("识别纯字母与拼音音节", () => {
-    expect(classifyDomainName("wan")).toEqual(["纯字母", "单拼"]);
-    expect(classifyDomainName("wanmi")).toEqual(["纯字母", "双拼"]);
-    expect(classifyDomainName("wanmijia")).toEqual(["纯字母", "三拼"]);
+    expect(classifyDomainName("wan")).toEqual(["纯字母", "拼音", "单拼"]);
+    expect(classifyDomainName("wanmi")).toEqual(["纯字母", "拼音", "双拼"]);
+    expect(classifyDomainName("wanmijia")).toEqual(["纯字母", "拼音", "三拼"]);
     expect(pinyinSyllableCount("xyz")).toBeNull();
   });
 
@@ -23,6 +23,14 @@ describe("域名自动分类", () => {
     expect(classifyDomainName("888")).toEqual(["纯数字", "三数字"]);
     expect(classifyDomainName("123456")).toEqual(["纯数字", "六数字"]);
     expect(classifyDomainName("88")).toEqual(["纯数字"]);
-    expect(classifyDomainName("8a8")).toEqual([]);
+    expect(classifyDomainName("8a8")).toEqual(["杂米", "二杂"]);
+    expect(classifyDomainName("123456789")).toEqual(["纯数字", "九数字"]);
+  });
+
+  it("覆盖 dog.do 的四拼、字母与杂米子类", () => {
+    expect(classifyDomainName("wanmijiale")).toEqual(["纯字母", "拼音", "四拼"]);
+    expect(classifyDomainName("xyz")).toEqual(["纯字母", "三字母"]);
+    expect(classifyDomainName("a8")).toEqual(["杂米", "二杂"]);
+    expect(classifyDomainName("a8-b")).toEqual(["杂米", "三杂"]);
   });
 });

@@ -9,9 +9,11 @@ const command = `SELECT
   (SELECT COUNT(*) FROM domains WHERE is_listed = 1) AS public_domains,
   (SELECT COUNT(*) FROM domains WHERE normalized_domain = 'wanmi.org') AS has_wanmi_org,
   (SELECT COUNT(*) FROM domains WHERE normalized_domain = '02cloud.com') AS has_02cloud;`;
+const pnpmEntrypoint = process.env.npm_execpath;
+if (!pnpmEntrypoint) throw new Error("无法定位当前 pnpm 入口，请通过 pnpm domains:verify 运行此脚本");
 const stdout = execFileSync(
-  "pnpm",
-  ["exec", "wrangler", "d1", "execute", "wanmi-db", remote ? "--remote" : "--local", "--json", "--command", command],
+  process.execPath,
+  [pnpmEntrypoint, "exec", "wrangler", "d1", "execute", "wanmi-db", remote ? "--remote" : "--local", "--json", "--command", command.replace(/\s+/g, " ").trim()],
   { encoding: "utf8" },
 );
 const payload = JSON.parse(stdout) as Array<{ results?: Array<Record<string, number>> }>;

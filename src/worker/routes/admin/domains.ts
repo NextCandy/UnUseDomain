@@ -99,6 +99,14 @@ domainAdminRoutes.get("/", async (c) => {
   });
 });
 
+domainAdminRoutes.get("/filters", async (c) => {
+  const [tlds, categories] = await c.env.DB.batch([
+    c.env.DB.prepare("SELECT tld, COUNT(*) AS count FROM domains WHERE tld != '' GROUP BY tld ORDER BY count DESC, tld ASC"),
+    c.env.DB.prepare("SELECT auto_category AS name, COUNT(*) AS count FROM domains GROUP BY auto_category ORDER BY count DESC, auto_category ASC"),
+  ]);
+  return ok(c, { tlds: tlds.results, categories: categories.results });
+});
+
 domainAdminRoutes.post("/", async (c) => {
   const parsed = domainInputSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return fail(c, 422, "INVALID_DOMAIN", "域名数据无效", parsed.error.issues);

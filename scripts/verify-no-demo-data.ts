@@ -25,7 +25,7 @@ function filesIn(directory: string): string[] {
 const files = [
   ...roots.flatMap(filesIn),
   ...rootFiles.filter((file) => fs.existsSync(file)),
-].filter((file) => extensions.has(path.extname(file)) && file !== "scripts/verify-no-demo-data.ts");
+].filter((file) => extensions.has(path.extname(file)) && file.replaceAll("\\", "/") !== "scripts/verify-no-demo-data.ts");
 const findings: string[] = [];
 for (const file of files) {
   const content = fs.readFileSync(file, "utf8").toLowerCase();
@@ -39,9 +39,11 @@ if (findings.length > 0) throw new Error(`发现演示数据或旧品牌：\n${f
 if (process.env.VERIFY_D1 === "1") {
   const remote = process.env.VERIFY_REMOTE_D1 === "1";
   const list = forbiddenDomains.map((domain) => `'${domain}'`).join(",");
+  const pnpmEntrypoint = process.env.npm_execpath;
+  if (!pnpmEntrypoint) throw new Error("无法定位当前 pnpm 入口，请通过 pnpm verify:no-demo-data 运行此脚本");
   const output = execFileSync(
-    "pnpm",
-    ["exec", "wrangler", "d1", "execute", "wanmi-db", remote ? "--remote" : "--local", "--json", "--command", `SELECT COUNT(*) AS count FROM domains WHERE normalized_domain IN (${list})`],
+    process.execPath,
+    [pnpmEntrypoint, "exec", "wrangler", "d1", "execute", "wanmi-db", remote ? "--remote" : "--local", "--json", "--command", `SELECT COUNT(*) AS count FROM domains WHERE normalized_domain IN (${list})`],
     { encoding: "utf8" },
   );
   const payload = JSON.parse(output) as Array<{ results?: Array<{ count: number }> }>;

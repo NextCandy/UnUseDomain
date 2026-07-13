@@ -152,6 +152,14 @@ describe.sequential("WanMi API 集成", () => {
     expect(((await (await request("/api/public/domains?q=02cloud.com")).json()) as { data: { total: number } }).data.total).toBe(1);
   });
 
+  it("后台域名筛选接口返回真实后缀与自动分类统计", async () => {
+    const response = await request("/api/admin/domains/filters", { headers: { Cookie: cookie } });
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { tlds: Array<{ tld: string; count: number }>; categories: Array<{ name: string; count: number }> } };
+    expect(body.data.tlds.find((item) => item.tld === "com")?.count).toBeGreaterThan(0);
+    expect(body.data.categories.some((item) => ["数字", "字母", "拼音", "英文", "杂米", "其他"].includes(item.name))).toBe(true);
+  });
+
   it("退出后旧会话失效", async () => {
     const response = await request("/api/auth/logout", { method: "POST", headers: { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf } });
     expect(response.status).toBe(200);

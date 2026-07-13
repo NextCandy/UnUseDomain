@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Toast, type ToastMessage } from "../../components/Toast";
@@ -130,6 +130,7 @@ function loadColumns(): Set<string> {
 }
 
 interface CategoryRow { id: number; name: string; domain_count: number; is_auto?: number }
+interface DomainFilterOptions { tlds: Array<{ tld: string; count: number }>; categories: Array<{ name: string; count: number }> }
 
 function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "success" | "error") => void; presetTld?: string }) {
   const [data, setData] = useState<AdminDomainPage | null>(null);
@@ -143,9 +144,12 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
   const [dir, setDir] = useState<"asc" | "desc">("asc");
   const [columns, setColumns] = useState<Set<string>>(loadColumns);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [filterOptions, setFilterOptions] = useState<DomainFilterOptions>({ tlds: [], categories: [] });
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const manualCategories = useMemo(() => categories.filter((item) => !item.is_auto), [categories]);
+  const manualCategoryNames = useMemo(() => new Set(manualCategories.map((item) => item.name)), [manualCategories]);
 
   const load = useCallback(() => {
     const params = new URLSearchParams({ page: String(page), pageSize: "50" });
@@ -162,7 +166,10 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       .finally(() => setLoading(false));
   }, [categoryFilter, dir, featured, listed, notify, orderBy, page, q, tld]);
   useEffect(load, [load, refresh]);
-  useEffect(() => { api<CategoryRow[]>("/api/admin/categories").then(setCategories).catch(() => setCategories([])); }, [refresh]);
+  useEffect(() => {
+    api<CategoryRow[]>("/api/admin/categories").then(setCategories).catch(() => setCategories([]));
+    api<DomainFilterOptions>("/api/admin/domains/filters").then(setFilterOptions).catch(() => setFilterOptions({ tlds: [], categories: [] }));
+  }, [refresh]);
 
   function toggleColumn(key: string) {
     setColumns((current) => {
@@ -284,8 +291,8 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       <input value={q} onChange={(event) => { setQ(event.target.value); setPage(1); }} placeholder="搜索完整域名" />
       <select value={listed} onChange={(event) => { setListed(event.target.value); setPage(1); }}><option value="">全部展示状态</option><option value="true">前台展示</option><option value="false">已隐藏</option></select>
       <select value={featured} onChange={(event) => { setFeatured(event.target.value); setPage(1); }}><option value="">全部精品状态</option><option value="true">精品</option><option value="false">非精品</option></select>
-      <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }}><option value="">全部分类</option>{["数字", "字母", "拼音", "英文", "杂米", "其他"].map((item) => <option key={item}>{item}</option>)}</select>
-      {tld && <button className="table-link" onClick={() => { setTld(""); setPage(1); }}>后缀 .{tld} ×</button>}
+      <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }} aria-label="分类筛选"><option value="">全部分类</option>{filterOptions.categories.map((item) => <option key={item.name} value={item.name}>{item.name}（{item.count}）</option>)}</select>
+      <select value={tld} onChange={(event) => { setTld(event.target.value); setPage(1); }} aria-label="后缀筛选"><option value="">全部后缀</option>{filterOptions.tlds.map((item) => <option key={item.tld} value={item.tld}>.{item.tld}（{item.count}）</option>)}</select>
       <details className="column-picker"><summary>列显示 ▾</summary><div>{OPTIONAL_COLUMNS.map(([key, label]) => <label key={key}><input type="checkbox" checked={columns.has(key)} onChange={() => toggleColumn(key)} />{label}</label>)}</div></details>
       <span>{loading ? "读取中…" : `共 ${data?.total ?? 0} 个`}</span>
     </div>
@@ -300,10 +307,10 @@ function DomainsView({ notify, presetTld }: { notify: (text: string, tone?: "suc
       <td data-label="选择"><input type="checkbox" checked={selected.has(domain.id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(domain.id)) next.delete(domain.id); else next.add(domain.id); return next; })} /></td>
       <td data-label="域名"><strong>{domain.full_domain}</strong><small>.{domain.tld}</small></td>
       {has("description") && <td data-label="简介" className="description-cell"><span>{domain.description}</span><button className="table-link" onClick={() => void editDescription(domain)}>编辑简介</button></td>}
-      {has("category") && <td data-label="分类"><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && categories.some((item) => item.name === domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
+      {has("category") && <td data-label="分类"><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && manualCategoryNames.has(domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
         <option value="">恢复自动（{domain.auto_category}）</option>
-        {domain.category && !categories.some((item) => item.name === domain.category) && <option value={domain.category}>{domain.category}</option>}
-        {categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
+        {domain.category && !manualCategoryNames.has(domain.category) && <option value={domain.category}>{domain.category}</option>}
+        {manualCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
         <option value="__new__">＋ 新建分类…</option>
       </select></td>}
       <td data-label="精品"><button className={`switch ${domain.is_featured ? "on gold" : ""}`} aria-label={`${domain.full_domain} 精品状态`} onClick={() => void patch(domain.id, { isFeatured: !domain.is_featured }, domain.is_featured ? "已取消精品" : "已设为精品")}><i /></button></td>
@@ -340,10 +347,14 @@ function CategoriesView({ notify }: { notify: (text: string, tone?: "success" | 
     } catch (reason) { notify(reason instanceof Error ? reason.message : "自动分类失败", "error"); }
     finally { setClassifying(false); }
   }
-  return <Panel title="分类管理" description="自动分类支持多标签，不会覆盖现有人工分类" actions={<button className="primary-button" disabled={classifying} onClick={() => void autoClassify()}>{classifying ? "正在分类…" : "一键自动分类"}</button>}>
-    <div className="tag-grid">{categories.length ? categories.map((category) => <span className={`tag-pill${category.is_auto ? " tag-auto" : ""}`} key={category.id}>{category.name}<em>{category.domain_count}</em>{category.is_auto ? <small>自动</small> : <button onClick={() => void remove(category)} title={`删除 ${category.name}`}>×</button>}</span>) : <div className="empty-inline">还没有分类，先创建或执行自动分类。</div>}</div>
+  const automatic = categories.filter((category) => category.is_auto);
+  const manual = categories.filter((category) => !category.is_auto);
+  return <div className="admin-stack"><Panel title="自动分类" description="与 dog.do 采用相同口径；自动标签只读，不会覆盖人工分类" actions={<button className="primary-button" disabled={classifying} onClick={() => void autoClassify()}>{classifying ? "正在分类…" : "重新自动分类"}</button>}>
+    <div className="tag-grid">{automatic.map((category) => <span className="tag-pill tag-auto" key={category.id}>{category.name}<em>{category.domain_count}</em><small>自动</small></span>)}</div>
+  </Panel><Panel title="人工分类" description="仅显示管理员创建的分类，避免与自动标签混在同一列表">
+    <div className="tag-grid">{manual.length ? manual.map((category) => <span className="tag-pill" key={category.id}>{category.name}<em>{category.domain_count}</em><button onClick={() => void remove(category)} title={`删除 ${category.name}`}>×</button></span>) : <div className="empty-inline">还没有人工分类。</div>}</div>
     <form className="tag-form" onSubmit={(event) => void add(event)}><input value={name} onChange={(event) => setName(event.target.value)} placeholder="新分类名称" maxLength={80} required /><button className="primary-button">新建分类</button></form>
-  </Panel>;
+  </Panel></div>;
 }
 
 interface LeadRow { id: number; full_domain: string; contact: string; message: string | null; country: string | null; status: "new" | "read" | "archived"; created_at: string }
@@ -387,6 +398,9 @@ const providerFields: Record<string, Array<[string, string]>> = {
   porkbun: [["apiKey", "API Key"], ["secretApiKey", "Secret API Key"]],
   dnspod: [["secretId", "Secret ID"], ["secretKey", "Secret Key"]],
   aliyun: [["accessKeyId", "AccessKey ID"], ["accessKeySecret", "AccessKey Secret"]],
+  spaceship: [["apiKey", "API Key"], ["apiSecret", "API Secret"]],
+  namecheap: [["username", "用户名"], ["apiKey", "API Key"], ["clientIp", "API 白名单公网 IP"]],
+  dynadot: [["apiKey", "API Key"], ["apiSecret", "API Secret"]],
 };
 
 function RegistrarsView({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
@@ -394,7 +408,7 @@ function RegistrarsView({ notify }: { notify: (text: string, tone?: "success" | 
   const load = useCallback(() => { api<RegistrarAccount[]>("/api/admin/registrars").then(setAccounts).catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "账户加载失败", "error")); }, [notify]); useEffect(load, [load]);
   async function add(event: FormEvent) { event.preventDefault(); try { await api("/api/admin/registrars", { method: "POST", body: JSON.stringify({ provider, displayName, credentials }) }); setDisplayName(""); setCredentials({}); notify("注册商账户已加密保存，请执行连接测试"); load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "添加失败", "error"); } }
   async function action(id: number, type: "test" | "sync") { try { const result = await api<Record<string, unknown>>(`/api/admin/registrars/${id}/${type}`, { method: "POST" }); notify(type === "test" ? "真实连接测试通过" : `真实同步完成：${JSON.stringify(result)}`); load(); } catch (reason) { notify(reason instanceof Error ? reason.message : `${type} 失败`, "error"); load(); } }
-  return <div className="admin-stack"><Panel title="注册商账户" description="凭据使用 AES-GCM 加密；测试和同步会调用真实官方 API"><div className="registrar-grid">{accounts.length ? accounts.map((account) => <div className="registrar-card" key={account.id}><div><span className={`provider-logo provider-${account.provider}`}>{account.provider.slice(0, 2).toUpperCase()}</span><div><strong>{account.display_name}</strong><small>{account.provider}</small></div><em className={`account-status status-${account.status}`}>{account.status}</em></div><p>{account.last_error || (account.last_synced_at ? `上次同步 ${new Date(account.last_synced_at).toLocaleString("zh-CN")}` : "尚未同步")}</p><div><button onClick={() => void action(account.id, "test")}>测试连接</button><button onClick={() => void action(account.id, "sync")}>立即同步</button><button className="danger-text" onClick={() => { if (window.confirm("确认删除该注册商账户？")) void api(`/api/admin/registrars/${account.id}`, { method: "DELETE" }).then(() => { notify("账户已删除"); load(); }); }}>删除</button></div></div>) : <div className="state-panel small-state">尚未添加真实注册商账户</div>}</div></Panel><Panel title="添加账户" description="请使用最小权限 API 凭据；保存后不会回显完整密钥"><form className="registrar-form" onSubmit={(event) => void add(event)}><label>服务商<select value={provider} onChange={(event) => { setProvider(event.target.value); setCredentials({}); }}><option value="cloudflare">Cloudflare</option><option value="godaddy">GoDaddy</option><option value="namesilo">NameSilo</option><option value="porkbun">Porkbun</option><option value="dnspod">DNSPod</option><option value="aliyun">阿里云</option></select></label><label>显示名称<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required /></label>{providerFields[provider].map(([key, label]) => <label key={key}>{label}<input type={key.toLowerCase().includes("secret") || key.toLowerCase().includes("token") || key === "apiKey" ? "password" : "text"} value={credentials[key] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [key]: event.target.value }))} required={!label.includes("可选")} autoComplete="off" /></label>)}<button className="primary-button">加密保存</button></form></Panel></div>;
+  return <div className="admin-stack"><Panel title="注册商账户" description="凭据使用 AES-GCM 加密；测试和同步会调用真实官方 API"><div className="registrar-grid">{accounts.length ? accounts.map((account) => <div className="registrar-card" key={account.id}><div><span className={`provider-logo provider-${account.provider}`}>{account.provider.slice(0, 2).toUpperCase()}</span><div><strong>{account.display_name}</strong><small>{account.provider}</small></div><em className={`account-status status-${account.status}`}>{account.status}</em></div><p>{account.last_error || (account.last_synced_at ? `上次同步 ${new Date(account.last_synced_at).toLocaleString("zh-CN")}` : "尚未同步")}</p><div><button onClick={() => void action(account.id, "test")}>测试连接</button><button onClick={() => void action(account.id, "sync")}>立即同步</button><button className="danger-text" onClick={() => { if (window.confirm("确认删除该注册商账户？")) void api(`/api/admin/registrars/${account.id}`, { method: "DELETE" }).then(() => { notify("账户已删除"); load(); }); }}>删除</button></div></div>) : <div className="state-panel small-state">尚未添加真实注册商账户</div>}</div></Panel><Panel title="添加账户" description="请使用最小权限 API 凭据；Namecheap 还需填写后台白名单中的公网 IP"><form className="registrar-form" onSubmit={(event) => void add(event)}><label>服务商<select value={provider} onChange={(event) => { setProvider(event.target.value); setCredentials({}); }}><option value="cloudflare">Cloudflare</option><option value="godaddy">GoDaddy</option><option value="namesilo">NameSilo</option><option value="porkbun">Porkbun</option><option value="spaceship">Spaceship</option><option value="namecheap">Namecheap</option><option value="dynadot">Dynadot</option><option value="dnspod">DNSPod</option><option value="aliyun">阿里云</option></select></label><label>显示名称<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required /></label>{providerFields[provider].map(([key, label]) => <label key={key}>{label}<input type={key.toLowerCase().includes("secret") || key.toLowerCase().includes("token") || key === "apiKey" ? "password" : "text"} value={credentials[key] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [key]: event.target.value }))} required={!label.includes("可选")} autoComplete="off" /></label>)}<button className="primary-button">加密保存</button></form></Panel></div>;
 }
 
 interface DnsRecordView { id: string; type: string; name: string; content: string; ttl: number | null; priority: number | null; proxied: boolean | null; }

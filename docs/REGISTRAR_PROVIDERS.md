@@ -8,6 +8,9 @@
 | GoDaddy | `apiKey`、`apiSecret` | Domains v1 | 按 type/name 读取和替换记录组 | API 账户资格由 GoDaddy 决定 |
 | NameSilo | `apiKey` | listDomains | A/AAAA/CNAME/MX/TXT | 其他类型明确返回不支持 |
 | Porkbun | `apiKey`、`secretApiKey` | v3 listAll | 按记录 ID CRUD | 使用官方 v3.7 Header 认证 |
+| Spaceship | `apiKey`、`apiSecret` | `/v1/domains` 分页 | `/v1/dns/records` 读写 | 需授予 `domains:read`、`dnsrecords:read/write` 最小权限 |
+| Namecheap | `username`、`apiKey`、`clientIp` | domains.getList | 整组安全读取后用 setHosts 回写 | API 后台须将 `clientIp` 加入白名单；不支持 SRV，不能删除最后一条记录 |
+| Dynadot | `apiKey`、`apiSecret` | REST v2 domains | REST v2 records 增删 | Bearer + HMAC-SHA256 `X-Signature`；不支持 NS 记录 |
 | DNSPod | `secretId`、`secretKey` | DescribeDomainList | 2021-03-23 记录 CRUD | TC3-HMAC-SHA256 签名 |
 | 阿里云 | `accessKeyId`、`accessKeySecret` | DescribeDomains | Alidns 记录 CRUD | ACS3-HMAC-SHA256 V3 签名 |
 
@@ -23,4 +26,4 @@
 
 ## 上线前实测
 
-适配器已通过 TypeScript、单元/集成和无演示数据检查，但当前环境没有用户的六家注册商真实 API 凭据，因此不能声称完成线上连接实测。上线时应为实际使用的每家服务商执行：添加账户 → 测试连接 → 只读同步 → 选择非关键记录进行 CRUD 冒烟 → 核对远端控制台 → 删除测试记录。
+适配器已通过 TypeScript、单元/集成和无演示数据检查，但当前环境没有用户的九家注册商真实 API 凭据，因此不能声称完成线上连接实测。上线时应为实际使用的每家服务商执行：添加账户 → 测试连接 → 只读同步 → 选择非关键记录进行 CRUD 冒烟 → 核对远端控制台 → 删除测试记录。

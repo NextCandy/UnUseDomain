@@ -157,7 +157,7 @@ export const notificationPatchSchema = z
   .partial();
 
 export const registrarInputSchema = z.object({
-  provider: z.enum(["cloudflare", "godaddy", "namesilo", "porkbun", "dnspod", "aliyun"]),
+  provider: z.enum(["cloudflare", "godaddy", "namesilo", "porkbun", "dnspod", "aliyun", "spaceship", "namecheap", "dynadot"]),
   displayName: z.string().trim().min(1).max(120),
   credentials: z.record(z.string(), z.string().max(5000)),
 });

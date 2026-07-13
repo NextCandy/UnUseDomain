@@ -657,6 +657,9 @@ a { color: inherit; text-decoration: none; }
 .provider-porkbun { background: oklch(62% .2 5); }
 .provider-dnspod { background: oklch(50% .19 260); }
 .provider-aliyun { background: oklch(68% .2 40); }
+.provider-spaceship { background: oklch(54% .18 285); }
+.provider-namecheap { background: oklch(62% .2 38); }
+.provider-dynadot { background: oklch(55% .14 155); }
 .account-status { margin-left: auto; font-size: 10px; font-style: normal; padding: 4px 8px; border-radius: 99px; background: var(--border); color: var(--fg-2); font-weight: 600; letter-spacing: .04em; }
 .status-connected { background: color-mix(in oklab, var(--success) 15%, transparent); color: var(--success); }
 .status-error { background: color-mix(in oklab, var(--danger) 13%, transparent); color: var(--danger); }
