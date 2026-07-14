@@ -26,17 +26,38 @@ function localCredentials(): { email: string; password: string } {
   return { email: vars.ADMIN_EMAIL, password: vars.BOOTSTRAP_ADMIN_PASSWORD };
 }
 
+/** 域名列表页的搜索框没有提交按钮（黑金设计），用回车提交 */
+async function searchDomains(page: import("@playwright/test").Page, keyword: string) {
+  const search = page.getByRole("textbox", { name: "搜索域名、后缀或关键词" });
+  await search.fill(keyword);
+  await search.press("Enter");
+}
+
 test.describe.serial("WanMi 生产流程", () => {
-  test("前台读取 D1、搜索和后缀筛选", async ({ page }) => {
+  test("首页资产总览展示真实统计", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "域名资产总览" })).toBeVisible();
+    // 亮卡主数字与三栏指标都来自 D1，不是硬编码
+    await expect(page.locator(".hero-value strong")).toHaveText("859");
+    const trio = page.locator(".stat-cell");
+    await expect(trio.filter({ hasText: "全部域名" }).locator("strong")).toHaveText("859");
+    await expect(trio.filter({ hasText: "精品域名" }).locator("strong")).toHaveText("87");
+    await expect(trio.filter({ hasText: "后缀种类" }).locator("strong")).toHaveText("71");
+    // 资产结构使用真实分布，不做时间趋势伪造
+    await expect(page.locator(".structure-card").filter({ hasText: "后缀分布" })).toBeVisible();
+    await expect(page.locator(".recent-item").first()).toBeVisible();
+  });
+
+  test("域名列表读取 D1、搜索和后缀筛选", async ({ page }) => {
+    await page.goto("/domains", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("共 859 个域名")).toBeVisible();
-    const search = page.getByRole("textbox", { name: "搜索域名" });
-    await search.fill("wanmi.org");
-    await page.getByRole("button", { name: "搜索", exact: true }).click();
+
+    await searchDomains(page, "wanmi.org");
     await expect(page.getByTitle("复制 wanmi.org")).toBeVisible();
-    await search.fill("02cloud.com");
-    await page.getByRole("button", { name: "搜索", exact: true }).click();
+
+    await searchDomains(page, "02cloud.com");
     await expect(page.getByTitle("复制 02cloud.com")).toBeVisible();
+
     await page.getByRole("button", { name: "清除筛选" }).click();
     await page.getByRole("button", { name: "纯数字 107", exact: true }).click();
     await expect(page.getByText("共 107 个域名")).toBeVisible();
@@ -48,6 +69,12 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByText(/共 154 个域名/)).toBeVisible();
   });
 
+  test("旧版首页分享链接仍可用（重定向到域名列表）", async ({ page }) => {
+    await page.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/domains\?q=02cloud\.com/);
+    await expect(page.getByTitle("复制 02cloud.com")).toBeVisible();
+  });
+
   test("管理员真实登录、隐藏与恢复域名、退出", async ({ page, context }) => {
     const credentials = localCredentials();
     await page.goto("/admin", { waitUntil: "domcontentloaded" });
@@ -55,25 +82,28 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByLabel("密码").fill(credentials.password);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "概览", exact: true })).toBeVisible();
-    const listedCard = page.locator(".stat-card").filter({ hasText: "前台展示" });
+
+    const listedCard = page.locator(".admin-stat-grid > div").filter({ hasText: "前台展示" });
     await expect(listedCard.getByText("859", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /域名管理/ }).click();
     await page.getByPlaceholder("搜索完整域名").fill("02cloud.com");
-    const row = page.getByRole("row").filter({ hasText: "02cloud.com" });
-    await expect(row).toBeVisible();
-    await row.locator("button.switch").nth(1).click();
+    const record = page.locator(".record").filter({ hasText: "02cloud.com" });
+    await expect(record).toBeVisible();
+
+    // record 内两个开关：第 0 个是精品，第 1 个是前台展示
+    await record.locator("button.switch").nth(1).click();
     await expect(page.getByText("已从前台隐藏")).toBeVisible();
 
     const publicPage = await context.newPage();
-    await publicPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
+    await publicPage.goto("/domains?q=02cloud.com", { waitUntil: "domcontentloaded" });
     await expect(publicPage.getByText("没有匹配的域名")).toBeVisible();
     await publicPage.close();
 
-    await row.locator("button.switch").nth(1).click();
+    await record.locator("button.switch").nth(1).click();
     await expect(page.getByText("已恢复展示")).toBeVisible();
     const restoredPage = await context.newPage();
-    await restoredPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
+    await restoredPage.goto("/domains?q=02cloud.com", { waitUntil: "domcontentloaded" });
     await expect(restoredPage.getByTitle("复制 02cloud.com")).toBeVisible();
     await restoredPage.close();
 
@@ -91,34 +121,58 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await page.getByRole("button", { name: /域名管理/ }).click();
     await page.getByPlaceholder("搜索完整域名").fill("02cloud.com");
-    const row = page.getByRole("row").filter({ hasText: "02cloud.com" });
-    await expect(row).toBeVisible();
-    page.once("dialog", async (dialog) => dialog.accept("E2E 临时简介"));
-    await row.getByRole("button", { name: "编辑简介" }).click();
+    const record = page.locator(".record").filter({ hasText: "02cloud.com" });
+    await expect(record).toBeVisible();
+
+    // 编辑简介现在走应用内 Modal（原生 window.prompt 已移除）
+    await record.getByRole("button", { name: /编辑 02cloud\.com 的简介/ }).click();
+    const dialog = page.getByRole("dialog", { name: "编辑公开简介" });
+    await dialog.getByRole("textbox").fill("E2E 临时简介");
+    await dialog.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("简介已保存")).toBeVisible();
-    const featuredSwitch = row.locator("button.switch").first();
+
+    const featuredSwitch = record.locator("button.switch").first();
     const wasFeatured = (await featuredSwitch.getAttribute("class"))?.includes("on") ?? false;
     if (!wasFeatured) await featuredSwitch.click();
 
     const publicPage = await context.newPage();
-    await publicPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
+    await publicPage.goto("/domains?q=02cloud.com", { waitUntil: "domcontentloaded" });
     await expect(publicPage.getByText("E2E 临时简介")).toBeVisible({ timeout: 10_000 });
     await expect(publicPage.locator(".domain-card.featured")).toBeVisible();
     await publicPage.reload({ waitUntil: "domcontentloaded" });
     await expect(publicPage.getByText("E2E 临时简介")).toBeVisible();
 
-    page.once("dialog", async (dialog) => dialog.accept(""));
-    await row.getByRole("button", { name: "编辑简介" }).click();
+    // 清空简介并恢复原来的精品状态
+    await record.getByRole("button", { name: /编辑 02cloud\.com 的简介/ }).click();
+    const clearDialog = page.getByRole("dialog", { name: "编辑公开简介" });
+    await clearDialog.getByRole("textbox").fill("");
+    await clearDialog.getByRole("button", { name: "保存" }).click();
     await expect(page.getByText("简介已清空")).toBeVisible();
-    if (!wasFeatured) await row.locator("button.switch").first().click();
-    await expect.poll(async () => publicPage.locator(".domain-description").textContent(), { timeout: 10_000 }).toBe("");
+    if (!wasFeatured) await record.locator("button.switch").first().click();
+
+    await expect.poll(async () => publicPage.locator(".domain-desc").count(), { timeout: 10_000 }).toBe(0);
     await publicPage.close();
   });
 
-  test("手机端没有横向溢出", async ({ page }) => {
+  test("手机端没有横向溢出且底部导航可用", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
-    expect(widths.scroll).toBeLessThanOrEqual(widths.client);
+
+    for (const path of ["/", "/domains", "/d/wanmi.org"]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      const widths = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth,
+        client: document.documentElement.clientWidth,
+      }));
+      expect(widths.scroll, `${path} 出现横向溢出`).toBeLessThanOrEqual(widths.client);
+      // 手机端底部导航必须可见，且不能盖住正文
+      await expect(page.locator(".bottom-nav")).toBeVisible();
+    }
+  });
+
+  test("桌面端不出现手机底部导航", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/domains", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".bottom-nav")).toBeHidden();
+    await expect(page.locator(".top-nav nav")).toBeVisible();
   });
 });

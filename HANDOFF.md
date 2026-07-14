@@ -1,88 +1,157 @@
 # WanMi HANDOFF
 
-## 当前任务
+> 写给一个**完全没有上下文**的新 Claude Code 会话。开工前先读这份 + `design.md`。
 
-将 Claude Design 导出的 DS 原型重构为可部署到 Cloudflare Workers 的 WanMi 全栈域名展示与管理系统，导入用户提供的 859 个真实域名。
+## 1. 项目是什么
 
-## 原仓库问题
+WanMi / 玩米（<https://wanmi.org>）—— 部署在 Cloudflare Workers 上的**域名资产管理与展示平台**。
+单 Worker 架构：React 19 + Vite 8 + TypeScript + Hono + D1 + R2 + Cron。**没有 Tailwind，用原生 CSS + CSS Variables。**
 
-原仓库只有两个 `.dc.html`、空 README 和 `support.js`。前后台各自硬编码域名；登录不验证；同步、DNS、通知和导出均为浏览器模拟；示例注册商、联系方式、日志和到期日期刷新后丢失。
+生产库有 **862 个真实域名**（本地 874，含 15 条归档），87 个精品，71 个后缀。数据是真的，**不要用 mock 替换**。
 
-## 已完成
+## 2. 当前任务（2026-07-15 完成）
 
-- 单 Worker 的 React + Vite + Hono + D1 + R2 + Cron 架构。
-- 真实 PBKDF2 管理员登录、HMAC 会话/CSRF、限流、改密和会话撤销。
-- D1 完整 schema、24 列 CSV 解析、859 条本地导入和幂等验证。
-- 中文前台搜索/筛选/分页/复制/联系和中文后台管理。
-- 域名 CRUD、批量操作、原子导入、真实 CSV 导出、错误行下载。
-- 六家注册商适配器、AES-GCM 凭据、真实 DNS 读写和逐项批量结果。
-- D1 站点设置、R2 图片、真实通知测试、到期 Cron、日志和同步记录。
-- 单元、集成和 Playwright E2E；原型移入 `docs/design-reference/` 且生产不依赖。
+按 3 张参考图把全站 UI 重构为 **Black Gold Domain Asset Vault**（纯黑 OLED + 香槟金 + 大圆角 + iOS 暗色质感）。
+上一版是 Hallmark "Paper + Coral"（纸白 + 珊瑚橙），**已全量废弃**。更早的 "Emerald Vault 翡翠绿" 同样废弃。
 
-## CSV 导入统计
+设计系统的唯一事实来源是 **`design.md`**，改任何页面前先读它。
 
-源：`data/source/WanMi.csv`
+## 3. 已完成
 
-原始 859、解析 859、唯一 859、重复 0、无效 0；本地 D1 总记录 874（含 15 条归档历史记录）、售卖平台记录 0、公开展示 859。
+- **Design System**：`tokens.css` 全量重写为黑金令牌；`src/client/styles/app.css` 全量重写（约 2000 行，覆盖前台/详情/后台/登录）。
+- **首页 `/`**：新增资产总览 Dashboard（Hero 亮卡 + 三栏指标 + 资产结构 + 最近添加/更新）。
+- **域名列表 `/domains`**：统计卡 + 搜索 + Segmented + 分类 Chip + 域名卡片网格 + 分页。
+- **详情 `/d/:name`**：Serif 大标题 + 徽章 + Whois(RDAP) + 相关域名 + 求购表单。
+- **后台 `/admin`**：10 个视图全部黑金化，并从 653 行单文件拆分为 `pages/admin/views/*.tsx`。
+- **分类管理**：从 tag-pill 改为图标宫格（参考图 2）。
+- **组件库**：新增 `components/ui.tsx`、`AppShell.tsx`、`DomainCard.tsx`、`PromptModal.tsx`、`icons.tsx`。
+- **新 API**：`GET /api/public/overview`（只读聚合统计，供首页 Dashboard）。
 
-## D1 表
+## 4. 关键文件
 
-`admin_users`、`admin_sessions`、`auth_login_attempts`、`domains`、`domain_marketplace_listings`、`registrar_accounts`、`dns_records_cache`、`site_settings`、`notification_settings`、`operation_logs`、`sync_runs`、`notification_deliveries`、`domain_import_staging`、`domain_import_errors`。
+```
+tokens.css                          黑金 Design Tokens（唯一色值来源）
+design.md                           设计系统规范（改 UI 前必读）
+index.html                          字体加载 + 固定 dark 主题
+src/client/App.tsx                  路由（含旧链接兼容）
+src/client/styles/app.css           全站样式（~2000 行）
+src/client/components/
+  ui.tsx                            SearchBar/Segmented/Chips/Badge/Empty/Skeleton/Pagination/Modal
+  AppShell.tsx                      桌面顶部导航 + 手机底部导航
+  DomainCard.tsx                    DomainCard（网格）+ DomainRow（首页）
+  PromptModal.tsx                   取代 window.prompt
+  icons.tsx                         全部内联 SVG（24×24, stroke 1.75）
+src/client/pages/public/            HomePage / DomainsPage / DomainDetailPage
+src/client/pages/admin/
+  AdminApp.tsx                      主壳 + 登录
+  views/*.tsx                       10 个后台视图
+src/worker/routes/public/index.ts   公开 API（含新增的 /overview）
+```
 
-## Cloudflare 资源
+## 5. 设计系统速查
 
-Worker `wanmi`，D1 `wanmi-db`（绑定 `DB`），R2 `wanmi-assets`（绑定 `UPLOADS`），Static Assets `ASSETS`，Cron `0 1 * * *`。本地和远程 migration、导入均已完成。
+- 背景 `#000000`，卡片 `#151515`，强调金 `#D8B638`，主文本 `#F5F5F7`。
+- 字体：Instrument Serif（大数字/标题）+ Inter/Noto Sans SC（UI）+ JetBrains Mono（技术数据）。
+- 圆角：Chip `9999px` / 搜索 `20px` / 域名卡 `22px` / 面板 `26px` / Modal `30px`。
+- 阴影一律弱；金色 Glow 只轻微使用。
+- **黑金是唯一主题**，没有明暗切换（ThemeToggle 已删除）。
 
-生产 URL：<https://wanmi.org>
+## 6. 数据诚实性（**最重要**，别踩）
 
-本次生产迁移、导入和部署状态以当前任务最终报告为准；R2 Bucket 保持 `wanmi-assets`，不创建重复资源。
+界面**不得**展示库里不存在的数据。当前 D1 的真实约束：
 
-## 测试结果
+| 字段 | 状态 | 结论 |
+| --- | --- | --- |
+| 估值 | **没有这个字段** | 首页不展示任何金额 |
+| `created_at` | 全部集中在导入当天 | **不做时间趋势折线**，画出来就是伪造 |
+| `expires_at` | 全空 | 到期模块显示"暂无到期数据" |
+| `description` | 862 条里只有 1 条有值 | 卡片无简介时自动收紧，不留空白 |
 
-- `pnpm typecheck`：通过。
-- `pnpm lint`：通过。
-- `pnpm test`：7 文件、36 项通过；覆盖 CSV、管理员字段保护、精品排序、分类和 DNS 失败不改缓存。
-- `pnpm test:e2e`：Chromium 4 项通过；覆盖简介/精品同步恢复和手机端无横向溢出。
-- `pnpm build`：通过；构建 Secret 安全扫描通过。
-- `pnpm domains:verify`：本地总记录 874、公开展示 859；重复导入公开数量不增加。
-- `pnpm verify:no-demo-data`：74 个生产文件通过。
-- 生产 API：错误密码 401、真实登录、后台 859、隐藏/恢复、退出及旧会话 401 全部通过。
-- 生产浏览器：前台 859、搜索 `wanmi.org`、`/admin` 刷新、登录、概览和退出通过。
+首页的"资产结构"用的是**真实**的分类 / 后缀 / 长度分布，这是刻意选择，不是偷懒。
+新增任何指标前，先 `wrangler d1 execute` 确认字段真有数据。
 
-## Git
+## 7. 本次的破坏性变更（已验证不影响功能）
 
-分支：`codex/wanmi-cloudflare`。
+1. **路由变了**：`/` 从"域名列表"变成"资产总览"，列表移到 `/domains`。
+   旧分享链接 `/?q=xxx&tld=yyy` 会**自动重定向**到 `/domains?...`（`App.tsx` 的 `LEGACY_LIST_PARAMS`），已有 E2E 覆盖。
+2. **移除明暗主题切换**：黑金单主题。`ThemeToggle.tsx` 已删除，`index.html` 固定 `data-theme="dark"`。
+3. **`accent_color` 不再注入前台主色**：该字段保留，现在只用于生成域名分享图（OG）。后台设置项文案已相应改为"分享卡片强调色"。
+4. **后台"列显示"开关移除**：表格换成卡片后该功能无意义。简介仍可通过操作区的"编辑简介"查看/修改。
+5. **`window.prompt` 换成 Modal**：添加域名、编辑简介、新建分类、批量分类、批量 DNS。删除确认仍用 `window.confirm`（更安全）。
+6. **`PublicPage.tsx` 已删除**，拆成 `HomePage.tsx` + `DomainsPage.tsx`。
 
-本地分阶段提交：
+未改动：D1 schema、API 契约、登录机制、Cloudflare 配置、部署方式。
 
-- `89179b1` `chore: initialize WanMi Cloudflare workspace`
-- `7cf7e43` `feat: add D1 schema and secure admin authentication`
-- `615c160` `feat: import all 859 domains into D1`
-- `b47b0e3` `feat: build D1-backed public domain catalog`
-- `6ccda59` `feat: add admin CRUD settings and notifications`
-- `a5c3aec` `feat: add registrar sync and real DNS adapters`
-- `0f8898d` `test: cover auth imports API and browser flows`
-- `c59b243` `test: enforce DNS cache and acceptance invariants`
+## 8. 验证结果
 
-最终文档提交见当前分支最新提交。因本机没有 `gh`，尚未推送，也未创建 Pull Request。
+- `pnpm typecheck` / `pnpm lint`：通过。
+- `pnpm test`：7 文件 36 项通过。
+- `pnpm test:e2e`：Chromium **7 项全部通过**（首页真实统计 / 列表搜索筛选 / 旧链接重定向 / 后台登录隐藏恢复退出 / 简介与精品前后台同步 / 手机端无溢出 / 桌面端无底部导航）。
+- `pnpm build`：通过。JS 82 KB gzip、CSS 8.4 KB gzip，**未新增任何依赖**。
+- `pnpm verify:no-demo-data`：扫描 93 个生产文件，无假数据。
+- 响应式实测 320 / 375 / 430 / 768 / 1024 / 1280 / 1440 / 1920：**零横向溢出**，列数 1/1/1/2/3/4/4/4，1920 内容锁定 1440px。
+- 浏览器 console：全新 tab 零 error、零 warning。
 
-## 尚未完成 / 当前阻塞
+## 9. 已踩过的坑（**不要重复**）
 
-1. 本机没有 GitHub CLI `gh`，GitHub 发布技能要求在推送/PR 前具备已认证的 `gh`。
-2. 六家注册商适配器没有用户真实凭据，已实现真实 API 路径但未做线上连接实测。
+### 本次新增
 
-## 下一步
+- **搜索框没有 submit 按钮时，浏览器隐式提交不可靠** —— 必须在 input 上显式处理 `Enter`（见 `ui.tsx` 的 `SearchBar`），否则回车搜不了。
+- **绝对定位的卡片按钮会压住徽章** —— 域名卡无简介时很矮，复制按钮必须作为 flex 列参与排版，不能 `position: absolute; bottom`。
+- **CSS grid 列数必须与 JSX 直接子元素数一致** —— `.record` 曾定义 6 列但只有 5 个子元素，导致后台卡片错位、高度暴涨。
+- **图标宫格的角标会和图标重叠** —— `.icon-card` 必须 `justify-content: flex-end` + 顶部留 padding。
+- **平板隐藏简介列会连带隐藏编辑入口** —— 编辑按钮要放在操作区，不能放在会被隐藏的列里。
+- **React 19 没有全局 `JSX` 命名空间** —— 用 `ReactNode`，`JSX.Element` 会 TS2503。
+- Vite HMR 会对已删除的文件反复报 "Failed to reload"，那是**幽灵错误**，开新 tab 就没了。别去追。
 
-1. 安装并登录 `gh`，推送当前分支并创建 draft PR。
-2. 为实际使用的注册商配置最小权限凭据，执行连接、只读同步和非关键 DNS CRUD 冒烟。
-3. 如决定删除一次性引导密码 Secret，先确认管理员仍可登录并同步调整后续部署 Secret 清单。
+### 历史（仍然有效）
 
-## 已踩过且不能重复的坑
+- `csv-parse/sync` 依赖 Buffer，Workers 必须用 `csv-parse/browser/esm/sync`。
+- 超大 SQL 文件会触发 `SQLITE_TOOBIG`；本地用事务，远程用 D1 batch API。
+- Cloudflare Vite Plugin 可能把 `.dev.vars` 复制进产物；构建后必须扫描（`scripts/sanitize-build.ts` 已做）。
+- CSV 的 Listing Status **不能**当展示开关；只有 Hidden 或管理员设置决定 `is_listed`。
+- D1 Query API 批量请求要包成 `{ batch: [...] }`，顶层数组返回 7400。
+- Workers 的 PBKDF2 上限 100,000 次，更高会在生产 `NotSupportedError`。
 
-- `csv-parse/sync` Node 入口依赖 Buffer，Workers 必须使用 `csv-parse/browser/esm/sync`。
-- Wrangler 直接执行包含完整原始 JSON 的超大 SQL 文件会触发 `SQLITE_TOOBIG`；本地必须对 Miniflare D1 SQLite 使用事务，远程使用 D1 batch API。
-- Cloudflare Vite Plugin 预览输出可能复制 `.dev.vars`；构建后必须清理并扫描泄漏。
-- Playwright 页面不应依赖远程字体；外部字体可导致 `load` 等待和测试抖动。
-- CSV Listing Status 不能用作 WanMi 的展示开关；只有 Hidden 或管理员设置决定 `is_listed`。
-- Cloudflare D1 Query API 的当前批量请求必须包装为 `{ batch: [...] }`，顶层数组会返回 code 7400。
-- Cloudflare Workers Web Crypto 的 PBKDF2 上限为 100,000 次；更高迭代数会在生产返回 `NotSupportedError`。
+## 10. 本地启动
+
+```bash
+pnpm install
+pnpm dev                    # http://localhost:5173
+```
+
+需要 `.dev.vars`（参考 `.dev.vars.example`）：`ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` / `SESSION_SECRET` / `CREDENTIALS_ENCRYPTION_KEY`。
+
+本地 D1 已有数据。若为空：
+
+```bash
+pnpm db:migrate:local
+pnpm domains:import:local
+```
+
+## 11. 构建与检查
+
+```bash
+pnpm check      # typecheck + lint + test + build + domains:verify + verify:no-demo-data
+pnpm test:e2e   # Playwright（会自动起 dev server）
+```
+
+**提交前请跑 `pnpm check`。**
+
+## 12. 部署
+
+```bash
+pnpm build
+wrangler deploy
+```
+
+Cloudflare 资源（**不要创建重复资源**）：Worker `wanmi`、D1 `wanmi-db`（绑定 `DB`）、R2 `wanmi-assets`（绑定 `UPLOADS`）、Static Assets `ASSETS`、Cron `0 1 * * *`。
+
+远程 migration：`pnpm db:migrate:remote`。备份：`pnpm db:backup`。
+
+## 13. 下一步建议
+
+1. **补域名简介**：862 条里只有 1 条有 `description`。卡片和详情页已经为简介留好位置，补上内容后前台信息密度会明显改善。
+2. **接注册商同步到期时间**：`expires_at` 现在全空，导致"到期提醒"模块和 Cron 实际没有数据可用。在后台"注册商"里添加真实凭据并执行同步即可激活。
+3. 六家注册商适配器已实现真实 API 路径，但**未用真实凭据做过线上连接实测**。
+4. 若未来补上了跨月的 `created_at` 或估值字段，可以再考虑首页的时间趋势折线 —— 但**在那之前不要画**。

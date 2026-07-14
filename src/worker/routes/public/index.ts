@@ -183,6 +183,76 @@ publicRoutes.get("/domains", async (c) => {
   });
 });
 
+// 首页 Dashboard 的聚合统计，全部来自 D1 真实数据。
+// 注意：不提供估值与时间趋势——库中没有估值字段，且 created_at 只覆盖导入当天，
+// 画成折线会变成伪造数据。资产结构改用真实的分类 / 后缀 / 字符长度分布。
+publicRoutes.get("/overview", async (c) => {
+  const [statsResult, categoryResult, tldResult, lengthResult, addedResult, updatedResult] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS total, COUNT(DISTINCT tld) AS tld_count,
+        SUM(is_featured) AS featured_count,
+        MAX(created_at) AS latest_added, MAX(updated_at) AS latest_updated
+       FROM domains WHERE is_listed = 1`,
+    ),
+    // 分类统计必须与 /facets 和 /domains 的筛选口径一致（多标签），
+    // 否则首页「分类分布」点进去会筛出空结果
+    c.env.DB.prepare(
+      `SELECT name, COUNT(*) AS count FROM (
+         SELECT NULLIF(d.category, '') AS name
+         FROM domains d
+         WHERE d.is_listed = 1 AND NULLIF(d.category, '') IS NOT NULL
+         UNION ALL
+         SELECT dac.category
+         FROM domain_auto_categories dac
+         JOIN domains d ON d.id = dac.domain_id
+         WHERE d.is_listed = 1 AND NULLIF(d.category, '') IS NULL
+       ) effective_categories
+       WHERE name IS NOT NULL
+       GROUP BY name
+       ORDER BY count DESC`,
+    ),
+    c.env.DB.prepare(
+      "SELECT tld AS name, COUNT(*) AS count FROM domains WHERE is_listed = 1 GROUP BY tld ORDER BY count DESC, tld ASC LIMIT 8",
+    ),
+    c.env.DB.prepare(
+      `SELECT length(replace(name, '.', '')) AS len, COUNT(*) AS count
+       FROM domains WHERE is_listed = 1 GROUP BY len ORDER BY len ASC`,
+    ),
+    c.env.DB.prepare(`${PUBLIC_SELECT} WHERE d.is_listed = 1 ORDER BY d.created_at DESC, d.id DESC LIMIT 6`),
+    c.env.DB.prepare(`${PUBLIC_SELECT} WHERE d.is_listed = 1 ORDER BY d.updated_at DESC, d.id DESC LIMIT 6`),
+  ]);
+
+  const stats = (statsResult.results[0] ?? {}) as {
+    total?: number;
+    tld_count?: number;
+    featured_count?: number;
+    latest_added?: string | null;
+    latest_updated?: string | null;
+  };
+  const named = (rows: unknown[]) =>
+    (rows as Array<{ name: string | number; count: number }>).map((row) => ({
+      name: String(row.name),
+      count: Number(row.count),
+    }));
+
+  c.header("Cache-Control", "public, max-age=0, must-revalidate");
+  return ok(c, {
+    total: Number(stats.total ?? 0),
+    featuredCount: Number(stats.featured_count ?? 0),
+    tldCount: Number(stats.tld_count ?? 0),
+    latestAddedAt: stats.latest_added ?? null,
+    latestUpdatedAt: stats.latest_updated ?? null,
+    categories: named(categoryResult.results),
+    tlds: named(tldResult.results),
+    lengths: (lengthResult.results as Array<{ len: number; count: number }>).map((row) => ({
+      length: Number(row.len),
+      count: Number(row.count),
+    })),
+    recentAdded: (addedResult.results as unknown as PublicDomainRow[]).map(serializePublic),
+    recentUpdated: (updatedResult.results as unknown as PublicDomainRow[]).map(serializePublic),
+  });
+});
+
 publicRoutes.get("/version", async (c) => {
   const row = await c.env.DB.prepare(
     "SELECT version, updated_at FROM public_data_version WHERE id = 1",
@@ -346,27 +416,25 @@ publicRoutes.get("/og/:name", async (c) => {
     site_name: string;
     accent_color: string;
   }>();
-  const accent = /^#[0-9a-f]{6}$/i.test(settings?.accent_color ?? "") ? settings!.accent_color : "#f97316";
+  // 站点设置里的主题色仍然生效（用于分享卡片强调色），缺省为品牌香槟金
+  const accent = /^#[0-9a-f]{6}$/i.test(settings?.accent_color ?? "") ? settings!.accent_color : "#d8b638";
   const site = (settings?.site_name ?? "玩米").replace(/[<>&"]/g, "");
   const safeName = name.replace(/[<>&"]/g, "");
   const fontSize = safeName.length > 24 ? 56 : safeName.length > 14 ? 76 : 96;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1c1917"/><stop offset="1" stop-color="#292019"/>
-    </linearGradient>
     <radialGradient id="glow" cx="0.5" cy="0" r="0.9">
-      <stop offset="0" stop-color="${accent}" stop-opacity="0.5"/><stop offset="1" stop-color="${accent}" stop-opacity="0"/>
+      <stop offset="0" stop-color="${accent}" stop-opacity="0.16"/><stop offset="1" stop-color="${accent}" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="#000000"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
-  <rect x="80" y="88" width="72" height="72" rx="18" fill="${accent}"/>
-  <text x="116" y="140" font-family="Kaiti SC, STKaiti, KaiTi, serif" font-size="42" fill="#ffffff" text-anchor="middle">玩</text>
-  <text x="176" y="138" font-family="Arial, sans-serif" font-size="38" font-weight="700" fill="#ffffff">${site}</text>
-  <text x="600" y="360" font-family="'Courier New', monospace" font-size="${fontSize}" font-weight="700" fill="#ffffff" text-anchor="middle">${safeName}</text>
+  <rect x="80" y="88" width="72" height="72" rx="20" fill="${accent}"/>
+  <text x="116" y="140" font-family="Kaiti SC, STKaiti, KaiTi, serif" font-size="42" fill="#050505" text-anchor="middle">玩</text>
+  <text x="176" y="138" font-family="Georgia, serif" font-size="38" fill="#f5f5f7">${site}</text>
+  <text x="600" y="360" font-family="Georgia, serif" font-size="${fontSize}" fill="#f5f5f7" text-anchor="middle">${safeName}</text>
   <text x="600" y="430" font-family="Arial, sans-serif" font-size="26" fill="${accent}" text-anchor="middle">This domain is for sale · 域名出售中</text>
-  <rect x="80" y="536" width="1040" height="2" fill="${accent}" opacity="0.45"/>
+  <rect x="80" y="536" width="1040" height="1" fill="${accent}" opacity="0.32"/>
 </svg>`;
   return new Response(svg, {
     headers: {

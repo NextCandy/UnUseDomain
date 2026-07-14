@@ -1,53 +1,89 @@
 # Design — WanMi / 玩米
 
-这是 WanMi 前台、后台与移动端共享的锁定设计系统。后续页面先读取本文件，保持产品一致性。
+**Black Gold Domain Asset Vault** —— WanMi 前台、详情、后台与移动端共享的锁定设计系统。
+后续任何页面改动都必须先读本文件，保持产品一致性。
+
+> 本文件已于 2026-07-15 全量替换旧的 Hallmark "Paper + Coral" 设计。
+> 旧方向（纸白背景、珊瑚橙强调、"禁止金色"）已**作废**，不要再回退。
+> 更早的 "Emerald Vault 翡翠绿" 方向同样作废。
 
 ## Genre
 
-modern-minimal，采用 Hallmark 的克制、结构优先与反模板化原则。
+Premium Black Asset Dashboard / iOS Dark Luxury。
+克制、高密度但不拥挤；靠留白、细边框和内高光建立层次，不靠重阴影。
 
-## Macrostructure family
+## Macrostructure
 
-- 前台目录：Catalogue；真实域名库存是主体，4 列桌面、1 列手机。
-- 后台应用：Workbench；侧轨、指标横条、规则分区和数据记录承担视觉结构。
-- 详情与登录：延续 Catalogue/Workbench 的字体、规则和控件语言。
+- **首页 `/`**：资产总览 Dashboard。亮卡（Hero）+ 三栏指标 + 资产结构 + 最近添加/更新。
+- **域名列表 `/domains`**：统计卡 → 搜索 → 一级 Segmented → 二级分类 Chip → 域名卡片网格 → 分页。
+- **详情 `/d/:name`**：大号 Serif 域名 + 徽章 + Whois 摘要 + 相关域名 + 求购表单。
+- **后台 `/admin`**：左侧窄侧栏 + 顶部工具栏 + 主内容区；手机端侧栏转两行 10 宫格导航。
 
-## Theme
+## Theme —— 唯一暗色主题
 
-- Paper：`oklch(98.2% 0.006 55)`
-- Ink：`oklch(19% 0.012 45)`
-- Rule：`oklch(88.5% 0.01 55)`
-- Accent：`oklch(66% 0.205 36)`，每屏占比不超过 3%。
-- 禁止金色渐变、玻璃拟态、装饰光晕和渐变文字。
+黑金是**单一主题**，没有明暗切换（已移除 ThemeToggle）。全部色值来自 `tokens.css`：
+
+| 角色 | Token | 值 |
+| --- | --- | --- |
+| 背景（OLED 纯黑） | `--background` | `#000000` |
+| 卡片表面（暖黑） | `--surface` | `#151515` |
+| 品牌强调（香槟金） | `--gold` | `#D8B638` |
+| 主文本 | `--text-primary` | `#F5F5F7` |
+| 次文本 | `--text-secondary` | `#A1A1A6` |
+
+- 金色是**唯一**品牌强调色。其他颜色只用于语义状态（success / warning / danger / info）。
+- **禁止**：大面积绿色或蓝色、大面积渐变、霓虹发光、赛博朋克风、过度透明的玻璃拟态。
+- 金色 Glow 只允许极轻使用（`--glow-gold`），不做强发光。
+- 首页 Hero 是唯一的"反差亮卡"（奶油 → 香槟极轻渐变），用于突出资产总数。
 
 ## Typography
 
-- 英文、数字、域名：Manrope，域名权重 650–750，`line-height >= 1.18`，禁止裁切下伸部。
-- 中文与通用 UI：Noto Sans SC，正文不小于 14px。
-- 技术数据：IBM Plex Mono，仅用于域名元数据、DNS 与日志。
-- 标题一律正体，不使用斜体标题。
+- **Display（Serif）**：Instrument Serif —— 大号数字、页面主标题、域名详情标题、Modal 标题。
+- **UI（Sans）**：Inter + Noto Sans SC —— 正文、菜单、卡片、表单。
+- **Mono**：JetBrains Mono —— Whois、DNS、日志等技术数据。
+- 字体经 Google Fonts **非阻塞**加载（`preload` + `onload`），源不可达时回退系统字体栈，不阻塞首屏。
 
-## Spacing and shape
+## Shape and elevation
 
-- 4pt 命名间距，统一来自 `tokens.css`。
-- 控件半径 6px，目录卡片 8px；避免所有内容都成为大圆角浮层。
-- 主要触控目标在手机端至少 44px。
+- 圆角：Chip/Badge `9999px`、搜索 `20px`、域名卡 `22px`、面板 `26px`、Modal `30px`。
+- 阴影一律很弱：`--shadow-card`（内高光 + 低透明外阴影）。禁止重投影。
+- hover 只做 `translateY(-2px)` + 阴影加深；触屏设备（`hover: none`）不做位移。
 
 ## Motion
 
-- 仅 transform 与 opacity，160/220/280ms。
-- 不使用弹跳；`prefers-reduced-motion` 退化为 ≤150ms 透明度变化。
+- 仅 transform / opacity，150–250ms，缓动 `--ease`。
+- 禁止弹跳、旋转、长动画、自动无限动画。
+- `prefers-reduced-motion: reduce` 下全部动画降为 0.01ms。
 
 ## Responsive
 
-- 必须验证 320、375、414、768px。
-- `html` 和 `body` 使用 `overflow-x: clip`。
-- 前台手机单列；后台表格在手机转为结构化记录卡。
-- 后台十个模块在手机端完整显示为两行工具导航，不以横向滚动隐藏功能。
+必须验证：320 / 375 / 430 / 768 / 1024 / 1280 / 1440 / 1920。
+
+- 域名网格：`repeat(auto-fill, minmax(280px, 1fr))` → 自动 1 / 2 / 3 / 4 列。
+- 桌面内容最大宽度 `1440px`，超宽屏不失控。
+- **手机端**：底部固定导航（`--bottom-nav-h` + `env(safe-area-inset-bottom)`），正文必须预留该高度。
+- **桌面端**：底部导航隐藏，转顶部导航。禁止桌面端出现悬浮的手机版底部导航。
+- `html` / `body` 使用 `overflow-x: clip`；域名文本用 `overflow-wrap: anywhere`。
+- 后台十个模块在手机端完整显示为两行导航，不以横向滚动隐藏功能。
+- 后台域名列表在窄屏由栅格转为卡片；简介列隐藏时，编辑入口必须仍在操作区可用。
 
 ## Shared components
 
-- N9 Edge-aligned minimal 前台导航。
-- Ft2 Inline single-line 页脚，手机转纵向。
-- 后台浅色 Workbench 侧轨；活跃项用左侧 Coral 规则。
-- 输入、选择、按钮使用同一高度、边框和焦点环。
+统一位于 `src/client/components/`，**禁止**在页面里重复实现按钮 / 徽章 / 搜索框：
+
+- `ui.tsx` —— SearchBar、SegmentedControl、FilterChips、Badge、EmptyState、ErrorState、SkeletonGrid、Pagination、Modal、SectionHead
+- `AppShell.tsx` —— 桌面顶部导航 + 手机底部导航
+- `DomainCard.tsx` —— DomainCard（网格）、DomainRow（首页列表）
+- `PromptModal.tsx` —— 取代 `window.prompt`（删除确认仍用 `window.confirm`）
+- `icons.tsx` —— 全部内联 SVG，24×24 viewBox、stroke 1.75。禁止引入外部图标库或混用其它风格。
+
+## 数据诚实性（硬性约束）
+
+界面不得展示库中不存在的数据。当前 D1 的真实情况：
+
+- **没有估值字段** → 首页不展示任何金额。
+- **`created_at` 集中在导入当天** → 不做时间趋势折线（画出来即伪造）。资产结构改用真实的分类 / 后缀 / 长度分布。
+- **`expires_at` 为空** → 到期模块显示"暂无到期数据"，不编造。
+- **`description` 绝大多数为空** → 域名卡片在无简介时自动收紧，不留大片空白。
+
+新增指标前，先确认字段真实存在且有数据。
