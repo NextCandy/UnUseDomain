@@ -5,6 +5,16 @@ interface PorkbunResponse { status?: string; message?: string; }
 interface PorkbunDomain { domain: string; status?: string; expireDate?: string; }
 interface PorkbunRecord { id: string | number; name: string; type: string; content: string; ttl?: string | number; prio?: string | number; }
 
+export function parsePorkbunExpiration(value?: string): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  const numeric = Number(raw);
+  const date = Number.isFinite(numeric) && /^\d+$/.test(raw)
+    ? new Date(numeric < 1_000_000_000_000 ? numeric * 1000 : numeric)
+    : new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw) ? raw : `${raw.replace(" ", "T")}Z`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 export class PorkbunProvider implements RegistrarProvider {
   readonly provider = "porkbun";
   private readonly apiKey: string;
@@ -41,7 +51,7 @@ export class PorkbunProvider implements RegistrarProvider {
       if (page.length < 1000) break;
       start += page.length;
     }
-    return all.map((item) => ({ domain: item.domain, status: item.status ?? null, expiresAt: item.expireDate ? new Date(`${item.expireDate}T00:00:00Z`).toISOString() : null }));
+    return all.map((item) => ({ domain: item.domain, status: item.status ?? null, expiresAt: parsePorkbunExpiration(item.expireDate) }));
   }
 
   private mapRecord(domain: string, record: PorkbunRecord): DnsRecord {

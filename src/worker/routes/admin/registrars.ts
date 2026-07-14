@@ -111,8 +111,8 @@ async function syncAccount(c: Parameters<typeof fail>[0], account: RegistrarRow)
       } catch { return []; }
     });
     const existing = new Set<string>();
-    for (let start = 0; start < normalized.length; start += 400) {
-      const part = normalized.slice(start, start + 400);
+    for (let start = 0; start < normalized.length; start += 80) {
+      const part = normalized.slice(start, start + 80);
       if (!part.length) continue;
       const rows = await c.env.DB.prepare(`SELECT normalized_domain FROM domains WHERE normalized_domain IN (${part.map(() => "?").join(",")})`).bind(...part.map((item) => item.normalizedDomain)).all<{ normalized_domain: string }>();
       rows.results.forEach((row) => existing.add(row.normalized_domain));
@@ -126,8 +126,8 @@ async function syncAccount(c: Parameters<typeof fail>[0], account: RegistrarRow)
         expires_at = COALESCE(excluded.expires_at, domains.expires_at),
         updated_at = CURRENT_TIMESTAMP`,
     );
-    for (let start = 0; start < normalized.length; start += 500) {
-      const part = normalized.slice(start, start + 500);
+    for (let start = 0; start < normalized.length; start += 80) {
+      const part = normalized.slice(start, start + 80);
       await c.env.DB.batch(part.map((item) => statement.bind(item.fullDomain, item.normalizedDomain, item.name, item.tld, `registrar:${account.provider}`, account.id, item.expiresAt)));
     }
     const inserted = normalized.filter((item) => !existing.has(item.normalizedDomain)).length;

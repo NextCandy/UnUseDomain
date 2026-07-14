@@ -6,7 +6,7 @@ import type { AppBindings } from "../../types";
 export const dashboardRoutes = new Hono<AppBindings>();
 
 dashboardRoutes.get("/", async (c) => {
-  const [counts, tlds, recentLogs, registrars, expirations, leads, expiring] = await c.env.DB.batch([
+  const [counts, tlds, recentLogs, registrars, expirations, leads, expiring, notificationHealth] = await c.env.DB.batch([
     c.env.DB.prepare(`SELECT
       COUNT(*) AS total,
       SUM(CASE WHEN is_listed = 1 THEN 1 ELSE 0 END) AS listed,
@@ -24,6 +24,7 @@ dashboardRoutes.get("/", async (c) => {
        WHERE expires_at IS NOT NULL AND expires_at <= datetime('now', '+90 days')
        ORDER BY expires_at ASC LIMIT 10`,
     ),
+    c.env.DB.prepare("SELECT channel, enabled, last_test FROM notify_channels ORDER BY channel"),
   ]);
   const leadsRow = (leads.results[0] ?? {}) as { total?: number; fresh?: number };
   return ok(c, {
@@ -34,5 +35,6 @@ dashboardRoutes.get("/", async (c) => {
     recentLogs: recentLogs.results,
     registrarCount: Number((registrars.results[0] as { count?: number } | undefined)?.count ?? 0),
     hasExpirationData: Number((expirations.results[0] as { count?: number } | undefined)?.count ?? 0) > 0,
+    notificationHealth: notificationHealth.results,
   });
 });

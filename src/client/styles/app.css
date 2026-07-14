@@ -469,7 +469,16 @@ a { color: inherit; text-decoration: none; }
 .admin-sidebar nav button > svg { width: 18px; height: 18px; flex: 0 0 18px; text-align: center; font-size: 15px; }
 .admin-sidebar nav button:hover { background: color-mix(in oklab, oklch(100% 0 0) 6%, transparent); color: oklch(92% .008 85); }
 .admin-sidebar nav button.active { background: linear-gradient(180deg, var(--sidebar-active-a), var(--sidebar-active-b)); color: var(--sidebar-active-fg); font-weight: 650; box-shadow: 0 6px 16px color-mix(in oklab, oklch(0% 0 0) 28%, transparent); }
-.sidebar-user { margin-top: auto; border-top: 1px solid color-mix(in oklab, oklch(100% 0 0) 10%, transparent); padding: 14px 8px 0; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sidebar-user { margin-top: auto; border-top: 1px solid color-mix(in oklab, oklch(100% 0 0) 10%, transparent); padding: 14px 4px 0; position: relative; min-width: 0; }
+.sidebar-user summary { list-style: none; display: grid; grid-template-columns: 32px minmax(0, 1fr) 16px; align-items: center; gap: 8px; cursor: pointer; }
+.sidebar-user summary::-webkit-details-marker { display: none; }
+.sidebar-user summary > span:nth-child(2) { display: grid; min-width: 0; }
+.sidebar-user summary strong { overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.sidebar-user summary small { color: var(--sidebar-muted); font-size: 10px; }
+.user-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: white; font-weight: 800; }
+.user-menu { position: absolute; bottom: calc(100% + 8px); inset-inline: 0; padding: 6px; border-radius: 10px; background: var(--sidebar-active-a); box-shadow: var(--shadow); display: grid; gap: 3px; }
+.user-menu button { display: flex; align-items: center; gap: 8px; padding: 9px; color: var(--sidebar-fg); }
+.user-menu svg { width: 15px; height: 15px; }
 .sidebar-user > div { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .sidebar-user strong { overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 600; }
 .sidebar-user span { color: var(--sidebar-fg); font-size: 9px; }
@@ -619,6 +628,28 @@ a { color: inherit; text-decoration: none; }
 .upload-card input { height: auto; padding: 8px 0 0; border: 0; background: transparent; font-size: 9px; }
 
 .notification-stack { display: grid; gap: 12px; }
+.reminder-editor { display: grid; grid-template-columns: minmax(140px, .7fr) 2fr auto; gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.reminder-editor > div:first-child { display: grid; gap: 3px; }
+.reminder-editor small { color: var(--fg-3); }
+.reminder-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.reminder-chips button { border: 1px solid color-mix(in oklab, var(--brand) 30%, var(--border)); background: var(--brand-soft); color: var(--brand); padding: 6px 10px; border-radius: 999px; font-weight: 700; }
+.reminder-chips .add-chip { background: transparent; border-style: dashed; color: var(--fg-2); }
+.test-badge { color: var(--fg-3); font-size: 11px; }
+.test-badge.ok { color: var(--success); }
+.test-badge.failed, .status-error { color: var(--danger); }
+.settings-sections { display: grid; gap: 18px; }
+.settings-sections fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; display: grid; gap: 16px; }
+.settings-sections legend { padding: 0 8px; font-family: var(--font-heading); font-size: 17px; font-weight: 700; }
+.color-field { display: flex; align-items: center; gap: 10px; }
+.color-field input { width: 54px; padding: 3px; }
+.site-preview { border-radius: var(--radius); padding: 18px; background: color-mix(in oklab, var(--preview-accent) 10%, var(--bg)); border-left: 4px solid var(--preview-accent); }
+.site-preview span { color: var(--fg-3); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.site-preview strong { display: block; margin-top: 8px; font-family: var(--font-heading); font-size: 24px; }
+.upload-card img { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; }
+.password-strength { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.password-strength i { height: 3px; border-radius: 999px; background: var(--border); }
+.password-strength i.active { background: var(--brand); }
+@media (max-width: 720px) { .reminder-editor { grid-template-columns: 1fr; } }
 .channel-card { min-height: 58px; display: grid; grid-template-columns: 120px minmax(180px, 1fr) auto; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-m); transition: border-color var(--dur-1) var(--ease); }
 .channel-card:hover { border-color: var(--border-strong); }
 .channel-card label { font-size: 11px; font-weight: 600; }

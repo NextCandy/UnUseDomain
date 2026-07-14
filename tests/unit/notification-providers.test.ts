@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { encryptCredentials } from "../../src/worker/security/crypto";
+import { parsePorkbunExpiration } from "../../src/worker/providers/porkbun";
 import { buildBarkPushUrl, sendChannelNotification, type NotificationChannel, type NotifyChannelRow } from "../../src/worker/services/notifications";
 import type { Env } from "../../src/worker/types";
 
@@ -27,6 +28,13 @@ describe("通知与注册商兼容格式", () => {
   it("Bark 完整自建推送地址保留服务器和设备 Key", () => {
     const url = buildBarkPushUrl("https://bark.example.com/device-key/", "玩米通知", "同步完成");
     expect(url).toBe("https://bark.example.com/device-key/%E7%8E%A9%E7%B1%B3%E9%80%9A%E7%9F%A5/%E5%90%8C%E6%AD%A5%E5%AE%8C%E6%88%90");
+  });
+
+  it("Porkbun 到期时间兼容日期、完整时间与 Unix 时间戳", () => {
+    expect(parsePorkbunExpiration("2027-06-17")).toBe("2027-06-17T00:00:00.000Z");
+    expect(parsePorkbunExpiration("2027-06-17 18:30:00")).toBe("2027-06-17T18:30:00.000Z");
+    expect(parsePorkbunExpiration("1813257000")).toBe("2027-06-17T18:30:00.000Z");
+    expect(parsePorkbunExpiration("not-a-date")).toBeNull();
   });
 
   it.each([
