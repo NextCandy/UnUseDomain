@@ -7,7 +7,6 @@ import {
   Inbox,
   LayoutDashboard,
   LogOut,
-  Route,
   Settings,
   ShieldCheck,
   Tag,
@@ -55,6 +54,9 @@ interface AdminDomain {
   auto_category_confidence: number;
   effective_category: string;
   category_source: "auto" | "manual";
+  registered_at: string | null;
+  expires_at: string | null;
+  registrar_name: string | null;
 }
 
 interface AdminDomainPage {
@@ -152,6 +154,55 @@ function loadColumns(): Set<string> {
 interface CategoryRow { id: number; name: string; domain_count: number; is_auto?: number }
 interface DomainFilterOptions { tlds: Array<{ tld: string; count: number }>; categories: Array<{ name: string; count: number }> }
 
+function DomainEditModal({ domain, onClose, onSaved, notify }: { domain: AdminDomain; onClose: () => void; onSaved: () => void; notify: (text: string, tone?: "success" | "error") => void }) {
+  const [fullDomain, setFullDomain] = useState(domain.full_domain);
+  const [tld, setTld] = useState(domain.tld);
+  const [registeredAt, setRegisteredAt] = useState(domain.registered_at?.slice(0, 10) ?? "");
+  const [expiresAt, setExpiresAt] = useState(domain.expires_at?.slice(0, 10) ?? "");
+  const [registrarName, setRegistrarName] = useState(domain.registrar_name ?? "");
+  const [description, setDescription] = useState(domain.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await api(`/api/admin/domains/${domain.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          fullDomain,
+          tld: tld.replace(/^\./, ""),
+          registeredAt: registeredAt || null,
+          expiresAt: expiresAt || null,
+          registrarName: registrarName || null,
+          description,
+        }),
+      });
+      notify(`${fullDomain} 已更新`);
+      onSaved();
+      onClose();
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : "域名信息保存失败", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <div className="modal-backdrop" onMouseDown={onClose}><form className="domain-edit-modal" onSubmit={(event) => void submit(event)} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="domain-edit-title">
+    <button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button>
+    <div><span className="eyebrow">DOMAIN DETAILS</span><h2 id="domain-edit-title">编辑域名信息</h2><p>这些字段会同步用于前台详情和 CSV 导出。</p></div>
+    <div className="domain-edit-grid">
+      <label className="wide">域名<input value={fullDomain} onChange={(event) => setFullDomain(event.target.value.trim())} required /></label>
+      <label>后缀<input value={tld} onChange={(event) => setTld(event.target.value.replace(/^\./, ""))} placeholder="com" required /></label>
+      <label>注册商<input value={registrarName} onChange={(event) => setRegistrarName(event.target.value)} placeholder="例如 Spaceship" /></label>
+      <label>注册日期<input type="date" value={registeredAt} onChange={(event) => setRegisteredAt(event.target.value)} /></label>
+      <label>到期日期<input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+      <label className="wide">简介<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={4} /></label>
+    </div>
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving}>{saving ? "保存中…" : "保存修改"}</button></div>
+  </form></div>;
+}
+
 function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string, tone?: "success" | "error") => void; presetTld?: string; presetQuery?: string }) {
   const [data, setData] = useState<AdminDomainPage | null>(null);
   const [q, setQ] = useState(presetQuery ?? "");
@@ -168,6 +219,7 @@ function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [editing, setEditing] = useState<AdminDomain | null>(null);
   const manualCategories = useMemo(() => categories.filter((item) => !item.is_auto), [categories]);
   const manualCategoryNames = useMemo(() => new Set(manualCategories.map((item) => item.name)), [manualCategories]);
 
@@ -259,19 +311,6 @@ function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string
     catch (reason) { notify(reason instanceof Error ? reason.message : "CSV 导出失败", "error"); }
   }
 
-  async function bulkDns() {
-    if (!selected.size) return;
-    const type = window.prompt("记录类型：A / AAAA / CNAME / MX / TXT / NS / CAA / SRV", "A");
-    if (!type) return;
-    const name = window.prompt("主机记录", "@"); if (name === null) return;
-    const content = window.prompt("记录值"); if (!content) return;
-    try {
-      const result = await api<{ successes: number; failures: number; results: Array<{ domain?: string; success: boolean; error?: string }> }>("/api/admin/dns/bulk", { method: "POST", body: JSON.stringify({ domainIds: [...selected], record: { type: type.toUpperCase(), name: name || "@", content, ttl: 600 } }) });
-      notify(`批量 DNS：成功 ${result.successes}，失败 ${result.failures}`, result.failures ? "error" : "success");
-      if (result.failures) window.alert(result.results.filter((item) => !item.success).map((item) => `${item.domain ?? "未知域名"}：${item.error}`).join("\n"));
-    } catch (reason) { notify(reason instanceof Error ? reason.message : "批量 DNS 失败", "error"); }
-  }
-
   async function addDomain() {
     const fullDomain = window.prompt("输入要添加的完整域名");
     if (!fullDomain) return;
@@ -306,7 +345,7 @@ function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string
 
   const allSelected = Boolean(data?.items.length) && data!.items.every((domain) => selected.has(domain.id));
   const has = (key: string) => columns.has(key);
-  return <Panel title="域名管理" description="前后台共享同一份 D1 数据" actions={<><button className="secondary-button" onClick={() => void exportCsv(`/api/admin/domains/export?q=${encodeURIComponent(q)}&listed=${listed}${tld ? `&tld=${encodeURIComponent(tld)}` : ""}`)}>导出 CSV</button><label className="secondary-button file-button">导入 CSV<input type="file" accept=".csv,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importCsv(file); event.currentTarget.value = ""; }} /></label><button className="primary-button" onClick={() => void addDomain()}>添加域名</button></>}>
+  return <><Panel title="域名管理" description="前后台共享同一份 D1 数据" actions={<><button className="secondary-button" onClick={() => void exportCsv("/api/admin/domains/export")}>导出全部</button><button className="secondary-button" onClick={() => void exportCsv(`/api/admin/domains/export?q=${encodeURIComponent(q)}&listed=${listed}${tld ? `&tld=${encodeURIComponent(tld)}` : ""}`)}>导出筛选</button><label className="secondary-button file-button">导入 CSV<input type="file" accept=".csv,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importCsv(file); event.currentTarget.value = ""; }} /></label><button className="primary-button" onClick={() => void addDomain()}>添加域名</button></>}>
     <div className="admin-toolbar">
       <input value={q} onChange={(event) => { setQ(event.target.value); setPage(1); }} placeholder="搜索完整域名" />
       <select value={listed} onChange={(event) => { setListed(event.target.value); setPage(1); }}><option value="">全部展示状态</option><option value="true">前台展示</option><option value="false">已隐藏</option></select>
@@ -316,7 +355,7 @@ function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string
       <details className="column-picker"><summary>列显示 ▾</summary><div>{OPTIONAL_COLUMNS.map(([key, label]) => <label key={key}><input type="checkbox" checked={columns.has(key)} onChange={() => toggleColumn(key)} />{label}</label>)}</div></details>
       <span>{loading ? "读取中…" : `共 ${data?.total ?? 0} 个`}</span>
     </div>
-    {selected.size > 0 && <div className="bulk-bar"><strong>已选 {selected.size}</strong><button onClick={() => void bulk("feature")}>设为精品</button><button onClick={() => void bulk("unfeature")}>取消精品</button><button onClick={() => void bulk("list")}>上架</button><button onClick={() => void bulk("hide")}>隐藏</button><button onClick={() => void bulk("categorize")}>设置分类</button><button onClick={() => exportSelected()}>导出选中</button><button onClick={() => void bulkDns()}>批量 DNS</button><button className="danger-text" onClick={() => void bulk("delete")}>删除</button><button onClick={() => setSelected(new Set())}>清空选择</button></div>}
+    {selected.size > 0 && <div className="bulk-bar"><strong>已选 {selected.size}</strong><button onClick={() => void bulk("feature")}>设为精品</button><button onClick={() => void bulk("unfeature")}>取消精品</button><button onClick={() => void bulk("list")}>上架</button><button onClick={() => void bulk("hide")}>隐藏</button><button onClick={() => void bulk("categorize")}>设置分类</button><button onClick={() => exportSelected()}>导出选中</button><button className="danger-text" onClick={() => void bulk("delete")}>删除</button><button onClick={() => setSelected(new Set())}>清空选择</button></div>}
     <div className="admin-table-wrap domains-table-wrap"><table className="admin-table domains-table"><thead><tr>
       <th><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(data?.items.map((domain) => domain.id)))} aria-label="全选当前页" /></th>
       <th className="sortable" onClick={() => toggleSort("domain")}>域名{arrow("domain")}</th>
@@ -335,10 +374,10 @@ function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string
       </select></td>}
       <td data-label="精品"><button className={`switch ${domain.is_featured ? "on gold" : ""}`} aria-label={`${domain.full_domain} 精品状态`} onClick={() => void patch(domain.id, { isFeatured: !domain.is_featured }, domain.is_featured ? "已取消精品" : "已设为精品")}><i /></button></td>
       <td data-label="展示"><button className={`switch ${domain.is_listed ? "on" : ""}`} aria-label={`${domain.full_domain} 展示状态`} onClick={() => void patch(domain.id, { isListed: !domain.is_listed }, domain.is_listed ? "已从前台隐藏" : "已恢复展示")}><i /></button></td>
-      <td data-label="操作"><button className="table-link danger-text" onClick={() => void removeDomain(domain)}>删除</button></td>
+      <td data-label="操作"><button className="table-link" onClick={() => setEditing(domain)}>编辑</button><button className="table-link danger-text" onClick={() => void removeDomain(domain)}>删除</button></td>
     </tr>)}</tbody></table></div>
     {data && data.totalPages > 1 && <div className="pagination admin-pagination"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>上一页</button><span>第 {page} / {data.totalPages} 页</span><button disabled={page >= data.totalPages} onClick={() => setPage((value) => value + 1)}>下一页</button></div>}
-  </Panel>;
+  </Panel>{editing && <DomainEditModal domain={editing} notify={notify} onClose={() => setEditing(null)} onSaved={() => setRefresh((value) => value + 1)} />}</>;
 }
 
 function CategoriesView({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
@@ -559,7 +598,8 @@ function DnsView({ notify }: { notify: (text: string, tone?: "success" | "error"
 interface SiteSettingsForm {
   site_name: string; site_description: string; site_bio: string | null; accent_color: string; display_density: "compact" | "comfortable" | "spacious";
   featured_first: number; show_admin_link_in_footer: number; copyright_text: string | null; icp_number: string | null;
-  contact_email: string | null; contact_wechat: string | null; contact_telegram: string | null;
+  contact_email: string | null; contact_wechat: string | null; contact_telegram: string | null; contact_whatsapp: string | null; contact_x: string | null; contact_xiaohongshu: string | null; contact_qq: string | null;
+  turnstile_site_key: string | null; turnstile_secret_ref: string | null;
   logo_url: string | null; favicon_url: string | null; wechat_qr_url: string | null;
 }
 
@@ -572,9 +612,9 @@ function SettingsView({ notify }: { notify: (text: string, tone?: "success" | "e
   async function upload(file: File, target: "logo" | "favicon" | "wechatQr") { const body = new FormData(); body.set("file", file); body.set("target", target); try { const result = await api<{ url: string }>("/api/admin/uploads", { method: "POST", body }); field(target === "logo" ? "logo_url" : target === "favicon" ? "favicon_url" : "wechat_qr_url", result.url); notify("图片已上传到 R2"); } catch (reason) { notify(reason instanceof Error ? reason.message : "上传失败", "error"); } }
   return <Panel title="站点设置" description="按品牌、联系方式、展示偏好和集成分区管理"><form className="settings-form settings-sections" onSubmit={(event) => void save(event)}>
     <fieldset><legend>品牌</legend><div className="form-grid"><label>站点名称<input value={form.site_name} onChange={(event) => field("site_name", event.target.value)} /></label><label>主题色<div className="color-field"><input type="color" value={form.accent_color} onChange={(event) => field("accent_color", event.target.value)} /><span>{form.accent_color}</span></div></label><label className="wide">站点 Slogan<input value={form.site_description} onChange={(event) => field("site_description", event.target.value)} /></label><label className="wide">品牌简介<input value={form.site_bio ?? ""} onChange={(event) => field("site_bio", event.target.value || null)} maxLength={500} /></label></div><div className="site-preview" style={{ "--preview-accent": form.accent_color } as CSSProperties}><span>实时预览</span><strong>{form.site_name}</strong><p>{form.site_description}</p></div><div className="upload-grid">{(["logo", "favicon", "wechatQr"] as const).map((target) => { const preview = target === "logo" ? form.logo_url : target === "favicon" ? form.favicon_url : form.wechat_qr_url; return <label className="upload-card" key={target}>{preview ? <img src={preview} alt="" /> : <span>拖拽或选择图片</span>}<strong>{target === "logo" ? "Logo" : target === "favicon" ? "Favicon" : "微信二维码"}</strong><small>PNG / JPEG / WebP，最大 2 MB</small><input type="file" accept="image/png,image/jpeg,image/webp,image/x-icon" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file, target); }} /></label>; })}</div></fieldset>
-    <fieldset><legend>联系方式</legend><div className="form-grid"><label>公开邮箱<input type="email" value={form.contact_email ?? ""} onChange={(event) => field("contact_email", event.target.value || null)} /></label><label>微信<input value={form.contact_wechat ?? ""} onChange={(event) => field("contact_wechat", event.target.value || null)} /></label><label>Telegram<input value={form.contact_telegram ?? ""} onChange={(event) => field("contact_telegram", event.target.value || null)} /></label></div></fieldset>
+    <fieldset><legend>联系方式</legend><div className="form-grid"><label>公开邮箱<input type="email" value={form.contact_email ?? ""} onChange={(event) => field("contact_email", event.target.value || null)} /></label><label>微信<input value={form.contact_wechat ?? ""} onChange={(event) => field("contact_wechat", event.target.value || null)} /></label><label>Telegram<input value={form.contact_telegram ?? ""} onChange={(event) => field("contact_telegram", event.target.value || null)} /></label><label>WhatsApp<input value={form.contact_whatsapp ?? ""} onChange={(event) => field("contact_whatsapp", event.target.value || null)} placeholder="国际区号手机号" /></label><label>X<input value={form.contact_x ?? ""} onChange={(event) => field("contact_x", event.target.value || null)} /></label><label>小红书 URL<input value={form.contact_xiaohongshu ?? ""} onChange={(event) => field("contact_xiaohongshu", event.target.value || null)} /></label><label>QQ<input value={form.contact_qq ?? ""} onChange={(event) => field("contact_qq", event.target.value || null)} /></label></div></fieldset>
     <fieldset><legend>展示偏好</legend><div className="form-grid"><label>页面密度<select value={form.display_density} onChange={(event) => field("display_density", event.target.value as SiteSettingsForm["display_density"])}><option value="compact">紧凑</option><option value="comfortable">舒适</option><option value="spacious">宽松</option></select></label><label>ICP备案号<input value={form.icp_number ?? ""} onChange={(event) => field("icp_number", event.target.value || null)} /></label><label>版权文字<input value={form.copyright_text ?? ""} onChange={(event) => field("copyright_text", event.target.value || null)} /></label></div><div className="checkbox-row"><label><input type="checkbox" checked={Boolean(form.featured_first)} onChange={(event) => field("featured_first", event.target.checked ? 1 : 0)} />精品优先</label><label><input type="checkbox" checked={Boolean(form.show_admin_link_in_footer)} onChange={(event) => field("show_admin_link_in_footer", event.target.checked ? 1 : 0)} />页脚显示管理入口</label></div></fieldset>
-    <fieldset><legend>集成</legend><details className="integration-details"><summary>域名服务商与 DNS 凭据</summary><RegistrarsView notify={notify} /></details></fieldset>
+    <fieldset><legend>集成</legend><div className="form-grid"><label>Turnstile Site Key<input value={form.turnstile_site_key ?? ""} onChange={(event) => field("turnstile_site_key", event.target.value || null)} /></label><label>Turnstile Secret 引用<input value={form.turnstile_secret_ref ?? ""} onChange={(event) => field("turnstile_secret_ref", event.target.value || null)} placeholder="例如 TURNSTILE_SECRET_KEY" /></label></div><details className="integration-details"><summary>域名服务商与 DNS 凭据</summary><RegistrarsView notify={notify} /></details></fieldset>
     <button className="primary-button align-start">保存全部设置</button>
   </form></Panel>;
 }
@@ -663,7 +703,7 @@ export function AdminApp() {
   useEffect(() => { api<AdminUser>("/api/auth/me").then(setUser).catch((reason: unknown) => { if (!(reason instanceof ApiError) || reason.status !== 401) notify(reason instanceof Error ? reason.message : "会话检查失败", "error"); }).finally(() => setChecking(false)); }, [notify]);
   if (checking) return <div className="app-loading"><span className="brand-mark">玩</span><p>正在验证玩米会话…</p></div>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); setView("overview"); }} />;
-  const nav: Array<[AdminView, string, LucideIcon]> = [["overview", "概览", LayoutDashboard], ["domains", "域名管理", Globe], ["categories", "分类", Tag], ["leads", "线索", Inbox], ["dns", "DNS 解析", Route], ["settings", "站点设置", Settings], ["notifications", "到期提醒", Bell], ["security", "账户安全", ShieldCheck], ["logs", "操作日志", History]];
+  const nav: Array<[AdminView, string, LucideIcon]> = [["overview", "概览", LayoutDashboard], ["domains", "域名管理", Globe], ["categories", "分类", Tag], ["leads", "线索", Inbox], ["settings", "站点设置", Settings], ["notifications", "到期提醒", Bell], ["security", "账户安全", ShieldCheck], ["logs", "操作日志", History]];
   async function logout() { try { await api("/api/auth/logout", { method: "POST" }); } finally { setUser(null); } }
   return <div className="admin-shell"><aside className="admin-sidebar"><a href="/" className="brand admin-brand"><span className="brand-mark">玩</span><span>玩米</span></a><nav>{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? "active" : ""} onClick={() => setView(key)}><Icon aria-hidden="true" />{label}</button>)}</nav><details className="sidebar-user"><summary><span className="user-avatar">{user.email.slice(0, 1).toUpperCase()}</span><span><strong>{user.email}</strong><small>管理员</small></span><ChevronDown aria-hidden="true" /></summary><div className="user-menu"><button onClick={() => setView("security")}><ShieldCheck aria-hidden="true" />修改密码</button><button onClick={() => void logout()}><LogOut aria-hidden="true" />退出登录</button></div></details></aside><div className="admin-main"><header className="admin-header"><div><span>玩米管理后台</span><h1>{nav.find(([key]) => key === view)?.[1]}</h1></div><div className="admin-header-actions"><ThemeToggle /><a href="/" target="_blank">查看前台 ↗</a></div></header><main>{view === "overview" && <OverviewView onTldClick={(tld) => { setDomainsPresetTld(tld); setView("domains"); }} />}{view === "domains" && <DomainsView key={domainsPresetTld ?? "all"} notify={notify} presetTld={domainsPresetTld} />}{view === "categories" && <CategoriesView notify={notify} />}{view === "leads" && <LeadsView notify={notify} />}{view === "dns" && <DnsView notify={notify} />}{view === "registrars" && <RegistrarsView notify={notify} />}{view === "settings" && <SettingsView notify={notify} />}{view === "notifications" && <NotificationsView notify={notify} />}{view === "security" && <SecurityView user={user} notify={notify} />}{view === "logs" && <LogsView />}</main></div><Toast message={toast} onClose={() => setToast(null)} /></div>;
 }

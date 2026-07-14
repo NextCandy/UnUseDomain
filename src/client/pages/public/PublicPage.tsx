@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { ContactIcons } from "../../components/ContactIcons";
 import { Toast, type ToastMessage } from "../../components/Toast";
 import { api } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
@@ -21,6 +22,10 @@ interface SiteSettings {
   contact_telegram: string | null;
   wechat_qr_url: string | null;
   show_admin_link_in_footer: boolean;
+  contact_whatsapp: string | null;
+  contact_x: string | null;
+  contact_xiaohongshu: string | null;
+  contact_qq: string | null;
 }
 
 interface DomainFacets {
@@ -92,7 +97,7 @@ function MailIcon() {
 }
 
 export function PublicPage() {
-  const { trackDomainClick } = useTracker("/");
+  useTracker("/");
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [facets, setFacets] = useState<DomainFacets | null>(null);
   const [pageData, setPageData] = useState<Paginated<PublicDomain> | null>(null);
@@ -166,7 +171,7 @@ export function PublicPage() {
     return () => window.removeEventListener("keydown", close);
   }, [contactOpen]);
 
-  const hasContact = Boolean(settings?.contact_email || settings?.contact_wechat || settings?.contact_telegram);
+  const hasContact = Boolean(settings?.contact_email || settings?.contact_wechat || settings?.contact_telegram || settings?.contact_whatsapp || settings?.contact_x || settings?.contact_xiaohongshu || settings?.contact_qq);
   const hasActiveFilter = Boolean(filters.q || filters.tld || filters.category || filters.group !== "all" || filters.sort !== "default");
   const categories = useMemo(() => [
     { value: "", label: "全部", count: facets?.total ?? 0, icon: "▦" },
@@ -245,7 +250,7 @@ export function PublicPage() {
           {!loading && !error && pageData && pageData.items.length > 0 && <div className={`domain-list ${viewMode === "compact" ? "compact-view" : "card-view"}`} role="list">
             {pageData.items.map((domain, index) => <div className={`domain-card${domain.is_featured ? " featured" : ""}`} role="listitem" key={domain.id} style={{ animationDelay: `${Math.min(index * 18, 280)}ms` }}>
               <a className="card-cover" href={`/d/${encodeURIComponent(domain.domain)}`} aria-label={`查看 ${domain.domain} 详情`} />
-              <div className="domain-primary"><div className="domain-name"><a href={`https://${domain.domain}`} target="_blank" rel="noopener nofollow" onMouseDown={() => trackDomainClick(domain.domain)}><strong>{domain.name}</strong><span>.{domain.tld}</span></a></div><div className="domain-tags">{domain.is_featured && <span className="chip chip-featured">精品</span>}{(domain.categories.length ? domain.categories : domain.category ? [domain.category] : []).map((category) => <span className="chip" key={category}>{category}</span>)}</div></div>
+              <div className="domain-primary"><div className="domain-name"><a href={`/d/${encodeURIComponent(domain.domain)}`}><strong>{domain.name}</strong><span>.{domain.tld}</span></a></div><div className="domain-tags">{domain.is_featured && <span className="chip chip-featured">精品</span>}{(domain.categories.length ? domain.categories : domain.category ? [domain.category] : []).map((category) => <span className="chip" key={category}>{category}</span>)}</div></div>
               <span className="domain-tld">.{domain.tld}</span><span className="domain-length">{domain.name.length}</span><p className="domain-description">{domain.description || "—"}</p>
               <div className="domain-actions"><button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}><CopyIcon /><span>复制</span></button>{hasContact && <button className="contact-row-button" onClick={() => setContactOpen(true)}><MailIcon /><span>我想要</span></button>}<a href={`/d/${encodeURIComponent(domain.domain)}`}>详情 →</a></div>
             </div>)}
@@ -257,7 +262,7 @@ export function PublicPage() {
 
       {categoryOpen && <div className="category-drawer-backdrop" onClick={() => setCategoryOpen(false)}><section className="category-drawer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="更多分类"><header><h2>全部分类</h2><button onClick={() => setCategoryOpen(false)}>×</button></header><div>{categories.map((option) => <button key={option.value || "all"} onClick={() => { selectCategory(option.value); setCategoryOpen(false); }}><span>{option.icon}</span>{option.label}<small>{option.count}</small></button>)}</div></section></div>}
 
-      <footer className="public-footer"><div><strong>{settings?.site_name ?? "玩米"}</strong><span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span></div>{settings?.icp_number && <span>{settings.icp_number}</span>}{hasContact && <button onClick={() => setContactOpen(true)}><MailIcon />联系我们</button>}{settings?.show_admin_link_in_footer && <a className="footer-admin-link" href="/admin">管理</a>}</footer>
+      <footer className="public-footer footer-grid"><div className="footer-brand"><strong>{settings?.site_name ?? "玩米"}</strong><span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>{settings?.icp_number && <span>{settings.icp_number}</span>}</div>{settings && <ContactIcons settings={settings} notify={notify} />}<div className="footer-right">{settings?.show_admin_link_in_footer && <a className="footer-admin-link" href="/admin">管理</a>}</div></footer>
 
       {contactOpen && settings && <div className="modal-backdrop" onMouseDown={() => setContactOpen(false)}><div className="contact-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="contact-title"><button className="modal-close" aria-label="关闭" onClick={() => setContactOpen(false)}>×</button><h2 id="contact-title">联系玩米</h2><p>请附上你感兴趣的完整域名。</p><div className="contact-list">{settings.contact_email && <a href={`mailto:${settings.contact_email}`}>邮箱 <strong>{settings.contact_email}</strong></a>}{settings.contact_telegram && <a href={`https://t.me/${settings.contact_telegram.replace(/^@/, "")}`} target="_blank" rel="noreferrer">Telegram <strong>{settings.contact_telegram}</strong></a>}{settings.contact_wechat && <button onClick={() => void copyText(settings.contact_wechat!).then((ok) => notify(ok ? "微信号已复制" : "复制失败", ok ? "success" : "error"))}>微信 <strong>{settings.contact_wechat}</strong></button>}{settings.wechat_qr_url && <img className="qr-code" src={settings.wechat_qr_url} alt="玩米微信二维码" />}</div></div></div>}
       <Toast message={toast} onClose={() => setToast(null)} />

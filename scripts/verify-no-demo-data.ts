@@ -9,7 +9,11 @@ const forbiddenDomains = [
   "cloudora.com", "hostley.net", "domicore.com", "netquill.cc", "siteforge.io", "webgrove.com",
   "pixelbay.cc", "hypernest.ai", "softlark.com", "smartcloudhosting.com", "greenenergyfarm.cn",
 ];
-const forbiddenBrand = ["DS Hunter", "DSHunter", "dshunter"];
+const forbiddenBrandPatterns = [
+  { label: "DS Hunter", pattern: /ds\s+hunter/i },
+  // 允许用户真实资产 dshunter.com，但继续禁止页面、文档与代码中的旧品牌文案 DSHunter。
+  { label: "DSHunter", pattern: /dshunter(?!\.[a-z0-9])/i },
+];
 const roots = ["src", "scripts", "migrations", "public", "dist", ".github"];
 const rootFiles = ["index.html", "package.json", "wrangler.jsonc", "README.md", "HANDOFF.md"];
 const extensions = new Set([".ts", ".tsx", ".js", ".jsx", ".json", ".jsonc", ".sql", ".html", ".md", ".yml", ".yaml", ".css"]);
@@ -28,9 +32,13 @@ const files = [
 ].filter((file) => extensions.has(path.extname(file)) && file.replaceAll("\\", "/") !== "scripts/verify-no-demo-data.ts");
 const findings: string[] = [];
 for (const file of files) {
-  const content = fs.readFileSync(file, "utf8").toLowerCase();
-  for (const value of [...forbiddenDomains, ...forbiddenBrand]) {
-    if (content.includes(value.toLowerCase())) findings.push(`${file}: ${value}`);
+  const content = fs.readFileSync(file, "utf8");
+  const lowerContent = content.toLowerCase();
+  for (const value of forbiddenDomains) {
+    if (lowerContent.includes(value.toLowerCase())) findings.push(`${file}: ${value}`);
+  }
+  for (const { label, pattern } of forbiddenBrandPatterns) {
+    if (pattern.test(content)) findings.push(`${file}: ${label}`);
   }
 }
 

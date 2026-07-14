@@ -2,20 +2,11 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Toast, type ToastMessage } from "../../components/Toast";
+import { TurnstileWidget } from "../../components/TurnstileWidget";
 import { api } from "../../lib/api";
 import { copyText } from "../../lib/clipboard";
 import { useTracker } from "../../hooks/useTracker";
 import type { PublicDomain } from "../../../shared/types/api";
-
-interface RdapSummary {
-  domain: string;
-  registrar: string | null;
-  createdAt: string | null;
-  expiresAt: string | null;
-  updatedAt: string | null;
-  status: string[];
-  nameservers: string[];
-}
 
 interface DetailResponse {
   domain: PublicDomain;
@@ -32,31 +23,22 @@ export function DomainDetailPage({ name }: { name: string }) {
   const { trackDomainClick, trackLeadSubmit } = useTracker(`/d/${name}`);
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState("");
-  const [rdap, setRdap] = useState<RdapSummary | null>(null);
-  const [rdapState, setRdapState] = useState<"idle" | "loading" | "error">("idle");
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [offer, setOffer] = useState({ contact: "", message: "" });
   const [offerState, setOfferState] = useState<"idle" | "submitting" | "done">("idle");
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const notify = (text: string, tone: "success" | "error" = "success") => setToast({ id: Date.now(), text, tone });
 
   useEffect(() => {
+    api<{ turnstile_site_key: string | null }>("/api/public/settings").then((settings) => setTurnstileSiteKey(settings.turnstile_site_key)).catch(() => undefined);
     api<DetailResponse>(`/api/public/domains/${encodeURIComponent(name)}`)
       .then((response) => {
         setData(response);
         document.title = `${response.domain.domain} 域名详情`;
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "域名加载失败"));
-  }, [name]);
-
-  useEffect(() => {
-    setRdapState("loading");
-    api<RdapSummary>(`/api/public/rdap/${encodeURIComponent(name)}`)
-      .then((summary) => {
-        setRdap(summary);
-        setRdapState("idle");
-      })
-      .catch(() => setRdapState("error"));
   }, [name]);
 
   async function copyDomain() {
@@ -76,6 +58,7 @@ export function DomainDetailPage({ name }: { name: string }) {
           domain: name,
           contact: offer.contact.trim(),
           message: offer.message.trim() || null,
+          turnstile_token: turnstileToken || null,
         }),
       });
       setOfferState("done");
@@ -134,18 +117,12 @@ export function DomainDetailPage({ name }: { name: string }) {
             <div className="detail-grid">
               <div className="admin-stack">
                 <section className="detail-panel">
-                  <h2>Whois 摘要</h2>
-                  {rdapState === "loading" && <div className="empty-inline">正在查询 RDAP…</div>}
-                  {rdapState === "error" && <div className="empty-inline">RDAP 查询暂不可用，稍后再试。</div>}
-                  {rdap && (
-                    <div className="whois-list">
-                      <div><span>注册商</span><b>{rdap.registrar ?? "—"}</b></div>
-                      <div><span>注册时间</span><b>{formatDate(rdap.createdAt)}</b></div>
-                      <div><span>到期时间</span><b>{formatDate(rdap.expiresAt)}</b></div>
-                      <div><span>域名状态</span><b>{rdap.status.length ? rdap.status.slice(0, 3).join(", ") : "—"}</b></div>
-                      <div><span>Nameserver</span><b>{rdap.nameservers.length ? rdap.nameservers.slice(0, 2).join(", ") : "—"}</b></div>
-                    </div>
-                  )}
+                  <h2>域名日期</h2>
+                  <p className="panel-note">来自已导入的域名资料，不进行外部联网查询。</p>
+                  <div className="whois-list">
+                    <div><span>注册日期</span><b>{formatDate(domain.registered_at)}</b></div>
+                    <div><span>到期日期</span><b>{formatDate(domain.expires_at)}</b></div>
+                  </div>
                 </section>
                 {data.related.length > 0 && (
                   <section className="detail-panel">
@@ -173,6 +150,7 @@ export function DomainDetailPage({ name }: { name: string }) {
                     <label>留言（可选）
                       <textarea value={offer.message} onChange={(event) => setOffer({ ...offer, message: event.target.value })} maxLength={1000} placeholder="想用它做什么？" />
                     </label>
+                    {turnstileSiteKey && <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} />}
                     <button className="primary-button" disabled={offerState === "submitting"}>
                       {offerState === "submitting" ? "正在提交…" : "提交求购意向"}
                     </button>

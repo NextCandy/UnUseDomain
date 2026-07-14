@@ -22,6 +22,15 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 export const settingsRoutes = new Hono<AppBindings>();
 
+function parseLastTest(value: string | null): { ok: boolean; at: string; error: string | null } | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (parsed && typeof parsed === "object" && "ok" in parsed && "at" in parsed) return parsed as { ok: boolean; at: string; error: string | null };
+  } catch { /* invalid historical state is treated as untested */ }
+  return null;
+}
+
 settingsRoutes.get("/settings", async (c) => {
   const settings = await c.env.DB.prepare("SELECT * FROM site_settings WHERE id = 1").first();
   return ok(c, settings);
@@ -99,7 +108,7 @@ settingsRoutes.get("/notifications", async (c) => {
   ]);
   return ok(c, { ...settings, channels: channels.results.map((row) => {
     const config = parseNotificationConfig(row.config);
-    return { channel: row.channel, enabled: row.enabled, last_test: row.last_test ? JSON.parse(row.last_test) : null, config: { server_url: config.server_url, chat_id: config.chat_id, from: config.from, to: config.to }, configured: Boolean(config.secret_encrypted) || row.channel === "email" };
+    return { channel: row.channel, enabled: row.enabled, last_test: parseLastTest(row.last_test), config: { server_url: config.server_url, chat_id: config.chat_id, from: config.from, to: config.to }, configured: Boolean(config.secret_encrypted) || row.channel === "email" };
   }) });
 });
 
@@ -157,8 +166,9 @@ settingsRoutes.patch("/notifications/channel", async (c) => {
   const config = parseNotificationConfig(existing.config);
   const secretName = SECRET_NAME[parsed.data.channel];
   const incoming = parsed.data.config as Record<string, string | undefined>;
-  if (secretName && incoming[secretName]) {
-    const encrypted = await encryptCredentials({ [secretName]: incoming[secretName]! }, c.env.CREDENTIALS_ENCRYPTION_KEY);
+  const secret = secretName ? incoming[secretName] : undefined;
+  if (secretName && secret) {
+    const encrypted = await encryptCredentials({ [secretName]: secret }, c.env.CREDENTIALS_ENCRYPTION_KEY);
     config.secret_encrypted = encrypted.encrypted;
     config.secret_iv = encrypted.iv;
   }

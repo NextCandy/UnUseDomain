@@ -65,6 +65,9 @@ export interface ParsedDomainRecord extends NormalizedDomain {
   rawMetadataJson: string;
   initialDescription: string;
   initialFeatured: boolean;
+  initialRegisteredAt: string | null;
+  initialExpiresAt: string | null;
+  initialRegistrarName: string | null;
 }
 
 export interface DomainCsvIssue {

@@ -30,6 +30,13 @@ describe("通知与注册商兼容格式", () => {
     expect(url).toBe("https://bark.example.com/device-key/%E7%8E%A9%E7%B1%B3%E9%80%9A%E7%9F%A5/%E5%90%8C%E6%AD%A5%E5%AE%8C%E6%88%90");
   });
 
+  it("Bark 兼容迁移前密文中的 deviceKey 字段", async () => {
+    const encrypted = await encryptCredentials({ deviceKey: "legacy-key" }, encryptionKey);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ code: 200 }), { status: 200 }));
+    await sendChannelNotification(env, { channel: "bark", enabled: 1, config: JSON.stringify({ server_url: "https://api.day.app", secret_encrypted: encrypted.encrypted, secret_iv: encrypted.iv }), last_test: null }, { title: "标题", content: "正文" });
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.day.app/legacy-key/%E6%A0%87%E9%A2%98/%E6%AD%A3%E6%96%87");
+  });
+
   it("Porkbun 到期时间兼容日期、完整时间与 Unix 时间戳", () => {
     expect(parsePorkbunExpiration("2027-06-17")).toBe("2027-06-17T00:00:00.000Z");
     expect(parsePorkbunExpiration("2027-06-17 18:30:00")).toBe("2027-06-17T18:30:00.000Z");
@@ -50,8 +57,11 @@ describe("通知与注册商兼容格式", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(responseBody), { status: 200, headers: { "Content-Type": "application/json" } }));
     await sendChannelNotification(env, await channel(name, { ...config }, secret ? [...secret] : undefined), { title: "标题", content: "正文" });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe(expectedUrl);
-    if (authorization) expect((init?.headers as Record<string, string>).Authorization).toBe(authorization);
-    if (bodyFragment) expect(String(init?.body)).toContain(bodyFragment);
+    const requestedUrl = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const actualAuthorization = (init?.headers as Record<string, string> | undefined)?.Authorization;
+    const requestBody = typeof init?.body === "string" ? init.body : "";
+    expect(requestedUrl).toBe(expectedUrl);
+    expect(actualAuthorization).toBe(authorization);
+    expect(bodyFragment ? requestBody.includes(bodyFragment) : true).toBe(true);
   });
 });

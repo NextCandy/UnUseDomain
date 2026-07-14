@@ -63,6 +63,14 @@ function utcDate(value: string): string | null {
   return new Date(Date.UTC(Number(match[3]), MONTHS[match[1]], Number(match[2]))).toISOString();
 }
 
+function importedDate(value: string): string | null {
+  const parsed = nullable(value);
+  if (parsed === null) return null;
+  const match = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:T.*)?$/.exec(parsed);
+  if (!match) throw new Error("日期格式无效，请使用 YYYY-MM-DD 或 YYYY/M/D");
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).toISOString();
+}
+
 function increment(target: Record<string, number>, key: string): void {
   target[key] = (target[key] ?? 0) + 1;
 }
@@ -104,6 +112,9 @@ function parseMinimalDomainCsv(
   const column = headerless ? 0 : domainColumn;
   const descriptionColumn = headers.findIndex((header) => /^(description|简介)$/i.test(header));
   const premiumColumn = headers.findIndex((header) => /^(premium|精品|是否精品)$/i.test(header));
+  const registeredColumn = headers.findIndex((header) => /^(registered(_at)?|registration date|注册日期)$/i.test(header));
+  const expiresColumn = headers.findIndex((header) => /^(expires(_at)?|expiry date|expiration date|到期日期)$/i.test(header));
+  const registrarColumn = headers.findIndex((header) => /^(registrar|注册商)$/i.test(header));
   for (let index = startRow; index < matrix.length; index += 1) {
     const values = matrix[index];
     const rowNumber = index + 1;
@@ -156,6 +167,9 @@ function parseMinimalDomainCsv(
         rawMetadataJson: JSON.stringify({ Domain: rawDomain }),
         initialDescription: descriptionColumn >= 0 ? (values[descriptionColumn] ?? "").trim().slice(0, 500) : "",
         initialFeatured: premiumColumn >= 0 && /^(1|y|yes|true|是|精品)$/i.test((values[premiumColumn] ?? "").trim()),
+        initialRegisteredAt: registeredColumn >= 0 ? importedDate(values[registeredColumn] ?? "") : null,
+        initialExpiresAt: expiresColumn >= 0 ? importedDate(values[expiresColumn] ?? "") : null,
+        initialRegistrarName: registrarColumn >= 0 ? nullable(values[registrarColumn] ?? "") : null,
       });
     } catch (error) {
       const isDomainError = error instanceof DomainValidationError;
@@ -289,6 +303,9 @@ export function parseDomainCsv(
         rawMetadataJson: JSON.stringify(raw),
         initialDescription: "",
         initialFeatured: false,
+        initialRegisteredAt: null,
+        initialExpiresAt: null,
+        initialRegistrarName: null,
       });
     } catch (error) {
       const isDomainError = error instanceof DomainValidationError;

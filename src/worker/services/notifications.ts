@@ -85,7 +85,8 @@ async function channelSecret(env: Env, config: NotificationConfig, field: string
   const iv = config.secret_iv;
   if (!encrypted || !iv) throw new Error(`${label} 未配置`);
   const credentials = await decryptCredentials(encrypted, iv, env.CREDENTIALS_ENCRYPTION_KEY);
-  const value = credentials[field];
+  const legacyField = field === "device_key" ? "deviceKey" : field === "send_key" ? "sendKey" : field === "webhook_url" ? "webhookUrl" : field;
+  const value = credentials[field] ?? credentials[legacyField];
   if (!value) throw new Error(`${label} 配置无效`);
   return value;
 }

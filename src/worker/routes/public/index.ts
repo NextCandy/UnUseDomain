@@ -20,6 +20,8 @@ interface PublicDomainRow {
   manual_category: string | null;
   auto_categories: string | null;
   is_featured: number;
+  registered_at: string | null;
+  expires_at: string | null;
 }
 
 interface SettingsRow {
@@ -38,13 +40,18 @@ interface SettingsRow {
   contact_telegram: string | null;
   wechat_qr_url: string | null;
   show_admin_link_in_footer: number;
+  contact_whatsapp: string | null;
+  contact_x: string | null;
+  contact_xiaohongshu: string | null;
+  contact_qq: string | null;
+  turnstile_site_key: string | null;
 }
 
 const PUBLIC_SELECT = `SELECT d.id, d.full_domain AS domain, d.name, d.tld, d.description,
   NULLIF(d.category, '') AS manual_category,
   COALESCE(NULLIF(d.category, ''), d.auto_category) AS category,
   (SELECT GROUP_CONCAT(dac.category, '|') FROM domain_auto_categories dac WHERE dac.domain_id = d.id) AS auto_categories,
-  d.is_featured FROM domains d`;
+  d.is_featured, d.registered_at, d.expires_at FROM domains d`;
 
 function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, unknown> {
   return {
@@ -58,6 +65,8 @@ function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, un
       ? [row.manual_category]
       : (row.auto_categories?.split("|").filter(Boolean) ?? (row.category ? [row.category] : [])),
     is_featured: row.is_featured === 1,
+    registered_at: row.registered_at,
+    expires_at: row.expires_at,
   };
 }
 
@@ -67,7 +76,8 @@ publicRoutes.get("/settings", async (c) => {
   const settings = await c.env.DB.prepare(
     `SELECT site_name, site_description, site_bio, logo_url, favicon_url, accent_color, display_density,
       featured_first, copyright_text, icp_number, contact_email, contact_wechat,
-      contact_telegram, wechat_qr_url, show_admin_link_in_footer
+      contact_telegram, contact_whatsapp, contact_x, contact_xiaohongshu, contact_qq,
+      wechat_qr_url, show_admin_link_in_footer, turnstile_site_key
      FROM site_settings WHERE id = 1`,
   ).first<SettingsRow>();
   if (!settings) return fail(c, 503, "SETTINGS_UNAVAILABLE", "站点设置尚未初始化");
@@ -296,13 +306,21 @@ publicRoutes.post("/offers", async (c) => {
     .bind(normalized)
     .first<{ id: number; full_domain: string }>();
   if (!domain) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在或未上架");
+  const turnstile = await c.env.DB.prepare("SELECT turnstile_site_key FROM site_settings WHERE id = 1").first<{ turnstile_site_key: string | null }>();
+  if (turnstile?.turnstile_site_key) {
+    if (!c.env.TURNSTILE_SECRET_KEY || !parsed.data.turnstile_token) return fail(c, 403, "TURNSTILE_REQUIRED", "请完成人机验证");
+    const form = new FormData(); form.set("secret", c.env.TURNSTILE_SECRET_KEY); form.set("response", parsed.data.turnstile_token); form.set("remoteip", requestIp(c));
+    const verify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+    const result = await verify.json().catch(() => ({})) as { success?: boolean };
+    if (!result.success) return fail(c, 403, "TURNSTILE_FAILED", "人机验证失败，请重试");
+  }
   const ipHash = await hmacSha256(requestIp(c), c.env.SESSION_SECRET);
   const recent = await c.env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM domain_leads WHERE ip_hash = ? AND created_at >= datetime('now', '-1 hour')",
+    "SELECT COUNT(*) AS count FROM domain_leads WHERE ip_hash = ? AND created_at >= datetime('now', '-1 minute')",
   )
     .bind(ipHash)
     .first<{ count: number }>();
-  if ((recent?.count ?? 0) >= 5) return fail(c, 429, "OFFER_RATE_LIMITED", "提交过于频繁，请稍后再试");
+  if ((recent?.count ?? 0) >= 3) return fail(c, 429, "OFFER_RATE_LIMITED", "提交过于频繁，请稍后再试");
   const country = c.req.header("cf-ipcountry") ?? null;
   await c.env.DB.prepare(
     `INSERT INTO domain_leads (domain_id, offer_amount, currency, contact, message, ip_hash, country)

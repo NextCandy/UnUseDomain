@@ -1,34 +1,49 @@
 # feat: UI polish + notify fix + stats + contacts + registrar cleanup
 
-## 现状审计
+## 完成内容
 
-- 前台仍是左侧长分类轨 + 表格行列表，首屏没有双栏 Hero、精品横向区、卡片/紧凑视图切换，也没有完整 Footer 联系方式与访客 IP 卡。
-- 前台主导航仍暴露“管理后台”；域名文本进入站内详情而不是直接访问域名。
-- 后台侧栏仍有独立“注册商”，站点设置尚未承接注册商集成。
-- 通知设置仍以单表散列字段表达，Bark 未拆分服务地址与设备密钥，各渠道没有可持久化的 `last_test`，Email 也没有 Resend 通道。
-- 概览没有 PV/UV、域名点击、转化率和访客地区统计；D1 尚无 `stats_events`。
-- 联系方式字段不完整，Footer 不支持微信弹层、二维码、QQ、WhatsApp、X、小红书和 ippure 卡片。
-- 分类 API 尚未提供 `{ auto, manual }` 的统一公开结构，项目文档和分类提示仍包含不应外显的外部品牌名。
+- 按参考图重做前台：双栏 Hero、分类胶囊、精品横向区、紧凑域名卡片、站内详情页与完整页脚。
+- 域名卡片在桌面端调整为 4 列紧凑布局；按最新反馈彻底移除访客 IP 信息卡及后台开关，并以圆角、柔和层次和轻阴影替代生硬直线。
+- 域名名称进入站内详情页，展示附件导入的注册日期和到期日期，不发起外部 RDAP/WHOIS 查询。
+- 分类同时支持自动分类与人工分类，并在前台筛选、卡片和详情页中实际可用。
+- 后台重做侧栏、概览、域名管理、到期提醒、站点设置、账户安全和操作日志；移除 DNS 解析导航入口。
+- 域名管理增加“导出全部 / 导出筛选”和单条完整编辑，域名、后缀、注册日期、到期日期、注册商、简介均可导出与修改。
+- 重构 Bark、Discord、Resend Email、飞书、Server 酱、Telegram、企业微信七类通知配置，增加加密存储、真实测试结果和 `last_test` 健康状态。
+- 新增 PV、UV、域名点击、求购转化率和访客地区统计，后台提供图表与 Top 列表。
+- 增加 Footer 联系方式、微信二维码弹层和访客 IP 卡；管理入口移到页脚。
+- 修正 Cloudflare Web Analytics 的 CSP 白名单，避免生产控制台拦截统计脚本。
+- 更新 README、部署说明、截图和设计参考。
 
-## 实施计划
+## 数据库迁移
 
-1. 建立奶油纸张/深墨/暖橙设计令牌、语义化 Lucide 图标和统一相对时间工具。
-2. 新增通知/统计/联系方式迁移；重构七类通知通道、真实测试与 `last_test`。
-3. 重构后台壳层、概览、域名管理、到期提醒、站点设置、账户安全与操作日志。
-4. 重构前台 Hero、分类抽屉、精品横向区、卡片/紧凑视图、详情与求购流程。
-5. 将域名服务商管理移动到“站点设置 → 集成”，修复 DNS 账户提示，移除外部项目字样与顶部后台入口。
-6. 增加匿名 PV/UV/域名点击追踪、D1 汇总与后台统计图表。
-7. 增加 Footer 联系图标、微信弹层、R2 二维码与可开关访客 IP 卡。
+- `0008_notification_channel_settings.sql`
+- `0009_stats_events.sql`
+- `0010_contact_settings.sql`
+- `0011_notification_last_test.sql`
+- `0012_domain_imported_dates.sql`
+- `0013_domain_import_details.sql`
 
-## 视觉规范
+`0012`、`0013` 按仓库内 `data/source/WanMi.csv` 的 859 行资料回填日期与注册商，并扩展后续 CSV 导入所需字段；其中 852 条有日期/注册商值，7 条源数据为空。
 
-- 背景：`oklch(0.985 0.008 80)`；文字：`oklch(0.18 0.02 260)`；品牌：`#E85D2A`。
-- 后台侧栏：`oklch(0.16 0.02 260)`；激活规则：`#F97316`。
-- 标题：Noto Serif SC；正文：Inter + PingFang SC；域名/技术值：JetBrains Mono。
-- 圆角 12px；阴影：`0 1px 2px rgba(0,0,0,.04), 0 12px 32px -12px rgba(232,93,42,.12)`。
-- 图标统一采用 Lucide 线性图标，18px、约 1.75px 线宽。
+## 验证
 
-## 设计与基线截图
+```bash
+pnpm typecheck
+pnpm test
+pnpm lint
+pnpm build
+pnpm wrangler deploy --dry-run
+```
+
+- 最新改动的 39 项单元测试通过；远程迁移前另以 Wrangler 本地 D1 完整执行 `0012`、`0013`。
+- 远程 D1 迁移已应用，Worker 已部署到 `wanmi.org`。
+- 生产接口确认 `094.org` 返回导入的注册日期 `2003-05-23` 和到期日期 `2028-05-23`。
+- Playwright 验收前台首页、域名详情和后台概览；后台导航已无 DNS 解析入口。
+- 生产“导出全部”返回 862 条域名加 1 行表头；字段顺序为域名、后缀、注册日期、到期日期、注册商、简介。
+- 生产后台实际打开并保存 `094.org` 编辑弹窗，控制台无错误。
+- Bark 使用现有生产配置完成真实发送测试并记录成功；其他通知渠道因生产环境未配置对应凭证，保持未启用状态。
+
+## 视觉资料
 
 - `docs/design-reference/goal-2026-07/before-public.png`
 - `docs/design-reference/goal-2026-07/before-admin-overview.png`
@@ -38,24 +53,16 @@
 - `docs/design-reference/goal-2026-07/admin-domains-concept.png`
 - `docs/design-reference/goal-2026-07/admin-notifications-concept.png`
 - `docs/design-reference/goal-2026-07/admin-settings-concept.png`
+- `docs/design-reference/goal-2026-07/after-public-desktop.png`
+- `docs/design-reference/goal-2026-07/after-public-mobile.png`
+- `docs/design-reference/goal-2026-07/after-admin-overview.png`
+- `docs/design-reference/goal-2026-07/after-admin-notifications.png`
 
-## 验证与部署
-
-最终合并前执行：
-
-```bash
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm wrangler deploy --dry-run
-```
-
-生产步骤：
+## 部署
 
 ```bash
 pnpm wrangler d1 migrations apply wanmi-db --remote
 pnpm wrangler deploy
-pnpm wrangler secret list
 ```
 
-生产验收覆盖通知真实测试、`stats_events` 写入、Footer 联系图标、微信二维码、访客 IP 卡、桌面/移动端和后台关键流程。任何 Secret 均不写入仓库、PR 正文或日志。
+所有 Secret 均保留在 Cloudflare，不写入仓库、PR 正文或日志。

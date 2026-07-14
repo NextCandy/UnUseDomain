@@ -35,6 +35,7 @@ export const offerInputSchema = z.object({
     .optional(),
   currency: z.string().trim().length(3).toUpperCase().nullable().optional(),
   message: z.string().trim().max(1000).nullable().optional(),
+  turnstile_token: z.string().trim().max(2048).nullable().optional(),
 });
 
 export const adminDomainQuerySchema = publicDomainQuerySchema.extend({
@@ -85,9 +86,12 @@ export const domainInputSchema = z.object({
   publicPriceApproved: z.boolean().optional(),
   notes: z.string().trim().max(4000).nullable().optional(),
   description: z.string().max(500).optional(),
+  registeredAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  registrarName: z.string().trim().max(120).nullable().optional(),
 });
 
-export const domainPatchSchema = domainInputSchema.partial().omit({ fullDomain: true, tld: true });
+export const domainPatchSchema = domainInputSchema.partial();
 
 export const bulkDomainSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(500),
@@ -109,12 +113,18 @@ export const settingsPatchSchema = z
     display_density: z.enum(["compact", "comfortable", "spacious"]),
     featured_first: z.boolean(),
     show_admin_link_in_footer: z.boolean(),
+    turnstile_site_key: z.string().trim().max(200).nullable(),
+    turnstile_secret_ref: z.string().trim().max(200).nullable(),
     show_prices: z.boolean(),
     copyright_text: z.string().trim().max(160).nullable(),
     icp_number: z.string().trim().max(80).nullable(),
     contact_email: z.union([z.string().trim().email(), z.literal("")]).nullable(),
     contact_wechat: z.string().trim().max(120).nullable(),
     contact_telegram: z.string().trim().max(120).nullable(),
+    contact_whatsapp: z.string().trim().max(40).nullable(),
+    contact_x: z.string().trim().max(200).nullable(),
+    contact_xiaohongshu: z.union([z.string().trim().url(), z.literal("")]).nullable(),
+    contact_qq: z.string().trim().max(32).nullable(),
     logo_url: z.string().trim().max(500).nullable(),
     favicon_url: z.string().trim().max(500).nullable(),
     wechat_qr_url: z.string().trim().max(500).nullable(),

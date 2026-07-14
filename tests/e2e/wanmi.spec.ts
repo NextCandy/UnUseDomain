@@ -38,7 +38,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByRole("button", { name: "搜索", exact: true }).click();
     await expect(page.getByTitle("复制 02cloud.com")).toBeVisible();
     await page.getByRole("button", { name: "清除筛选" }).click();
-    await page.getByRole("button", { name: "纯数字 107", exact: true }).click();
+    await page.goto("/?category=纯数字", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("共 107 个域名")).toBeVisible();
     await expect(page.locator(".domain-card").first().getByText("纯数字", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "清除筛选" }).click();
@@ -77,7 +77,8 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(restoredPage.getByTitle("复制 02cloud.com")).toBeVisible();
     await restoredPage.close();
 
-    await page.getByTitle("退出登录").click();
+    await page.locator(".sidebar-user > summary").click();
+    await page.getByRole("button", { name: "退出登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
     await page.goto("/admin", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
@@ -102,16 +103,17 @@ test.describe.serial("WanMi 生产流程", () => {
 
     const publicPage = await context.newPage();
     await publicPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
-    await expect(publicPage.getByText("E2E 临时简介")).toBeVisible({ timeout: 10_000 });
-    await expect(publicPage.locator(".domain-card.featured")).toBeVisible();
+    const publicDomainCard = publicPage.locator(".domain-list .domain-card").filter({ hasText: "02cloud.com" });
+    await expect(publicDomainCard.getByText("E2E 临时简介", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(publicDomainCard).toHaveClass(/featured/);
     await publicPage.reload({ waitUntil: "domcontentloaded" });
-    await expect(publicPage.getByText("E2E 临时简介")).toBeVisible();
+    await expect(publicDomainCard.getByText("E2E 临时简介", { exact: true })).toBeVisible();
 
     page.once("dialog", async (dialog) => dialog.accept(""));
     await row.getByRole("button", { name: "编辑简介" }).click();
     await expect(page.getByText("简介已清空")).toBeVisible();
     if (!wasFeatured) await row.locator("button.switch").first().click();
-    await expect.poll(async () => publicPage.locator(".domain-description").textContent(), { timeout: 10_000 }).toBe("");
+    await expect.poll(async () => publicPage.locator(".domain-description").textContent(), { timeout: 10_000 }).toBe("—");
     await publicPage.close();
   });
 

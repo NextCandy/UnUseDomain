@@ -34,7 +34,7 @@ trackRoutes.post("/", async (c) => {
   if (limits.size > 2000) for (const [key, value] of limits) if (value.minute < minute) limits.delete(key);
   const day = new Date().toISOString().slice(0, 10);
   const ipHash = await hmacSha256(ip, `${c.env.SESSION_SECRET}:${day}`);
-  const country = c.req.raw.cf?.country ? String(c.req.raw.cf.country) : null;
+  const country = c.req.header("cf-ipcountry") ?? null;
   await c.env.DB.prepare("INSERT INTO stats_events (ts, kind, path, domain, visitor_id, ip_hash, ua_summary, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
     .bind(Math.floor(Date.now() / 1000), parsed.data.kind, parsed.data.path ?? null, parsed.data.domain ?? null, parsed.data.visitor_id, ipHash, uaSummary(c.req.header("user-agent") ?? ""), country)
     .run();
