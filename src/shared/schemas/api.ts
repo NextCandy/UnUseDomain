@@ -51,6 +51,15 @@ export const logsQuerySchema = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
+const domainDateSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式必须为 YYYY-MM-DD")
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+  }, "日期无效")
+  .nullable();
+
 export const domainInputSchema = z.object({
   fullDomain: z.string().trim().min(3).max(253),
   tld: z.string().trim().max(253).optional(),
@@ -62,6 +71,9 @@ export const domainInputSchema = z.object({
   publicPriceApproved: z.boolean().optional(),
   notes: z.string().trim().max(4000).nullable().optional(),
   description: z.string().max(500).optional(),
+  registeredAt: domainDateSchema.optional(),
+  expiresAt: domainDateSchema.optional(),
+  registrar: z.string().trim().max(120).nullable().optional(),
 });
 
 export const domainPatchSchema = domainInputSchema.partial().omit({ fullDomain: true, tld: true });
@@ -132,4 +144,3 @@ export const notificationPatchSchema = z
     timezone: z.literal("Asia/Shanghai"),
   })
   .partial();
-

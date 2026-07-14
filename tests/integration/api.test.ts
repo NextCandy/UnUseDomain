@@ -121,12 +121,12 @@ describe.sequential("WanMi API 集成", () => {
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: false }) })).status).toBe(200);
   });
 
-  it("管理员简介与精品修改会立即映射到公共 API 且可恢复", async () => {
+  it("管理员生命周期资料、简介与精品修改会保存，公开字段立即映射且可恢复", async () => {
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
-    const changed = await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ description: "集成测试简介", isFeatured: true }) });
+    const changed = await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ description: "集成测试简介", isFeatured: true, registeredAt: "2025-01-07", expiresAt: "2027-01-07", registrar: "Spaceship" }) });
     expect(changed.status).toBe(200);
     const changedBody = await changed.json() as { data: { description: string; is_featured: number } };
-    expect(changedBody.data).toMatchObject({ description: "集成测试简介", is_featured: 1 });
+    expect(changedBody.data).toMatchObject({ description: "集成测试简介", is_featured: 1, registered_at: "2025-01-07", expires_at: "2027-01-07", registrar: "Spaceship" });
     const visible = await (await request("/api/public/domains?q=02cloud.com")).json() as { data: { items: Array<{ description: string; is_featured: boolean }> } };
     expect(visible.data.items[0]).toMatchObject({ description: "集成测试简介", is_featured: true });
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ description: "", isFeatured: false }) })).status).toBe(200);

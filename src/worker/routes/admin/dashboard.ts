@@ -19,7 +19,7 @@ dashboardRoutes.get("/", async (c) => {
     c.env.DB.prepare("SELECT COUNT(*) AS count FROM domains WHERE expires_at IS NOT NULL"),
     c.env.DB.prepare(
       `SELECT full_domain, expires_at FROM domains
-       WHERE expires_at IS NOT NULL AND expires_at <= datetime('now', '+90 days')
+       WHERE expires_at IS NOT NULL AND date(expires_at) <= date('now', '+90 days')
        ORDER BY expires_at ASC LIMIT 10`,
     ),
   ]);

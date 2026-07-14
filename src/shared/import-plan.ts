@@ -22,6 +22,9 @@ const STAGING_COLUMNS = [
   "raw_metadata_json",
   "description",
   "is_featured",
+  "registered_at",
+  "expires_at",
+  "registrar",
   "auto_category",
   "auto_subcategory",
   "auto_category_confidence",
@@ -44,6 +47,9 @@ function recordParams(
     "{}",
     record.initialDescription,
     record.initialFeatured ? 1 : 0,
+    record.registeredAt,
+    record.expiresAt,
+    record.registrar,
     classification.primary,
     classification.subtype,
     classification.confidence,
@@ -77,9 +83,11 @@ export function buildImportStatements(
     {
       sql: `INSERT INTO domains (
           full_domain, normalized_domain, name, tld, is_listed, source, source_imported_at, description, is_featured,
+          registered_at, expires_at, registrar,
           auto_category, auto_subcategory, auto_category_confidence
         )
         SELECT full_domain, normalized_domain, name, tld, 1, 'domain-list', NULL, description, is_featured,
+          registered_at, expires_at, registrar,
           auto_category, auto_subcategory, auto_category_confidence
         FROM domain_import_staging WHERE import_id = ?
         ON CONFLICT(normalized_domain) DO UPDATE SET
@@ -87,6 +95,9 @@ export function buildImportStatements(
           name = excluded.name,
           tld = excluded.tld,
           source = excluded.source,
+          registered_at = excluded.registered_at,
+          expires_at = excluded.expires_at,
+          registrar = excluded.registrar,
           auto_category = excluded.auto_category,
           auto_subcategory = excluded.auto_subcategory,
           auto_category_confidence = excluded.auto_category_confidence,

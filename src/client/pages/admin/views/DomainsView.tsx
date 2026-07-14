@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { IconDownload, IconEdit, IconGlobe, IconPlus, IconTrash, IconUpload } from "../../../components/icons";
 import { PromptModal } from "../../../components/PromptModal";
-import { EmptyState, Pagination, SearchBar, SkeletonGrid } from "../../../components/ui";
+import { EmptyState, Modal, Pagination, SearchBar, SkeletonGrid } from "../../../components/ui";
 import { api, download } from "../../../lib/api";
 import { Panel } from "../Panel";
 import type { AdminDomain, AdminDomainPage, CategoryRow, Notify } from "../types";
@@ -16,7 +16,7 @@ interface DomainFilterOptions {
 /** 需要弹窗输入的操作。删除类仍走 window.confirm。 */
 type Dialog =
   | { kind: "add" }
-  | { kind: "description"; domain: AdminDomain }
+  | { kind: "details"; domain: AdminDomain }
   | { kind: "new-category"; domain: AdminDomain }
   | { kind: "bulk-category" }
   | null;
@@ -345,11 +345,10 @@ export function DomainsView({ notify, presetTld }: { notify: Notify; presetTld?:
                 </div>
 
                 <div className="record-desc">
-                  {domain.description ? (
-                    <span title={domain.description}>{domain.description}</span>
-                  ) : (
-                    <span className="placeholder">暂无简介</span>
-                  )}
+                  <span title={domain.description || undefined}>{domain.description || "暂无简介"}</span>
+                  <small>
+                    {domain.registrar || "未填注册商"} · {domain.expires_at ? `${domain.expires_at} 到期` : "未填到期日"}
+                  </small>
                 </div>
 
                 <div className="record-toggles">
@@ -409,14 +408,14 @@ export function DomainsView({ notify, presetTld }: { notify: Notify; presetTld?:
                   </div>
                 </div>
 
-                {/* 编辑简介放在操作区：简介列在平板/手机会隐藏，入口必须始终可用 */}
+                {/* 生命周期资料的编辑入口始终保留在操作区。 */}
                 <div className="record-actions">
                   <button
                     className="icon-btn"
                     style={{ width: 36, height: 36 }}
-                    onClick={() => setDialog({ kind: "description", domain })}
-                    aria-label={`编辑 ${domain.full_domain} 的简介`}
-                    title="编辑简介"
+                    onClick={() => setDialog({ kind: "details", domain })}
+                    aria-label={`编辑 ${domain.full_domain} 的资料`}
+                    title="编辑域名资料"
                   >
                     <IconEdit size={16} />
                   </button>
@@ -452,19 +451,14 @@ export function DomainsView({ notify, presetTld }: { notify: Notify; presetTld?:
         />
       )}
 
-      {dialog?.kind === "description" && (
-        <PromptModal
-          title="编辑公开简介"
-          label={`${dialog.domain.full_domain} 的简介`}
-          hint="简介会展示在前台域名卡片与详情页；留空表示不展示。"
-          initialValue={dialog.domain.description}
-          maxLength={500}
-          multiline
+      {dialog?.kind === "details" && (
+        <DomainDetailsModal
+          domain={dialog.domain}
           onCancel={() => setDialog(null)}
-          onSubmit={(value) => {
+          onSubmit={(body) => {
             const target = dialog.domain;
             setDialog(null);
-            void patch(target.id, { description: value }, value ? "简介已保存" : "简介已清空");
+            void patch(target.id, body, "域名资料已保存");
           }}
         />
       )}
@@ -499,5 +493,73 @@ export function DomainsView({ notify, presetTld }: { notify: Notify; presetTld?:
       )}
 
     </Panel>
+  );
+}
+
+function DomainDetailsModal({
+  domain,
+  onCancel,
+  onSubmit,
+}: {
+  domain: AdminDomain;
+  onCancel: () => void;
+  onSubmit: (body: Record<string, unknown>) => void;
+}) {
+  const [registeredAt, setRegisteredAt] = useState(domain.registered_at ?? "");
+  const [expiresAt, setExpiresAt] = useState(domain.expires_at ?? "");
+  const [registrar, setRegistrar] = useState(domain.registrar ?? "");
+  const [description, setDescription] = useState(domain.description);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (registeredAt && expiresAt && registeredAt > expiresAt) return;
+    onSubmit({
+      registeredAt: registeredAt || null,
+      expiresAt: expiresAt || null,
+      registrar: registrar.trim() || null,
+      description: description.trim(),
+    });
+  }
+
+  const dateOrderInvalid = Boolean(registeredAt && expiresAt && registeredAt > expiresAt);
+  return (
+    <Modal title={`编辑 ${domain.full_domain}`} onClose={onCancel}>
+      <form className="form-stack" onSubmit={submit}>
+        <div className="form-grid">
+          <label className="field">
+            <span>注册日期</span>
+            <input type="date" value={registeredAt} onChange={(event) => setRegisteredAt(event.target.value)} />
+          </label>
+          <label className="field">
+            <span>到期日期</span>
+            <input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+          </label>
+          <label className="field wide">
+            <span>注册商</span>
+            <input
+              value={registrar}
+              onChange={(event) => setRegistrar(event.target.value)}
+              maxLength={120}
+              placeholder="例如 Spaceship、GoDaddy"
+            />
+          </label>
+          <label className="field wide">
+            <span>公开简介</span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={500}
+              placeholder="会展示在前台域名卡片中"
+            />
+            <small>{description.length} / 500</small>
+          </label>
+        </div>
+        {dateOrderInvalid && <p className="field-error">到期日期不能早于注册日期</p>}
+        <div className="modal-foot">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>取消</button>
+          <button type="submit" className="btn btn-primary" disabled={dateOrderInvalid}>保存</button>
+        </div>
+      </form>
+    </Modal>
   );
 }

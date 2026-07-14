@@ -120,8 +120,9 @@ domainAdminRoutes.post("/", async (c) => {
     const result = await c.env.DB.prepare(
       `INSERT INTO domains (
         full_domain, normalized_domain, name, tld, category, is_featured, is_listed,
-        public_price, public_price_currency, public_price_approved, notes, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
+        public_price, public_price_currency, public_price_approved, notes, description,
+        registered_at, expires_at, registrar, source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
     )
       .bind(
         domain.fullDomain,
@@ -135,6 +136,10 @@ domainAdminRoutes.post("/", async (c) => {
         parsed.data.publicPriceCurrency?.toUpperCase() ?? null,
         parsed.data.publicPriceApproved ? 1 : 0,
         parsed.data.notes ?? null,
+        parsed.data.description ?? "",
+        parsed.data.registeredAt ?? null,
+        parsed.data.expiresAt ?? null,
+        parsed.data.registrar || null,
       )
       .run();
     const user = c.get("authUser");
@@ -158,20 +163,21 @@ domainAdminRoutes.get("/export", async (c) => {
   if (!parsed.success) return fail(c, 422, "INVALID_QUERY", "筛选参数无效");
   const { where, params } = adminFilters(parsed.data);
   const result = await c.env.DB.prepare(
-    `SELECT d.full_domain, d.created_at AS registered_at, d.expires_at, d.tld,
+    `SELECT d.full_domain, d.registered_at, d.expires_at, d.registrar, d.tld,
       COALESCE(NULLIF(d.category, ''), d.auto_category) AS category,
       d.is_featured, d.is_listed, d.description
      FROM domains d
      WHERE ${where}
      ORDER BY d.normalized_domain ASC`,
   ).bind(...params).all();
-  const headers = ["域名", "注册日期", "到期日期", "后缀", "分类", "精品", "前台展示", "简介"];
+  const headers = ["域名", "注册日期", "到期日期", "注册商", "后缀", "分类", "精品", "前台展示", "简介"];
   const lines = [headers.map(csvCell).join(",")];
   for (const row of result.results) {
     lines.push([
       row.full_domain,
       row.registered_at,
       row.expires_at,
+      row.registrar,
       row.tld,
       row.category,
       row.is_featured ? "是" : "否",
@@ -300,6 +306,9 @@ domainAdminRoutes.patch("/:id", async (c) => {
     ["publicPriceApproved", "public_price_approved", (value) => (value ? 1 : 0)],
     ["notes", "notes", (value) => value as string | null],
     ["description", "description", (value) => value as string],
+    ["registeredAt", "registered_at", (value) => value as string | null],
+    ["expiresAt", "expires_at", (value) => value as string | null],
+    ["registrar", "registrar", (value) => value as string | null],
   ];
   for (const [key, column, convert] of mapping) {
     if (parsed.data[key] !== undefined) {

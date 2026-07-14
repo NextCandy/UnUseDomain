@@ -26,5 +26,8 @@ describe("D1 导入计划", () => {
     expect(domainsUpsert).not.toMatch(/(?:^|\s)category\s*=\s*excluded\.category/i);
     expect(domainsUpsert).not.toMatch(/notes\s*=\s*excluded/i);
     expect(domainsUpsert).not.toMatch(/description\s*=\s*excluded/i);
+    expect(domainsUpsert).toMatch(/registered_at\s*=\s*excluded\.registered_at/i);
+    expect(domainsUpsert).toMatch(/expires_at\s*=\s*excluded\.expires_at/i);
+    expect(domainsUpsert).toMatch(/registrar\s*=\s*excluded\.registrar/i);
   });
 });

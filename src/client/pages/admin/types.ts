@@ -33,6 +33,9 @@ export interface AdminDomain {
   is_listed: number;
   notes: string | null;
   description: string;
+  registered_at: string | null;
+  expires_at: string | null;
+  registrar: string | null;
   auto_category: string;
   auto_subcategory: string;
   auto_category_confidence: number;

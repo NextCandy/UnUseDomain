@@ -40,12 +40,13 @@ describe("D1 schema 与 CSV 幂等导入", () => {
   it("仅保存域名和后缀，不保存 CSV 售卖元数据", () => {
     expect(rows<{ count: number }>("SELECT COUNT(*) count FROM domain_marketplace_listings")[0].count).toBe(0);
     expect(rows<{ source: string }>("SELECT DISTINCT source FROM domains")).toEqual([{ source: "domain-list" }]);
+    expect(rows<{ registered: number; expiring: number; registrars: number }>("SELECT COUNT(registered_at) registered, COUNT(expires_at) expiring, COUNT(registrar) registrars FROM domains")[0]).toEqual({ registered: 859, expiring: 859, registrars: 859 });
   });
 
   it("重复导入仍为 859 且保留管理员字段", () => {
     execFileSync("sqlite3", [databasePath, "UPDATE domains SET category='重点', is_featured=1, is_listed=0, notes='人工备注', description='人工简介' WHERE normalized_domain='02cloud.com'" ]);
     execFileSync("sqlite3", [databasePath], { input: importSql.replaceAll("integration-import-1", "integration-import-2"), maxBuffer: 50 * 1024 * 1024 });
     expect(rows<{ count: number }>("SELECT COUNT(*) count FROM domains")[0].count).toBe(859);
-    expect(rows<{ category: string; is_featured: number; is_listed: number; notes: string; description: string }>("SELECT category,is_featured,is_listed,notes,description FROM domains WHERE normalized_domain='02cloud.com'")[0]).toEqual({ category: "重点", is_featured: 1, is_listed: 0, notes: "人工备注", description: "人工简介" });
+    expect(rows<{ category: string; is_featured: number; is_listed: number; notes: string; description: string; registered_at: string; expires_at: string; registrar: string }>("SELECT category,is_featured,is_listed,notes,description,registered_at,expires_at,registrar FROM domains WHERE normalized_domain='02cloud.com'")[0]).toEqual({ category: "重点", is_featured: 1, is_listed: 0, notes: "人工备注", description: "人工简介", registered_at: "2025-01-07", expires_at: "2027-01-07", registrar: "Spaceship" });
   });
 });

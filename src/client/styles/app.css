@@ -1841,6 +1841,13 @@ button.dist-row {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.record-desc > small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .record-desc .placeholder {
   color: var(--text-tertiary);
   font-style: italic;

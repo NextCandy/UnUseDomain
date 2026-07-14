@@ -32,11 +32,24 @@ describe("真实 CSV", () => {
     expect(result.report.headers).toEqual(["域名", "注册日期", "到期日期", "注册商", "后缀", "简介", "Premium"]);
     expect(result.records.filter((record) => record.initialFeatured)).toHaveLength(87);
     expect(result.records.every((record) => record.initialDescription === "")).toBe(true);
+    expect(result.records.every((record) => record.registeredAt && record.expiresAt && record.registrar)).toBe(true);
+    expect(result.records[0]).toMatchObject({
+      registeredAt: "2026-02-21",
+      expiresAt: "2027-02-21",
+      registrar: "Spaceship",
+    });
   });
 
   it("按中文表头名称映射简介和精品，不依赖固定列序", () => {
-    const result = parseDomainCsv("Premium,简介,域名\r\nY,公开简介,wanmi.org\r\n");
-    expect(result.records[0]).toMatchObject({ normalizedDomain: "wanmi.org", initialDescription: "公开简介", initialFeatured: true });
+    const result = parseDomainCsv("Premium,简介,域名,注册日期,到期日期,注册商\r\nY,公开简介,wanmi.org,2025/1/2,2027-03-04,Spaceship\r\n");
+    expect(result.records[0]).toMatchObject({
+      normalizedDomain: "wanmi.org",
+      initialDescription: "公开简介",
+      initialFeatured: true,
+      registeredAt: "2025-01-02",
+      expiresAt: "2027-03-04",
+      registrar: "Spaceship",
+    });
   });
 });
 
