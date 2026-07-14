@@ -98,6 +98,8 @@ export function PublicPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [contactOpen, setContactOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "compact">("cards");
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const dataVersion = useRef("");
 
@@ -205,24 +207,25 @@ export function PublicPage() {
 
       <main className="catalogue-layout" id="domains">
         <aside className="category-rail" aria-label="域名分类">
-          <div className="category-rail-heading"><strong>分类</strong><span>按域名类型浏览</span></div>
           <div className="category-list">
-            {categories.map((option) => {
+            {categories.slice(0, 8).map((option) => {
               const active = option.value === "__featured" ? filters.group === "featured" : filters.group !== "featured" && filters.category === option.value;
               return <button type="button" className={active ? "category-item active" : "category-item"} aria-pressed={active} key={option.value || "all"} onClick={() => selectCategory(option.value)}>
                 <span className="category-icon" aria-hidden="true">{option.icon}</span><span className="category-label">{option.label}</span><span className="category-count">{option.count}</span>
               </button>;
             })}
+            {categories.length > 8 && <button type="button" className="category-item more-categories" onClick={() => setCategoryOpen(true)}><span className="category-icon">＋</span><span className="category-label">更多</span><span className="category-count">{categories.length - 8}</span></button>}
           </div>
         </aside>
 
         <section className="domain-section">
-          <div className="catalogue-intro"><h1>发现一个好域名</h1><p>{settings?.site_description || "精选易记、简短、有价值的域名，分类清晰，查找便捷。"}</p></div>
-          <form className="filter-search" onSubmit={submitSearch}>
+          <div className="public-hero"><div className="hero-copy"><span className="eyebrow">WANMI DOMAIN COLLECTION</span><h1>发现一个<br /><em>好域名</em></h1><p>{settings?.site_bio || settings?.site_description || "精选易记、简短、有价值的域名，分类清晰，查找便捷。"}</p><form className="filter-search" onSubmit={submitSearch}>
             <SearchIcon /><input value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="搜索完整域名，例如 wanmi.org" aria-label="搜索域名" />
             {draftSearch && <button className="search-clear" type="button" aria-label="清空搜索" onClick={() => { setDraftSearch(""); setFilters((current) => ({ ...current, q: "", page: 1 })); }}>×</button>}
             <button className="search-submit" type="submit">搜索</button>
-          </form>
+          </form><div className="hero-chips">{pageData?.items.filter((item) => item.is_featured).slice(0, 3).map((item) => <a key={item.id} href={`/d/${encodeURIComponent(item.domain)}`}>{item.domain}</a>)}</div></div>{pageData?.items[0] && <button className="hero-domain-card" onClick={() => void copyDomain(pageData.items[0].domain)}><span>本期精选</span><strong>{pageData.items[0].name}<em>.{pageData.items[0].tld}</em></strong><p>{pageData.items[0].description || "点击复制这个域名"}</p><small>点击复制</small></button>}</div>
+
+          {pageData && pageData.items.some((item) => item.is_featured) && <section className="featured-strip"><div><span>FEATURED</span><h2>精品域名</h2></div><div className="featured-scroller">{pageData.items.filter((item) => item.is_featured).slice(0, 8).map((item) => <a href={`/d/${encodeURIComponent(item.domain)}`} key={item.id}><strong>{item.name}<em>.{item.tld}</em></strong><span>{item.description || "值得关注的精品域名"}</span></a>)}</div></section>}
 
           <div className="catalogue-toolbar">
             <div className="toolbar-filters">
@@ -230,25 +233,26 @@ export function PublicPage() {
               <label><span>位数</span><select aria-label="位数筛选" value={["two", "three"].includes(filters.group) ? filters.group : "all"} onChange={(event) => setFilters((current) => ({ ...current, group: event.target.value as GroupKey, page: 1 }))}><option value="all">全部</option><option value="two">2 位</option><option value="three">3 位</option></select></label>
             </div>
             <div className="sort-row" aria-label="排序"><span>排序</span>{SORTS.map(([key, label]) => <button type="button" key={key} className={filters.sort === key ? "active" : ""} onClick={() => setFilters((current) => ({ ...current, sort: key, page: 1 }))}>{label}</button>)}</div>
-            <div className="toolbar-summary"><span>{loading ? "正在读取…" : `共 ${pageData?.total ?? 0} 个域名`}</span>{hasActiveFilter && <button type="button" className="clear-filter" onClick={resetFilters}>清除筛选</button>}</div>
+            <div className="toolbar-summary"><span>{loading ? "正在读取…" : `共 ${pageData?.total ?? 0} 个域名`}</span><div className="view-switch"><button className={viewMode === "cards" ? "active" : ""} onClick={() => setViewMode("cards")}>卡片</button><button className={viewMode === "compact" ? "active" : ""} onClick={() => setViewMode("compact")}>紧凑</button></div>{hasActiveFilter && <button type="button" className="clear-filter" onClick={resetFilters}>清除筛选</button>}</div>
           </div>
 
           {error && <div className="state-panel error-panel"><strong>加载失败</strong><span>{error}</span><button onClick={() => setFilters((current) => ({ ...current }))}>重试</button></div>}
           {loading && <div className="domain-list skeleton-list">{Array.from({ length: 8 }, (_, index) => <div className="domain-card skeleton" key={index} />)}</div>}
           {!loading && !error && pageData?.items.length === 0 && <div className="state-panel"><strong>没有匹配的域名</strong><span>换一个关键词，或清除筛选后再试。</span><button onClick={resetFilters}>清除筛选</button></div>}
-          {!loading && !error && pageData && pageData.items.length > 0 && <div className="domain-list" role="list">
-            <div className="domain-list-head" aria-hidden="true"><span>域名</span><span>后缀</span><span>位数</span><span>简介</span><span>操作</span></div>
+          {!loading && !error && pageData && pageData.items.length > 0 && <div className={`domain-list ${viewMode === "compact" ? "compact-view" : "card-view"}`} role="list">
             {pageData.items.map((domain, index) => <div className={`domain-card${domain.is_featured ? " featured" : ""}`} role="listitem" key={domain.id} style={{ animationDelay: `${Math.min(index * 18, 280)}ms` }}>
               <a className="card-cover" href={`/d/${encodeURIComponent(domain.domain)}`} aria-label={`查看 ${domain.domain} 详情`} />
               <div className="domain-primary"><div className="domain-name"><strong>{domain.name}</strong><span>.{domain.tld}</span></div><div className="domain-tags">{domain.is_featured && <span className="chip chip-featured">精品</span>}{(domain.categories.length ? domain.categories : domain.category ? [domain.category] : []).map((category) => <span className="chip" key={category}>{category}</span>)}</div></div>
               <span className="domain-tld">.{domain.tld}</span><span className="domain-length">{domain.name.length}</span><p className="domain-description">{domain.description || "—"}</p>
-              <div className="domain-actions"><button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}><CopyIcon /><span>复制</span></button>{hasContact && <button className="contact-row-button" onClick={() => setContactOpen(true)}><MailIcon /><span>联系</span></button>}</div>
+              <div className="domain-actions"><button className="copy-button" title={`复制 ${domain.domain}`} onClick={() => void copyDomain(domain.domain)}><CopyIcon /><span>复制</span></button>{hasContact && <button className="contact-row-button" onClick={() => setContactOpen(true)}><MailIcon /><span>我想要</span></button>}<a href={`/d/${encodeURIComponent(domain.domain)}`}>详情 →</a></div>
             </div>)}
           </div>}
 
           {pageData && pageData.totalPages > 1 && <div className="pagination"><button disabled={pageData.page <= 1} onClick={() => setFilters((current) => ({ ...current, page: current.page - 1 }))}>上一页</button><span>第 {pageData.page} / {pageData.totalPages} 页</span><button disabled={pageData.page >= pageData.totalPages} onClick={() => setFilters((current) => ({ ...current, page: current.page + 1 }))}>下一页</button></div>}
         </section>
       </main>
+
+      {categoryOpen && <div className="category-drawer-backdrop" onClick={() => setCategoryOpen(false)}><section className="category-drawer" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="更多分类"><header><h2>全部分类</h2><button onClick={() => setCategoryOpen(false)}>×</button></header><div>{categories.map((option) => <button key={option.value || "all"} onClick={() => { selectCategory(option.value); setCategoryOpen(false); }}><span>{option.icon}</span>{option.label}<small>{option.count}</small></button>)}</div></section></div>}
 
       <footer className="public-footer"><div><strong>{settings?.site_name ?? "玩米"}</strong><span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span></div>{settings?.icp_number && <span>{settings.icp_number}</span>}{hasContact && <button onClick={() => setContactOpen(true)}><MailIcon />联系我们</button>}</footer>
 

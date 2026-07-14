@@ -119,7 +119,7 @@ export function DomainDetailPage({ name }: { name: string }) {
           <>
             <div className="detail-head">
               <h1>{domain.name}<span>.{domain.tld}</span></h1>
-              <button className="secondary-button" onClick={() => void copyDomain()} title={`复制 ${domain.domain}`}>⧉ 复制域名</button>
+              <div className="detail-head-actions"><button className="secondary-button" onClick={() => void copyDomain()} title={`复制 ${domain.domain}`}>⧉ 复制域名</button><a className="primary-button" href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer">访问域名 ↗</a></div>
             </div>
             <div className="detail-badges">
               <span className="chip chip-brand">.{domain.tld}</span>
