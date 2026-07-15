@@ -1,91 +1,54 @@
 # Design — WanMi / 玩米
 
-**Black Gold Domain Asset Vault** —— WanMi 前台、详情、后台与移动端共享的锁定设计系统。
-后续任何页面改动都必须先读本文件，保持产品一致性。
-
-> 本文件已于 2026-07-15 全量替换旧的 Hallmark "Paper + Coral" 设计。
-> 旧方向（纸白背景、珊瑚橙强调、"禁止金色"）已**作废**，不要再回退。
-> 更早的 "Emerald Vault 翡翠绿" 方向同样作废。
+这是 WanMi 前台、后台与移动端共享的锁定设计系统。后续页面先读取本文件，保持产品一致性。
 
 ## Genre
 
-Premium Black Asset Dashboard / iOS Dark Luxury。
-克制、高密度但不拥挤；靠留白、细边框和内高光建立层次，不靠重阴影。
+modern-minimal，结构优先，采用克制的纸张、墨色与金色规则。
 
 ## Macrostructure
 
-- **首页 `/`**：资产总览 Dashboard。亮卡（Hero）+ 三栏指标 + 资产结构 + 最近添加/更新。
-- **域名列表 `/domains`**：统计卡 → 搜索 → 一级 Segmented → 二级分类 Chip → 域名卡片网格 → 分页。
-- **后台 `/admin`**：左侧窄侧栏 + 顶部工具栏 + 主内容区；手机端侧栏转两行导航（7 个模块）。
+- 前台：Catalogue；真实域名库存为主体，桌面自适应多列、手机单列。
+- 后台：Workbench；侧轨、指标、表单和数据记录承担视觉结构。
+- 速览与登录：延续 Catalogue/Workbench 的字体、规则和控件语言。
 
-**没有站内域名详情页**：点击域名直接在新标签页打开该域名本身（`https://<domain>`，
-`rel="noopener noreferrer nofollow"`）。旧的 `/d/<domain>` 链接回落到域名列表并预填搜索词。
+## Theme
 
-## Theme —— 唯一暗色主题
-
-黑金是**单一主题**，没有明暗切换（已移除 ThemeToggle）。全部色值来自 `tokens.css`：
-
-| 角色 | Token | 值 |
-| --- | --- | --- |
-| 背景（OLED 纯黑） | `--background` | `#000000` |
-| 卡片表面（暖黑） | `--surface` | `#151515` |
-| 品牌强调（香槟金） | `--gold` | `#D8B638` |
-| 主文本 | `--text-primary` | `#F5F5F7` |
-| 次文本 | `--text-secondary` | `#A1A1A6` |
-
-- 金色是**唯一**品牌强调色。其他颜色只用于语义状态（success / warning / danger / info）。
-- **禁止**：大面积绿色或蓝色、大面积渐变、霓虹发光、赛博朋克风、过度透明的玻璃拟态。
-- 金色 Glow 只允许极轻使用（`--glow-gold`），不做强发光。
-- 首页 Hero 是唯一的"反差亮卡"（奶油 → 香槟极轻渐变），用于突出资产总数。
+- Paper：`oklch(98.2% 0.006 55)`
+- Ink：`oklch(19% 0.012 45)`
+- Rule：`oklch(88.5% 0.01 55)`
+- Accent：默认 `#d8b638`，强调态 `#a88416`
+- 禁止大面积金色渐变、重玻璃拟态、持续模糊、装饰光晕和渐变文字。
 
 ## Typography
 
-- **Display（Serif）**：Instrument Serif —— 大号数字、页面主标题、域名详情标题、Modal 标题。
-- **UI（Sans）**：Inter + Noto Sans SC —— 正文、菜单、卡片、表单。
-- **Mono**：JetBrains Mono —— Whois、DNS、日志等技术数据。
-- 字体经 Google Fonts **非阻塞**加载（`preload` + `onload`），源不可达时回退系统字体栈，不阻塞首屏。
+- 英文、数字、域名：Manrope，域名权重 650–750，`line-height >= 1.18`。
+- 中文与通用 UI：Noto Sans SC，正文不小于 14px。
+- 技术数据：IBM Plex Mono，仅用于域名元数据与日志。
+- 标题使用正体，不使用斜体标题。
 
-## Shape and elevation
+## Search and card actions
 
-- 圆角：Chip/Badge `9999px`、搜索 `20px`、域名卡 `22px`、面板 `26px`、Modal `30px`。
-- 阴影一律很弱：`--shadow-card`（内高光 + 低透明外阴影）。禁止重投影。
-- hover 只做 `translateY(-2px)` + 阴影加深；触屏设备（`hover: none`）不做位移。
+- 搜索框占满可用宽度；搜索按钮固定在最右侧，桌面和手机宽度均不超过 80px。
+- 域名卡片只显示三枚小图标：收藏、复制、速览。
+- 图标按钮必须有 `aria-label` 和 `title`，但不可显示中文文字。
+- 不允许出现“我想要”、求购或报价按钮。
 
-## Motion
+## Spacing, motion and performance
 
-- 仅 transform / opacity，150–250ms，缓动 `--ease`。
-- 禁止弹跳、旋转、长动画、自动无限动画。
-- `prefers-reduced-motion: reduce` 下全部动画降为 0.01ms。
+- 4px 命名间距，统一来自 `tokens.css`。
+- 控件半径 6–15px，目录卡片 17–19px；主要手机触控目标至少 44px。
+- 动画仅用于短暂状态反馈；常态卡片不做逐项入场动画、位移悬停或大面积阴影。
+- 长列表使用服务端分页与 `content-visibility`，移动底栏不使用 `backdrop-filter`。
+- `prefers-reduced-motion` 和 `prefers-reduced-transparency` 必须有无动画/无透明度退化。
 
 ## Responsive
 
-必须验证：320 / 375 / 430 / 768 / 1024 / 1280 / 1440 / 1920。
+- 必须验证 320、375、390、430、768、1024、1440 和 1920px。
+- `html` 和 `body` 使用 `overflow-x: clip`，不得横向溢出。
+- 前台手机单列并保留底部导航；速览使用适配手机的原生对话框。
+- 后台七个模块在手机端完整可达，不以横向滚动隐藏核心功能。
 
-- 域名网格：`repeat(auto-fill, minmax(280px, 1fr))` → 自动 1 / 2 / 3 / 4 列。
-- 桌面内容最大宽度 `1440px`，超宽屏不失控。
-- **手机端**：底部固定导航（`--bottom-nav-h` + `env(safe-area-inset-bottom)`），正文必须预留该高度。
-- **桌面端**：底部导航隐藏，转顶部导航。禁止桌面端出现悬浮的手机版底部导航。
-- `html` / `body` 使用 `overflow-x: clip`；域名文本用 `overflow-wrap: anywhere`。
-- 后台七个模块在手机端完整显示为两行导航，不以横向滚动隐藏功能。
-- 后台域名列表在窄屏由栅格转为卡片；简介列隐藏时，编辑入口必须仍在操作区可用。
+## Product boundary
 
-## Shared components
-
-统一位于 `src/client/components/`，**禁止**在页面里重复实现按钮 / 徽章 / 搜索框：
-
-- `ui.tsx` —— SearchBar、SegmentedControl、FilterChips、Badge、EmptyState、ErrorState、SkeletonGrid、Pagination、Modal、SectionHead
-- `AppShell.tsx` —— 桌面顶部导航 + 手机底部导航
-- `DomainCard.tsx` —— DomainCard（网格）、DomainRow（首页列表）
-- `PromptModal.tsx` —— 取代 `window.prompt`（删除确认仍用 `window.confirm`）
-- `icons.tsx` —— 全部内联 SVG，24×24 viewBox、stroke 1.75。禁止引入外部图标库或混用其它风格。
-
-## 数据诚实性（硬性约束）
-
-界面不得展示库中不存在的数据。当前 D1 的真实情况：
-
-- **没有估值字段** → 首页不展示任何金额。
-- **`created_at` 集中在导入当天** → 不做时间趋势折线（画出来即伪造）。资产结构改用真实的分类 / 后缀 / 长度分布。
-- **`expires_at` 为空** → 到期模块显示"暂无到期数据"，不编造。
-- **`description` 绝大多数为空** → 域名卡片在无简介时自动收紧，不留大片空白。
-
-新增指标前，先确认字段真实存在且有数据。
+界面和设计稿不得重新引入注册商账户、DNS 管理、求购表单或线索模块。注册商名称仅可作为域名编辑表单中的普通文字资料。

@@ -16,6 +16,8 @@ interface PublicDomainRow {
   manual_category: string | null;
   auto_categories: string | null;
   is_featured: number;
+  registered_at: string | null;
+  expires_at: string | null;
 }
 
 interface SettingsRow {
@@ -33,13 +35,18 @@ interface SettingsRow {
   contact_wechat: string | null;
   contact_telegram: string | null;
   wechat_qr_url: string | null;
+  show_admin_link_in_footer: number;
+  contact_whatsapp: string | null;
+  contact_x: string | null;
+  contact_xiaohongshu: string | null;
+  contact_qq: string | null;
 }
 
 const PUBLIC_SELECT = `SELECT d.id, d.full_domain AS domain, d.name, d.tld, d.description,
   NULLIF(d.category, '') AS manual_category,
   COALESCE(NULLIF(d.category, ''), d.auto_category) AS category,
   (SELECT GROUP_CONCAT(dac.category, '|') FROM domain_auto_categories dac WHERE dac.domain_id = d.id) AS auto_categories,
-  d.is_featured FROM domains d`;
+  d.is_featured, d.registered_at, d.expires_at FROM domains d`;
 
 function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, unknown> {
   return {
@@ -53,6 +60,8 @@ function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, un
       ? [row.manual_category]
       : (row.auto_categories?.split("|").filter(Boolean) ?? (row.category ? [row.category] : [])),
     is_featured: row.is_featured === 1,
+    registered_at: row.registered_at,
+    expires_at: row.expires_at,
   };
 }
 
@@ -62,13 +71,15 @@ publicRoutes.get("/settings", async (c) => {
   const settings = await c.env.DB.prepare(
     `SELECT site_name, site_description, site_bio, logo_url, favicon_url, accent_color, display_density,
       featured_first, copyright_text, icp_number, contact_email, contact_wechat,
-      contact_telegram, wechat_qr_url
+      contact_telegram, contact_whatsapp, contact_x, contact_xiaohongshu, contact_qq,
+      wechat_qr_url, show_admin_link_in_footer
      FROM site_settings WHERE id = 1`,
   ).first<SettingsRow>();
   if (!settings) return fail(c, 503, "SETTINGS_UNAVAILABLE", "站点设置尚未初始化");
   return ok(c, {
     ...settings,
     featured_first: settings.featured_first === 1,
+    show_admin_link_in_footer: settings.show_admin_link_in_footer === 1,
   });
 });
 
@@ -116,6 +127,7 @@ function publicFilters(query: ReturnType<typeof publicDomainQuerySchema.parse>):
 } {
   const where = ["d.is_listed = 1"];
   const params: Array<string | number> = [];
+  const nameLength = "length(replace(d.name, '.', ''))";
   if (query.q) {
     where.push("d.normalized_domain LIKE ? ESCAPE '\\'");
     params.push(`%${query.q.toLowerCase().replaceAll("%", "\\%").replaceAll("_", "\\_")}%`);
@@ -125,8 +137,27 @@ function publicFilters(query: ReturnType<typeof publicDomainQuerySchema.parse>):
     params.push(query.tld.toLowerCase().replace(/^\./, ""));
   }
   if (query.length) {
-    where.push("length(replace(d.name, '.', '')) = ?");
+    where.push(`${nameLength} = ?`);
     params.push(query.length);
+  }
+  if (query.minLength) {
+    where.push(`${nameLength} >= ?`);
+    params.push(query.minLength);
+  }
+  if (query.maxLength) {
+    where.push(`${nameLength} <= ?`);
+    params.push(query.maxLength);
+  }
+  if (query.contains) {
+    where.push("instr(lower(d.name), ?) > 0");
+    params.push(query.contains.toLowerCase());
+  }
+  if (query.excludes) {
+    const excludedCharacters = [...new Set(Array.from(query.excludes.toLowerCase()))];
+    for (const character of excludedCharacters) {
+      where.push("instr(lower(d.name), ?) = 0");
+      params.push(character);
+    }
   }
   if (query.category) {
     where.push(`(
@@ -145,8 +176,12 @@ function publicFilters(query: ReturnType<typeof publicDomainQuerySchema.parse>):
     where.push("d.is_featured = ?");
     params.push(query.featured === "true" ? 1 : 0);
   }
-  if (query.kind === "digits") where.push("d.name NOT GLOB '*[^0-9]*'");
-  if (query.kind === "letters") where.push("d.name NOT GLOB '*[^a-z]*'");
+  if (query.kind === "digits") where.push("d.name != '' AND d.name NOT GLOB '*[^0-9]*'");
+  if (query.kind === "letters") where.push("d.name != '' AND d.name NOT GLOB '*[^a-z]*'");
+  if (query.kind === "alphanumeric") {
+    where.push("d.name NOT GLOB '*[^a-z0-9]*' AND d.name GLOB '*[a-z]*' AND d.name GLOB '*[0-9]*'");
+  }
+  if (query.kind === "hyphen") where.push("instr(d.name, '-') > 0");
   return { where: where.join(" AND "), params };
 }
 
@@ -154,6 +189,9 @@ publicRoutes.get("/domains", async (c) => {
   const parsed = publicDomainQuerySchema.safeParse(c.req.query());
   if (!parsed.success) return fail(c, 422, "INVALID_QUERY", "筛选参数无效", parsed.error.issues);
   const query = parsed.data;
+  if (query.minLength && query.maxLength && query.minLength > query.maxLength) {
+    return fail(c, 422, "INVALID_QUERY", "最小长度不能大于最大长度");
+  }
   const { where, params } = publicFilters(query);
   const offset = (query.page - 1) * query.pageSize;
   const defaultSort = "d.is_featured DESC, length(replace(d.name, '.', '')) ASC, d.normalized_domain ASC";
@@ -176,76 +214,6 @@ publicRoutes.get("/domains", async (c) => {
     pageSize: query.pageSize,
     total,
     totalPages: Math.ceil(total / query.pageSize),
-  });
-});
-
-// 首页 Dashboard 的聚合统计，全部来自 D1 真实数据。
-// 注意：不提供估值与时间趋势——库中没有估值字段，且 created_at 只覆盖导入当天，
-// 画成折线会变成伪造数据。资产结构改用真实的分类 / 后缀 / 字符长度分布。
-publicRoutes.get("/overview", async (c) => {
-  const [statsResult, categoryResult, tldResult, lengthResult, addedResult, updatedResult] = await c.env.DB.batch([
-    c.env.DB.prepare(
-      `SELECT COUNT(*) AS total, COUNT(DISTINCT tld) AS tld_count,
-        SUM(is_featured) AS featured_count,
-        MAX(created_at) AS latest_added, MAX(updated_at) AS latest_updated
-       FROM domains WHERE is_listed = 1`,
-    ),
-    // 分类统计必须与 /facets 和 /domains 的筛选口径一致（多标签），
-    // 否则首页「分类分布」点进去会筛出空结果
-    c.env.DB.prepare(
-      `SELECT name, COUNT(*) AS count FROM (
-         SELECT NULLIF(d.category, '') AS name
-         FROM domains d
-         WHERE d.is_listed = 1 AND NULLIF(d.category, '') IS NOT NULL
-         UNION ALL
-         SELECT dac.category
-         FROM domain_auto_categories dac
-         JOIN domains d ON d.id = dac.domain_id
-         WHERE d.is_listed = 1 AND NULLIF(d.category, '') IS NULL
-       ) effective_categories
-       WHERE name IS NOT NULL
-       GROUP BY name
-       ORDER BY count DESC`,
-    ),
-    c.env.DB.prepare(
-      "SELECT tld AS name, COUNT(*) AS count FROM domains WHERE is_listed = 1 GROUP BY tld ORDER BY count DESC, tld ASC LIMIT 8",
-    ),
-    c.env.DB.prepare(
-      `SELECT length(replace(name, '.', '')) AS len, COUNT(*) AS count
-       FROM domains WHERE is_listed = 1 GROUP BY len ORDER BY len ASC`,
-    ),
-    c.env.DB.prepare(`${PUBLIC_SELECT} WHERE d.is_listed = 1 ORDER BY d.created_at DESC, d.id DESC LIMIT 6`),
-    c.env.DB.prepare(`${PUBLIC_SELECT} WHERE d.is_listed = 1 ORDER BY d.updated_at DESC, d.id DESC LIMIT 6`),
-  ]);
-
-  const stats = (statsResult.results[0] ?? {}) as {
-    total?: number;
-    tld_count?: number;
-    featured_count?: number;
-    latest_added?: string | null;
-    latest_updated?: string | null;
-  };
-  const named = (rows: unknown[]) =>
-    (rows as Array<{ name: string | number; count: number }>).map((row) => ({
-      name: String(row.name),
-      count: Number(row.count),
-    }));
-
-  c.header("Cache-Control", "public, max-age=0, must-revalidate");
-  return ok(c, {
-    total: Number(stats.total ?? 0),
-    featuredCount: Number(stats.featured_count ?? 0),
-    tldCount: Number(stats.tld_count ?? 0),
-    latestAddedAt: stats.latest_added ?? null,
-    latestUpdatedAt: stats.latest_updated ?? null,
-    categories: named(categoryResult.results),
-    tlds: named(tldResult.results),
-    lengths: (lengthResult.results as Array<{ len: number; count: number }>).map((row) => ({
-      length: Number(row.len),
-      count: Number(row.count),
-    })),
-    recentAdded: (addedResult.results as unknown as PublicDomainRow[]).map(serializePublic),
-    recentUpdated: (updatedResult.results as unknown as PublicDomainRow[]).map(serializePublic),
   });
 });
 

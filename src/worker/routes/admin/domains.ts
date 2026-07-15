@@ -24,6 +24,27 @@ function csvCell(value: unknown): string {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+function dateAtUtcMidnight(value: string | null | undefined): string | null {
+  return value ? `${value}T00:00:00.000Z` : null;
+}
+
+async function existingNormalizedDomains(db: D1Database, normalizedDomains: string[]): Promise<Set<string>> {
+  const unique = [...new Set(normalizedDomains)];
+  const statements = [];
+  for (let index = 0; index < unique.length; index += 80) {
+    const chunk = unique.slice(index, index + 80);
+    statements.push(
+      db.prepare(`SELECT normalized_domain FROM domains WHERE normalized_domain IN (${chunk.map(() => "?").join(",")})`)
+        .bind(...chunk),
+    );
+  }
+  if (!statements.length) return new Set();
+  const results = await db.batch(statements);
+  return new Set(results.flatMap((result) =>
+    (result.results as unknown as Array<{ normalized_domain: string }>).map((row) => row.normalized_domain),
+  ));
+}
+
 function adminFilters(query: ReturnType<typeof adminDomainQuerySchema.parse>): {
   where: string;
   params: Array<string | number>;
@@ -55,7 +76,7 @@ function adminFilters(query: ReturnType<typeof adminDomainQuerySchema.parse>): {
     params.push(query.listed === "true" ? 1 : 0);
   }
   if (query.registrar) {
-    clauses.push("d.registrar = ? COLLATE NOCASE");
+    clauses.push("d.registrar_name = ? COLLATE NOCASE");
     params.push(query.registrar);
   }
   if (query.registeredFrom) {
@@ -87,7 +108,7 @@ function adminOrderBy(query: ReturnType<typeof adminDomainQuerySchema.parse>): s
     query.orderBy === "domain" ? "d.normalized_domain"
     : query.orderBy === "registered_at" ? "d.registered_at"
     : query.orderBy === "expires_at" ? "d.expires_at"
-    : query.orderBy === "registrar" ? "d.registrar COLLATE NOCASE"
+    : query.orderBy === "registrar" ? "d.registrar_name COLLATE NOCASE"
     : null;
   if (column) return `${column} IS NULL, ${column} ${direction}, d.normalized_domain ASC`;
   if (query.sort === "domain_desc") return "d.normalized_domain DESC";
@@ -126,7 +147,7 @@ domainAdminRoutes.get("/filters", async (c) => {
   const [tlds, categories, registrars] = await c.env.DB.batch([
     c.env.DB.prepare("SELECT tld, COUNT(*) AS count FROM domains WHERE tld != '' GROUP BY tld ORDER BY count DESC, tld ASC"),
     c.env.DB.prepare("SELECT auto_category AS name, COUNT(*) AS count FROM domains GROUP BY auto_category ORDER BY count DESC, auto_category ASC"),
-    c.env.DB.prepare("SELECT registrar, COUNT(*) AS count FROM domains WHERE registrar IS NOT NULL AND registrar != '' GROUP BY registrar COLLATE NOCASE ORDER BY count DESC, registrar COLLATE NOCASE ASC"),
+    c.env.DB.prepare("SELECT registrar_name AS registrar, COUNT(*) AS count FROM domains WHERE registrar_name IS NOT NULL AND registrar_name != '' GROUP BY registrar_name COLLATE NOCASE ORDER BY count DESC, registrar_name COLLATE NOCASE ASC"),
   ]);
   return ok(c, { tlds: tlds.results, categories: categories.results, registrars: registrars.results });
 });
@@ -144,9 +165,9 @@ domainAdminRoutes.post("/", async (c) => {
     const result = await c.env.DB.prepare(
       `INSERT INTO domains (
         full_domain, normalized_domain, name, tld, category, is_featured, is_listed,
-        public_price, public_price_currency, public_price_approved, notes, description,
-        registered_at, expires_at, registrar, source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`,
+        public_price, public_price_currency, public_price_approved, notes, source,
+        description, registered_at, expires_at, registrar_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?, ?)`,
     )
       .bind(
         domain.fullDomain,
@@ -161,9 +182,9 @@ domainAdminRoutes.post("/", async (c) => {
         parsed.data.publicPriceApproved ? 1 : 0,
         parsed.data.notes ?? null,
         parsed.data.description ?? "",
-        parsed.data.registeredAt ?? null,
-        parsed.data.expiresAt ?? null,
-        parsed.data.registrar || null,
+        dateAtUtcMidnight(parsed.data.registeredAt),
+        dateAtUtcMidnight(parsed.data.expiresAt),
+        parsed.data.registrarName || null,
       )
       .run();
     const user = c.get("authUser");
@@ -187,26 +208,22 @@ domainAdminRoutes.get("/export", async (c) => {
   if (!parsed.success) return fail(c, 422, "INVALID_QUERY", "筛选参数无效");
   const { where, params } = adminFilters(parsed.data);
   const result = await c.env.DB.prepare(
-    `SELECT d.full_domain, d.registered_at, d.expires_at, d.registrar, d.tld,
-      COALESCE(NULLIF(d.category, ''), d.auto_category) AS category,
-      d.is_featured, d.is_listed, d.description
+    `SELECT d.full_domain, d.tld, d.registered_at, d.expires_at,
+      COALESCE(NULLIF(d.registrar_name, ''), '') AS registrar,
+      d.description
      FROM domains d
      WHERE ${where}
      ORDER BY d.normalized_domain ASC`,
   ).bind(...params).all();
-  const headers = ["域名", "注册日期", "到期日期", "注册商", "后缀", "分类", "精品", "前台展示", "简介"];
+  const headers = ["域名", "后缀", "注册日期", "到期日期", "注册商", "简介"];
   const lines = [headers.map(csvCell).join(",")];
-  for (const row of result.results) {
+  for (const raw of result.results) {
+    const row = raw;
     lines.push([
-      row.full_domain,
-      row.registered_at,
-      row.expires_at,
-      row.registrar,
-      row.tld,
-      row.category,
-      row.is_featured ? "是" : "否",
-      row.is_listed ? "是" : "否",
-      row.description,
+      row.full_domain, typeof row.tld === "string" && row.tld ? `.${row.tld.replace(/^\./, "")}` : "",
+      typeof row.registered_at === "string" ? row.registered_at.slice(0, 10) : "",
+      typeof row.expires_at === "string" ? row.expires_at.slice(0, 10) : "",
+      row.registrar, row.description,
     ].map(csvCell).join(","));
   }
   const user = c.get("authUser");
@@ -237,10 +254,34 @@ domainAdminRoutes.post("/import", async (c) => {
   const result = parseDomainCsv(await file.text(), file.name.replace(/[^a-zA-Z0-9._-]/g, "_"));
   if (result.records.length === 0) return fail(c, 422, "CSV_EMPTY", "CSV 中没有可导入的合法域名", result.report.issues);
   if (result.records.length > MAX_IMPORT_RECORDS) return fail(c, 413, "CSV_TOO_MANY_ROWS", `单次最多导入 ${MAX_IMPORT_RECORDS} 条`);
+  const existing = await existingNormalizedDomains(c.env.DB, result.records.map((record) => record.normalizedDomain));
+  const preview = {
+    totalRows: result.report.rawRecordCount,
+    validRows: result.records.length,
+    invalidRows: result.report.invalidCount,
+    duplicateRows: result.report.duplicateCount,
+    newRows: result.records.length - existing.size,
+    existingRows: existing.size,
+    rows: result.records.slice(0, 120).map((record) => ({
+      rowNumber: record.rowNumber,
+      domain: record.normalizedDomain,
+      status: existing.has(record.normalizedDomain) ? "existing" : "new",
+    })),
+    issues: result.report.issues.slice(0, 120),
+    truncated: result.records.length > 120 || result.report.issues.length > 120,
+  };
   const dryRun = form.dryRun === "true";
-  if (dryRun) return ok(c, { dryRun: true, report: result.report });
+  if (dryRun) return ok(c, { dryRun: true, report: result.report, preview });
+  const conflictMode = form.conflictMode === "update" ? "update" : form.conflictMode === "skip" ? "skip" : null;
+  if (!conflictMode) return fail(c, 422, "CONFLICT_MODE_REQUIRED", "请选择跳过或更新现有记录");
   const importId = crypto.randomUUID();
-  const statements = buildImportStatements(result.records, { importId });
+  const user = c.get("authUser");
+  const statements = buildImportStatements(result.records, {
+    importId,
+    conflictMode,
+    archiveMissing: false,
+    actorUserId: user.id,
+  });
   await c.env.DB.batch(statements.map((statement) => c.env.DB.prepare(statement.sql).bind(...statement.params)));
   if (result.report.issues.length > 0) {
     const insert = c.env.DB.prepare(
@@ -254,7 +295,11 @@ domainAdminRoutes.post("/import", async (c) => {
   }
   return ok(c, {
     importId,
-    imported: result.records.length,
+    imported: conflictMode === "update" ? result.records.length : result.records.length - existing.size,
+    inserted: result.records.length - existing.size,
+    updated: conflictMode === "update" ? existing.size : 0,
+    skipped: conflictMode === "skip" ? existing.size : 0,
+    conflictMode,
     errorCount: result.report.issues.length,
     report: result.report,
     errorDownloadUrl: result.report.issues.length > 0 ? `/api/admin/domains/import-errors/${importId}` : null,
@@ -319,6 +364,8 @@ domainAdminRoutes.get("/:id", async (c) => {
 domainAdminRoutes.patch("/:id", async (c) => {
   const parsed = domainPatchSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return fail(c, 422, "INVALID_DOMAIN", "域名设置无效", parsed.error.issues);
+  const before = await c.env.DB.prepare("SELECT * FROM domains WHERE id = ?").bind(Number(c.req.param("id"))).first<Record<string, unknown>>();
+  if (!before) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
   const fields: string[] = [];
   const values: Array<string | number | null> = [];
   const mapping: Array<[keyof typeof parsed.data, string, (value: unknown) => string | number | null]> = [
@@ -330,10 +377,22 @@ domainAdminRoutes.patch("/:id", async (c) => {
     ["publicPriceApproved", "public_price_approved", (value) => (value ? 1 : 0)],
     ["notes", "notes", (value) => value as string | null],
     ["description", "description", (value) => value as string],
-    ["registeredAt", "registered_at", (value) => value as string | null],
-    ["expiresAt", "expires_at", (value) => value as string | null],
-    ["registrar", "registrar", (value) => value as string | null],
+    ["registeredAt", "registered_at", (value) => dateAtUtcMidnight(value as string | null)],
+    ["expiresAt", "expires_at", (value) => dateAtUtcMidnight(value as string | null)],
+    ["registrarName", "registrar_name", (value) => typeof value === "string" && value ? value.trim() : null],
   ];
+  if (parsed.data.fullDomain !== undefined || parsed.data.tld !== undefined) {
+    try {
+      const normalized = normalizeDomain(
+        parsed.data.fullDomain ?? String(before.full_domain),
+        parsed.data.tld,
+      );
+      fields.push("full_domain = ?", "normalized_domain = ?", "name = ?", "tld = ?");
+      values.push(normalized.fullDomain, normalized.normalizedDomain, normalized.name, normalized.tld);
+    } catch (error) {
+      return fail(c, 422, "INVALID_DOMAIN", error instanceof Error ? error.message : "域名无效");
+    }
+  }
   for (const [key, column, convert] of mapping) {
     if (parsed.data[key] !== undefined) {
       fields.push(`${column} = ?`);
@@ -342,11 +401,15 @@ domainAdminRoutes.patch("/:id", async (c) => {
   }
   if (fields.length === 0) return fail(c, 422, "NO_CHANGES", "没有可保存的修改");
   values.push(Number(c.req.param("id")));
-  const before = await c.env.DB.prepare("SELECT * FROM domains WHERE id = ?").bind(Number(c.req.param("id"))).first<Record<string, unknown>>();
-  if (!before) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
-  const result = await c.env.DB.prepare(`UPDATE domains SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-    .bind(...values)
-    .run();
+  let result;
+  try {
+    result = await c.env.DB.prepare(`UPDATE domains SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .bind(...values)
+      .run();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("UNIQUE")) return fail(c, 409, "DOMAIN_EXISTS", "域名已存在");
+    throw error;
+  }
   if (result.meta.changes === 0) return fail(c, 404, "DOMAIN_NOT_FOUND", "域名不存在");
   const user = c.get("authUser");
   const changes = fields.map((field, index) => {

@@ -1,214 +1,90 @@
 # WanMi HANDOFF
 
-> 写给一个**完全没有上下文**的新 Claude Code 会话。开工前先读这份 + `design.md`。
+## 本轮结论
 
-## 1. 项目是什么
+用户反馈昨天已经移除的求购、线索和 DNS 又出现在生产，同时首页搜索按钮过宽、卡片操作文字拥挤且页面卡顿。根因不是需求反复，而是上次从落后的 `codex/ui-notify-stats-contacts` 分支发布，覆盖了 `main` 中的正确删除提交；该分支还曾发生一次 UTF-8 源码损坏。
 
-WanMi / 玩米（<https://wanmi.org>）—— 部署在 Cloudflare Workers 上的**域名资产管理与展示平台**。
-单 Worker 架构：React 19 + Vite 8 + TypeScript + Hono + D1 + R2 + Cron。**没有 Tailwind，用原生 CSS + CSS Variables。**
+处理方式：先在原分支上恢复 UTF-8，再合并最新 `main`，保留当前前台设计与后台七模块，实现本轮 UI/性能修改，并新增兼容历史生产 schema 的清理迁移。合并过程中未覆盖 `.codex/` 或其他用户未跟踪文件。
 
-生产库有 **862 个真实域名**（本地 874，含 15 条归档），87 个精品，71 个后缀。数据是真的，**不要用 mock 替换**。
+## 已完成
 
-## 2. 当前任务（2026-07-15 完成）
+### 删除回归功能
 
-分两步：
+- 删除注册商账户路由、凭据、外部服务商适配器和后台模块。
+- 删除 DNS 路由、缓存、管理界面和写入能力。
+- 删除求购表单、线索 API/后台模块、Turnstile 求购组件和相关统计。
+- `/api/admin/registrars`、`/api/admin/leads`、域名 DNS、`/api/public/offers`、RDAP 和旧公开详情端点均为 404。
+- 注册商名称仅保留为 `domains.registrar_name` 普通文字资料。
 
-**A. 黑金重构** —— 按 3 张参考图把全站 UI 重构为 **Black Gold Domain Asset Vault**（纯黑 OLED + 香槟金 + 大圆角 + iOS 暗色质感）。
-上一版是 Hallmark "Paper + Coral"（纸白 + 珊瑚橙），**已全量废弃**。更早的 "Emerald Vault 翡翠绿" 同样废弃。
+### 前台 UI
 
-**B. 功能精简（migration 0008）** —— 移除注册商 API、DNS 解析、求购意向、后台线索、站内域名详情页，并清理冗余文件。
-详见第 7 节。
+- 搜索栏为 20px 图标、弹性输入、可选清空按钮、72px 搜索按钮；搜索按钮右边缘与搜索框完全对齐。
+- 域名卡片只保留收藏、复制、速览三枚图标，所有按钮可见文字为空，使用 `aria-label`/`title` 提供无障碍名称。
+- 删除“我想要”和联系购买入口；域名名称直接访问外部域名，速览保留复制、收藏、访问和相似域名。
+- 桌面和手机操作图标统一靠右；手机保持至少 44px 的触控高度。
 
-设计系统的唯一事实来源是 **`design.md`**，改任何页面前先读它。
+### 性能
 
-## 3. 已完成
+- 公开页默认从 60 条降为 36 条，不再预取下一页。
+- 数据版本检查从 8 秒改为 60 秒，并且只在页面可见时执行。
+- 卡片使用 `React.memo`、`content-visibility` 和布局隔离。
+- 移除卡片逐项入场动画、重阴影、位移悬停、页头和移动底栏模糊。
+- 请求缓存最多保留 20 项，失败自动失效。
 
-- **Design System**：`tokens.css` 全量重写为黑金令牌；`src/client/styles/app.css` 全量重写（约 2000 行，覆盖前台/详情/后台/登录）。
-- **首页 `/`**：新增资产总览 Dashboard（Hero 亮卡 + 三栏指标 + 资产结构 + 最近添加/更新）。
-- **域名列表 `/domains`**：统计卡 + 搜索 + Segmented + 分类 Chip + 域名卡片网格 + 分页。
-- **详情 `/d/:name`**：Serif 大标题 + 徽章 + Whois(RDAP) + 相关域名 + 求购表单。
-- **后台 `/admin`**：10 个视图全部黑金化，并从 653 行单文件拆分为 `pages/admin/views/*.tsx`。
-- **分类管理**：从 tag-pill 改为图标宫格（参考图 2）。
-- **组件库**：新增 `components/ui.tsx`、`AppShell.tsx`、`DomainCard.tsx`、`PromptModal.tsx`、`icons.tsx`。
-- **新 API**：`GET /api/public/overview`（只读聚合统计，供首页 Dashboard）。
-- **合并了远程的多标签体系**（见下条）。
+### 数据库兼容
 
-### 与远程多标签分类的合并
+- `0015_restore_domain_management_schema.sql` 被收敛为纯兼容桥，不再创建任何被删除的业务表。
+- 新增 `0016_remove_registrar_dns_leads.sql`：
+  - 同时兼容全新安装的 `registrar_name` 历史和生产库的 `registrar` 历史；
+  - 合并为最终 `registrar_name`；
+  - 重建导入暂存表，清除旧 `registrar` / `registrar_label`；
+  - 删除 `registrar_accounts`、`dns_records_cache`、`domain_leads`；
+  - 在重建 `domains` 前备份并恢复 `domain_auto_categories` 和 `notification_deliveries`；
+  - 重建索引与公开数据版本触发器。
+- 新增历史生产兼容集成测试，覆盖旧列名、分类、通知历史、删表和暂存表规范化。
 
-重构期间远程 main 已经先行推进了两个提交（多标签分类 + 3 家新注册商）。本次已 rebase 并完整适配：
+## 生产变更前状态
 
-- `PublicDomain.categories: string[]` —— 一个域名可同时属于多个自动标签（纯字母 / 双拼 / 三数字 …，共 20 个细分标签，见 `AUTO_CATEGORY_ORDER`）。
-  前台卡片与详情页通过 `lib/site.ts` 的 `domainCategories()` 读取，卡片最多展示 2 个，避免 Badge 堆砌。
-- 分类筛选（`/facets`、`/domains?category=`）走 `domain_auto_categories` 表匹配。
-  **`/api/public/overview` 的分类统计必须与之同口径**，否则首页「分类分布」点进去会是空结果——这一点已修复并有断言。
-- 注册商从 6 家扩到 **9 家**（新增 Spaceship / Namecheap / Dynadot）。
-  `RegistrarsView` 的 `PROVIDERS` 顺序必须与 `worker/providers/factory.ts` 一致；Namecheap 需要额外填「API 白名单公网 IP」。
-- 后台域名筛选下拉改用 `GET /api/admin/domains/filters`（带真实计数）；指派分类的下拉**只列人工分类**，自动标签是只读的。
+- D1：862 个域名、862 个公开、87 个精品、1992 条分类关联。
+- 待删除历史数据：2 个注册商账户、1 条求购线索、0 条 DNS 缓存。
+- 通知发送历史：0 条。
+- 859 个权威 CSV 域名有 `registrar_label`；`namesale.cn` 的“易名”仅在旧 `registrar` 列，迁移测试已覆盖并保留这种回退。
+- 迁移前完整备份：`backups/wanmi-20260715T043546Z.sql`（Git 忽略，禁止提交或分享）。
 
-## 4. 关键文件
+## 验证结果
 
-```
-tokens.css                          黑金 Design Tokens（唯一色值来源）
-design.md                           设计系统规范（改 UI 前必读）
-index.html                          字体加载 + 固定 dark 主题
-src/client/App.tsx                  路由（含旧链接兼容）
-src/client/styles/app.css           全站样式（~2000 行）
-src/client/components/
-  ui.tsx                            SearchBar/Segmented/Chips/Badge/Empty/Skeleton/Pagination/Modal
-  AppShell.tsx                      桌面顶部导航 + 手机底部导航
-  DomainCard.tsx                    DomainCard（网格）+ DomainRow（首页）
-  PromptModal.tsx                   取代 window.prompt
-  icons.tsx                         全部内联 SVG（24×24, stroke 1.75）
-src/client/pages/public/            HomePage / DomainsPage / DomainDetailPage
-src/client/pages/admin/
-  AdminApp.tsx                      主壳 + 登录
-  views/*.tsx                       10 个后台视图
-src/worker/routes/public/index.ts   公开 API（含新增的 /overview）
-```
+- `pnpm check`：通过。
+- Vitest：10 个测试文件、58 项通过。
+- Playwright：5 项通过，包含真实本地管理员登录、搜索按钮几何、36 张卡片、三枚无文字图标、无“我想要”、后台无被删模块、数据刷新与九种视口无横向溢出。
+- 真实内置浏览器：
+  - 1440×900：搜索按钮 72px、右侧间距 0、36 张卡片、三枚空文本图标；
+  - 390×844：无横向溢出、搜索按钮仍贴右、移动底栏无模糊；
+  - 收藏、复制、速览均可用，弹窗无求购入口；
+  - 控制台无应用警告或错误。
 
-## 5. 设计系统速查
+## 生产发布
 
-- 背景 `#000000`，卡片 `#151515`，强调金 `#D8B638`，主文本 `#F5F5F7`。
-- 字体：Instrument Serif（大数字/标题）+ Inter/Noto Sans SC（UI）+ JetBrains Mono（技术数据）。
-- 圆角：Chip `9999px` / 搜索 `20px` / 域名卡 `22px` / 面板 `26px` / Modal `30px`。
-- 阴影一律弱；金色 Glow 只轻微使用。
-- **黑金是唯一主题**，没有明暗切换（ThemeToggle 已删除）。
+- Worker 版本：`c631ab3f-be50-474a-8455-75f221b32f95`
+- 远程迁移：`0016_remove_registrar_dns_leads.sql` 已成功执行；远程迁移列表为空。
+- 数据核验：域名/公开/精品为 862/862/87，分类关联为 1992，通知发送历史为 0，外键检查为空。
+- 兼容核验：三个被删表均不存在，`namesale.cn.registrar_name` 保留为“易名”。
+- 接口核验：健康检查正常，旧详情链接回到首页搜索，sitemap 只保留首页，旧公开详情、RDAP 与求购端点均为 404。
+- 浏览器核验：生产桌面与手机首页均符合本轮 UI/性能边界；生产管理员登录成功，后台只显示七个保留模块，控制台无应用错误。
 
-## 6. 数据诚实性（**最重要**，别踩）
+## 回滚
 
-界面**不得**展示库里不存在的数据。当前 D1 的真实约束：
+如果迁移或发布异常：
 
-| 字段 | 状态 | 结论 |
-| --- | --- | --- |
-| 估值 | **没有这个字段** | 首页不展示任何金额 |
-| `created_at` | 全部集中在导入当天 | **不做时间趋势折线**，画出来就是伪造 |
-| `expires_at` | 全空 | 到期模块显示"暂无到期数据" |
-| `description` | 862 条里只有 1 条有值 | 卡片无简介时自动收紧，不留空白 |
+1. 立即停止后续写操作；
+2. 使用 Cloudflare D1 Time Travel 或 `backups/wanmi-20260715T043546Z.sql` 恢复；
+3. 回滚 Worker 到发布前版本；
+4. 重新核对 862/862/87 和 1992 条分类关联后再开放后台写操作。
 
-首页的"资产结构"用的是**真实**的分类 / 后缀 / 长度分布，这是刻意选择，不是偷懒。
-新增任何指标前，先 `wrangler d1 execute` 确认字段真有数据。
+## 不能重复的坑
 
-## 7. 破坏性变更
-
-### 7.1 黑金重构带来的
-
-1. **路由变了**：`/` 从"域名列表"变成"资产总览"，列表移到 `/domains`。
-   旧分享链接 `/?q=xxx&tld=yyy` 会**自动重定向**到 `/domains?...`（`App.tsx` 的 `LEGACY_LIST_PARAMS`），已有 E2E 覆盖。
-2. **移除明暗主题切换**：黑金单主题。`ThemeToggle.tsx` 已删除，`index.html` 固定 `data-theme="dark"`。
-3. **`accent_color` 不再注入前台主色**：该字段保留，现在只在后台"站点设置"里作为分享卡片强调色。
-4. **后台"列显示"开关移除**：表格换成卡片后该功能无意义。简介仍可通过操作区的"编辑简介"改。
-5. **`window.prompt` 换成 Modal**：添加域名、编辑简介、新建分类、批量分类。删除确认仍用 `window.confirm`。
-6. **`PublicPage.tsx` 已删除**，拆成 `HomePage.tsx` + `DomainsPage.tsx`。
-
-### 7.2 功能精简（migration 0008）—— **不要再把这些加回来**
-
-移除了：**注册商 API 账户与同步**、**DNS 解析读写**、**域名求购意向表单**、**后台求购线索**、**站内域名详情页 `/d/:name`**。
-
-连带变化：
-
-- **点击域名 = 直接打开该域名本身**（`https://<domain>`，新标签页 + `noopener noreferrer nofollow`）。
-  旧的 `/d/<domain>` 链接回落到 `/domains?q=<domain>`。
-- 删除的 API：`/api/admin/registrars*`、`/api/admin/leads*`、`/api/admin/domains/:id/dns*`、`/api/admin/dns/bulk`、
-  `/api/public/offers`、`/api/public/rdap/:name`、`/api/public/domains/:name`、`/api/public/og/:name`。
-- 删除的表：`registrar_accounts`、`dns_records_cache`、`domain_leads`。
-- `domains.registrar_account_id` 列已摘除（整表重建）。
-- 后台从 10 个模块精简到 **7 个**：概览 / 域名管理 / 分类 / 站点设置 / 到期提醒 / 账户安全 / 操作日志。
-- sitemap 只剩 `/` 与 `/domains`（不再有 862 个详情页 URL）。
-- 域名 CSV 导出的列改为：域名、注册日期、到期日期、后缀、分类、精品、前台展示、简介（原先有"注册商"列）。
-
-**保留**（按要求）：到期提醒、通知渠道、Cron、`notification_*` 表、`expires_at` 列。
-注意 `expires_at` 现在**没有任何自动数据源**（注册商同步是它唯一的填充途径），所以到期提醒实际不会触发，
-除非以后手工录入到期日。
-
-未改动：登录机制、Cloudflare 资源与绑定、部署方式。
-
-## 8. 验证结果
-
-- `pnpm typecheck` / `pnpm lint`：通过。
-- `pnpm test`：7 文件 38 项通过（含"已移除端点全部 404"断言）。
-- `pnpm test:e2e`：Chromium **10 项全部通过**（首页真实统计 / 列表搜索+多标签筛选 / 旧链接重定向 /
-  点击域名跳外站 / 旧 `/d/` 回落 / 后台登录隐藏恢复退出 / 简介与精品前后台同步 / 手机端无溢出 /
-  桌面端无底部导航 / 后台只剩 7 个模块）。
-- `pnpm build`：通过。**Worker 685 KB（-60）、前端 JS 76.8 KB gzip（-5.5）、CSS 7.9 KB gzip（-0.5）**，无新增依赖。
-- `pnpm verify:no-demo-data`：扫描 77 个生产文件（精简前 96），无假数据。
-- migration `0008` 在**有数据**的本地库上验证：859 域名 / 765 标签 / 1 条导入记录一条未丢。
-- 响应式实测 320 / 375 / 430 / 768 / 1024 / 1280 / 1440 / 1920：**零横向溢出**，列数 1/1/1/2/3/4/4/4，1920 内容锁定 1440px。
-- 浏览器 console：全新 tab 零 error、零 warning。
-
-## 9. 已踩过的坑（**不要重复**）
-
-### 本次新增
-
-- **`DROP TABLE domains` 会通过 `ON DELETE CASCADE` 连带清空 `domain_auto_categories`**（1191 条多标签）。
-  SQLite 的 DROP TABLE 会执行一次隐式 DELETE，外键动作照常触发。migration `0008` 因此先把标签备份到临时表、
-  重建完 domains 再灌回去。**任何要重建 domains 的 migration 都必须这么做。**
-- **`sync_runs` 不是注册商专用表** —— CSV 导入也用它记录每次导入的运行状态（见 `shared/import-plan.ts`）。
-  第一版 migration 把它删了，直接导致导入功能崩掉。最后改成只摘掉它指向 `registrar_accounts` 的外键。
-- **删表的 migration 一定要在"有数据"的库上测**。空库测不出 CASCADE 陷阱：
-  先把 migration 挪走 → `migrate` 到上一版 → 导入真实数据 → 放回 migration → apply → 逐项核对行数。
-- **改完 D1 结构后要重启 dev server** —— wrangler dev 会持有旧的 D1 连接，不重启会看到诡异的 500。
-- **推送前一定先 `git fetch` 看远程有没有前进** —— 本次远程 main 已经领先 2 个提交（多标签 + 3 家注册商），
-  如果当时 force push 就会静默删掉这些真实功能。冲突要逐个合并，不能用 `--ours` / `--theirs` 一把梭。
-- **新增前台统计接口时，聚合口径必须和筛选接口一致** —— `/overview` 一度还在用旧的 `auto_category` 单分类，
-  而 `/domains?category=` 已经改成 `domain_auto_categories` 多标签匹配，导致首页分类点进去是空列表。
-- **搜索框没有 submit 按钮时，浏览器隐式提交不可靠** —— 必须在 input 上显式处理 `Enter`（见 `ui.tsx` 的 `SearchBar`），否则回车搜不了。
-- **绝对定位的卡片按钮会压住徽章** —— 域名卡无简介时很矮，复制按钮必须作为 flex 列参与排版，不能 `position: absolute; bottom`。
-- **CSS grid 列数必须与 JSX 直接子元素数一致** —— `.record` 曾定义 6 列但只有 5 个子元素，导致后台卡片错位、高度暴涨。
-- **图标宫格的角标会和图标重叠** —— `.icon-card` 必须 `justify-content: flex-end` + 顶部留 padding。
-- **平板隐藏简介列会连带隐藏编辑入口** —— 编辑按钮要放在操作区，不能放在会被隐藏的列里。
-- **React 19 没有全局 `JSX` 命名空间** —— 用 `ReactNode`，`JSX.Element` 会 TS2503。
-- Vite HMR 会对已删除的文件反复报 "Failed to reload"，那是**幽灵错误**，开新 tab 就没了。别去追。
-
-### 历史（仍然有效）
-
-- `csv-parse/sync` 依赖 Buffer，Workers 必须用 `csv-parse/browser/esm/sync`。
-- 超大 SQL 文件会触发 `SQLITE_TOOBIG`；本地用事务，远程用 D1 batch API。
-- Cloudflare Vite Plugin 可能把 `.dev.vars` 复制进产物；构建后必须扫描（`scripts/sanitize-build.ts` 已做）。
-- CSV 的 Listing Status **不能**当展示开关；只有 Hidden 或管理员设置决定 `is_listed`。
-- D1 Query API 批量请求要包成 `{ batch: [...] }`，顶层数组返回 7400。
-- Workers 的 PBKDF2 上限 100,000 次，更高会在生产 `NotSupportedError`。
-
-## 10. 本地启动
-
-```bash
-pnpm install
-pnpm dev                    # http://localhost:5173
-```
-
-需要 `.dev.vars`（参考 `.dev.vars.example`）：`ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` / `SESSION_SECRET` / `CREDENTIALS_ENCRYPTION_KEY`。
-
-本地 D1 已有数据。若为空：
-
-```bash
-pnpm db:migrate:local
-pnpm domains:import:local
-```
-
-## 11. 构建与检查
-
-```bash
-pnpm check      # typecheck + lint + test + build + domains:verify + verify:no-demo-data
-pnpm test:e2e   # Playwright（会自动起 dev server）
-```
-
-**提交前请跑 `pnpm check`。**
-
-## 12. 部署
-
-```bash
-pnpm build
-wrangler deploy
-```
-
-Cloudflare 资源（**不要创建重复资源**）：Worker `wanmi`、D1 `wanmi-db`（绑定 `DB`）、R2 `wanmi-assets`（绑定 `UPLOADS`）、Static Assets `ASSETS`、Cron `0 1 * * *`。
-
-远程 migration：`pnpm db:migrate:remote`。备份：`pnpm db:backup`。
-
-## 13. 下一步建议
-
-1. **补域名简介**：862 条里只有 1 条有 `description`。卡片已经为简介留好位置，补上后前台信息密度会明显改善。
-2. **到期提醒目前是空转**：`expires_at` 没有任何自动数据源（注册商同步已移除）。要真正用起来，
-   得在后台加一个手工编辑到期日的入口——目前 UI 里**没有**这个入口。不想要就干脆把到期提醒和通知渠道也删掉。
-3. 若未来补上了跨月的 `created_at` 或估值字段，可以再考虑首页的时间趋势折线 —— 但**在那之前不要画**。
-4. `domain_marketplace_listings` 表还在（0 行，migration 0005 已废弃其功能），但 `scripts/verify-domain-import.ts`
-   仍会查它。要删的话记得同时改那个脚本。
+- 不要从落后功能分支直接发布；先比较 `origin/main`、当前分支和共同祖先。
+- 不要用 GitHub 内容 API重写中文源码；发布前必须执行 UTF-8、类型、测试和构建检查。
+- D1 远程曾执行过仓库当前不存在的历史迁移，不能只按本地文件推断列名。
+- `DROP TABLE domains` 会触发外键级联；重建前必须保护所有仍需保留的子表数据。
+- 页面性能策略不再承诺 8–10 秒自动刷新；后台修改后手动刷新立即生效，自动检查为可见状态下每 60 秒一次。
+- Token 和后台密码曾出现在聊天中；本轮完成后应在 Cloudflare、GitHub 和后台轮换。

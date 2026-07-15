@@ -1,102 +1,105 @@
 # Cloudflare 部署
 
-WanMi 使用单一 Cloudflare Worker：Vite 构建 React Static Assets，`/api/*` 由 Hono Worker 优先处理，D1 保存业务数据，R2 保存站点图片，Cron 每天 01:00 UTC（Asia/Shanghai 09:00）检查到期提醒。
+WanMi 使用单一 Cloudflare Worker：Vite 构建 React Static Assets，Hono 处理 `/api/*`、首页 SEO、`/sitemap.xml`、`robots.txt` 和旧 `/d/*` 重定向；D1 保存业务数据，R2 保存站点图片，Cron 每天 `01:00 UTC` 检查到期提醒。
 
-配置依据 2026 年 Cloudflare Workers、Vite Plugin、D1、R2、Static Assets、Secrets 与 Cron 官方文档。Vite Plugin 会自动填写客户端构建目录，因此输入 `wrangler.jsonc` 只配置 `binding`、SPA fallback 和 `run_worker_first`，不硬编码输出目录。
-
-## 1. 权限检查
+## 1. 认证与资源
 
 ```bash
-pnpm wrangler whoami
+pnpm exec wrangler whoami
 ```
 
-若未登录，交互式环境运行：
+本地交互使用 `wrangler login`；CI 或非交互环境使用最小权限的 `CLOUDFLARE_API_TOKEN`。Token 不得写入命令脚本、配置或仓库。
 
-```bash
-pnpm wrangler login
-```
+生产资源：
 
-CI 使用最小权限的 `CLOUDFLARE_API_TOKEN` 与正确的 `CLOUDFLARE_ACCOUNT_ID`。
-
-## 2. 创建资源
-
-```bash
-pnpm wrangler d1 create wanmi-db
-pnpm wrangler r2 bucket create wanmi-assets
-```
-
-将 D1 命令返回的真实 `database_id` 写入 `wrangler.jsonc` 对应 `DB` 绑定。R2 绑定名称为 `UPLOADS`，Bucket 名为 `wanmi-assets`。不得把 API Token 写入配置。
-
-## 3. 设置 Secret
-
-以下命令必须交互输入，不要把值放在命令行参数里：
-
-```bash
-pnpm wrangler secret put ADMIN_EMAIL
-pnpm wrangler secret put BOOTSTRAP_ADMIN_PASSWORD
-pnpm wrangler secret put SESSION_SECRET
-pnpm wrangler secret put CREDENTIALS_ENCRYPTION_KEY
-```
-
-按需增加：
-
-```bash
-pnpm wrangler secret put TELEGRAM_BOT_TOKEN
-pnpm wrangler secret put RESEND_API_KEY
-pnpm wrangler secret put EMAIL_FROM
-```
-
-## 4. Migration、构建和部署
-
-```bash
-pnpm db:migrate:remote
-pnpm build
-pnpm wrangler deploy
-```
-
-`pnpm build` 会删除 Vite 预览输出中可能复制的 `.dev.vars`，并扫描构建文件，发现任何本地 Secret 即失败。
-
-## 5. 远程导入
-
-远程导入脚本通过 D1 HTTP batch API 原子写入，需要在当前终端提供 Cloudflare API 凭据和数据库 ID：
-
-```bash
-pnpm domains:validate
-pnpm domains:report
-pnpm domains:import:remote -- --dry-run
-pnpm domains:import:remote
-pnpm domains:verify -- --remote
-```
-
-远程环境变量：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`。这些值不得写入仓库。
-
-## 6. 生产验收
-
-```bash
-curl -fsS https://<worker-host>/api/health
-curl -fsS 'https://<worker-host>/api/public/domains?q=wanmi.org'
-curl -fsS 'https://<worker-host>/api/public/domains?q=02cloud.com'
-```
-
-随后运行生产浏览器冒烟测试，确认 `/admin` 直接刷新不会 404、错误密码不能登录、隐藏/恢复会立即影响前台。
-
-首次管理员创建且登录确认后，可以删除一次性引导密码：
-
-```bash
-pnpm wrangler secret delete BOOTSTRAP_ADMIN_PASSWORD
-```
-
-删除前必须确认管理员已写入 D1，且当前密码可登录。代码不会因 Secret 消失而重置已有管理员。
-
-## 当前生产状态
-
-当前生产部署已完成：
-
-- URL：<https://wanmi.1n.workers.dev>
 - Worker：`wanmi`
 - D1：`wanmi-db`，绑定 `DB`
 - R2：`wanmi-assets`，绑定 `UPLOADS`
 - Static Assets：绑定 `ASSETS`
 - Cron：`0 1 * * *`
+- 域名：<https://wanmi.org>
 
-远程 migration、两次幂等导入和 `859/859/859` 验证均已通过。生产冒烟已验证公共查询、`/admin` SPA 刷新、错误密码、真实登录、隐藏/恢复和退出。以后每次部署仍必须先执行检查、备份或确认 migration 风险，并通过 Secret/CI 环境提供 Token。
+## 2. Secret
+
+首次部署使用交互输入：
+
+```bash
+pnpm exec wrangler secret put ADMIN_EMAIL
+pnpm exec wrangler secret put BOOTSTRAP_ADMIN_PASSWORD
+pnpm exec wrangler secret put SESSION_SECRET
+pnpm exec wrangler secret put CREDENTIALS_ENCRYPTION_KEY
+```
+
+通知渠道按需配置 `TELEGRAM_BOT_TOKEN`、`RESEND_API_KEY` 和 `EMAIL_FROM`。管理员已存在且确认可登录后，可删除一次性 `BOOTSTRAP_ADMIN_PASSWORD`；代码不会重置已有密码。
+
+## 3. 发布顺序
+
+```bash
+pnpm check
+pnpm test:e2e
+pnpm exec wrangler d1 migrations list wanmi-db --remote
+pnpm db:backup
+pnpm db:migrate:remote
+pnpm run deploy
+pnpm verify:production
+```
+
+必须先备份再迁移。`pnpm db:backup` 将完整 D1 导出到被 Git 忽略的 `backups/`；输出中的临时下载 URL 也不得粘贴到公开渠道。
+
+## 4. 当前迁移
+
+### `0015_restore_domain_management_schema.sql`
+
+该文件只做历史列名兼容：为全新安装建立临时 `registrar` 桥、添加 `registrar_label`，并回填 859 个权威 CSV 域名的注册商文字。它不创建注册商账户、DNS 或求购线索表。
+
+生产库已经执行过同名旧版本，所以不会重新运行；生产原本已有 `registrar`、`registrar_label` 和历史业务表。
+
+### `0016_remove_registrar_dns_leads.sql`
+
+这是当前唯一待执行迁移：
+
+- 规范化 `domains.registrar_name`；
+- 重建临时导入表为统一列名；
+- 删除注册商账户、DNS 缓存、求购线索及关联字段；
+- 保留所有域名、公开/精品状态、人工字段、分类关联和通知发送历史；
+- 重建域名索引和版本触发器。
+
+迁移前必须记录以下基线：域名总量、公开量、精品量、分类关联量、通知历史量，以及待删除表数量。迁移后再次执行同样查询，并确认 `PRAGMA foreign_key_check` 无结果。
+
+## 5. 生产验收
+
+```bash
+curl -fsS https://wanmi.org/api/health
+curl -fsS 'https://wanmi.org/api/public/domains?q=wanmi.org'
+curl -fsS 'https://wanmi.org/api/public/domains?pageSize=36'
+pnpm verify:production
+```
+
+还必须确认：
+
+- 首页只请求当前 36 条域名，不做下一页预取；
+- 搜索按钮贴在右侧，卡片仅三枚图标且没有“我想要”；
+- 桌面与手机无横向溢出，控制台无错误；
+- 后台只有七个模块；
+- `/api/admin/registrars`、`/api/admin/leads`、域名 DNS、`/api/public/offers`、RDAP 和旧详情 API 均为 404；
+- D1 不存在 `registrar_accounts`、`dns_records_cache`、`domain_leads`。
+
+需要写链路冒烟时才运行：
+
+```bash
+pnpm verify:production -- --write
+```
+
+脚本会创建唯一临时域名并在 `finally` 中删除。任何写验证前都要确认备份和管理员凭据来源安全。
+
+## 6. 回滚
+
+优先使用 Cloudflare D1 Time Travel；也可使用发布前的完整 SQL 导出。数据库恢复后，再回滚 Worker 版本并重新核对数据基线。不要用已删除的旧“恢复注册商/DNS/线索”脚本，它已从仓库移除。
+
+## 当前生产状态
+
+- 发布日期：2026-07-15
+- Worker 版本：`c631ab3f-be50-474a-8455-75f221b32f95`
+- 已核验数据：862 个域名、862 个公开、87 个精品、1992 条分类关联
+- 被删除业务表：`registrar_accounts`、`dns_records_cache`、`domain_leads`
+- 回滚备份：`backups/wanmi-20260715T043546Z.sql`（仅本机、Git 忽略）

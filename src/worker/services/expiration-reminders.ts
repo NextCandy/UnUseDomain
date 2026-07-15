@@ -1,8 +1,8 @@
 import { writeOperationLog } from "../http";
-import { enabledChannels, sendNotification, type NotificationSettingsRow } from "./notifications";
+import { loadEnabledNotificationChannels, sendChannelNotification } from "./notifications";
 import type { Env } from "../types";
 
-type SettingsRow = NotificationSettingsRow & Record<string, unknown> & {
+type SettingsRow = {
   reminder_days_json: string;
   timezone: string;
 };
@@ -22,27 +22,22 @@ export async function runExpirationReminders(env: Env): Promise<void> {
     ? parsedDays.filter((value): value is number => Number.isInteger(value) && value > 0 && value <= 365)
     : [];
   if (days.length === 0) return;
-  const currentDate = new Intl.DateTimeFormat("en-CA", {
-    timeZone: settings.timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
   const placeholders = days.map(() => "?").join(",");
   const result = await env.DB.prepare(
     `SELECT id, normalized_domain, expires_at,
-      CAST(julianday(date(expires_at)) - julianday(date(?)) AS INTEGER) AS days_remaining
+      CAST(julianday(date(expires_at)) - julianday(date('now')) AS INTEGER) AS days_remaining
      FROM domains
      WHERE expires_at IS NOT NULL
-       AND CAST(julianday(date(expires_at)) - julianday(date(?)) AS INTEGER) IN (${placeholders})`,
+       AND CAST(julianday(date(expires_at)) - julianday(date('now')) AS INTEGER) IN (${placeholders})`,
   )
-    .bind(currentDate, currentDate, ...days)
+    .bind(...days)
     .all<ExpiringDomainRow>();
-  const channels = enabledChannels(settings);
-  const scheduledDate = currentDate;
+  const channels = await loadEnabledNotificationChannels(env);
+  const scheduledDate = new Date().toISOString().slice(0, 10);
 
   for (const domain of result.results) {
-    for (const channel of channels) {
+    for (const channelRow of channels) {
+      const channel = channelRow.channel;
       const deliveryId = crypto.randomUUID();
       const inserted = await env.DB.prepare(
         `INSERT OR IGNORE INTO notification_deliveries (
@@ -53,9 +48,9 @@ export async function runExpirationReminders(env: Env): Promise<void> {
         .run();
       if (inserted.meta.changes === 0) continue;
       try {
-        const response = await sendNotification(env, channel, settings, {
+        const response = await sendChannelNotification(env, channelRow, {
           title: "玩米域名到期提醒",
-          content: `${domain.normalized_domain} 将在 ${domain.days_remaining} 天后到期（${domain.expires_at}）。`,
+          content: `${domain.normalized_domain} 将在 ${domain.days_remaining} 天后到期。`,
         });
         await env.DB.prepare(
           "UPDATE notification_deliveries SET status = 'sent', provider_message_id = ?, sent_at = CURRENT_TIMESTAMP WHERE id = ?",

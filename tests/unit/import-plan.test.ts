@@ -26,8 +26,22 @@ describe("D1 导入计划", () => {
     expect(domainsUpsert).not.toMatch(/(?:^|\s)category\s*=\s*excluded\.category/i);
     expect(domainsUpsert).not.toMatch(/notes\s*=\s*excluded/i);
     expect(domainsUpsert).not.toMatch(/description\s*=\s*excluded/i);
-    expect(domainsUpsert).toMatch(/registered_at\s*=\s*excluded\.registered_at/i);
-    expect(domainsUpsert).toMatch(/expires_at\s*=\s*excluded\.expires_at/i);
-    expect(domainsUpsert).toMatch(/registrar\s*=\s*excluded\.registrar/i);
+    expect(domainsUpsert).toMatch(/registered_at\s*=\s*COALESCE\(excluded\.registered_at/i);
+    expect(domainsUpsert).toMatch(/expires_at\s*=\s*COALESCE\(excluded\.expires_at/i);
+    expect(domainsUpsert).toMatch(/registrar_name\s*=\s*COALESCE\(excluded\.registrar_name/i);
+  });
+
+  it("后台预览导入可默认跳过冲突且不会归档文件外域名", async () => {
+    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const statements = buildImportStatements(parseDomainCsv(source).records.slice(0, 2), {
+      importId: "admin-preview",
+      conflictMode: "skip",
+      archiveMissing: false,
+      actorUserId: 1,
+    });
+    const domainsInsert = statements.find((statement) => statement.sql.includes("INSERT INTO domains"))!.sql;
+    expect(domainsInsert).toContain("DO NOTHING");
+    expect(statements.some((statement) => statement.sql.includes("normalized_domain NOT IN"))).toBe(false);
+    expect(statements.find((statement) => statement.sql.includes("INSERT INTO operation_logs"))?.params).toContain(1);
   });
 });

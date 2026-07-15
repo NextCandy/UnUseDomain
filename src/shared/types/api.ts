@@ -17,6 +17,8 @@ export interface PublicDomain {
   category: string | null;
   categories: string[];
   is_featured: boolean;
+  registered_at: string | null;
+  expires_at: string | null;
   public_price?: string | null;
 }
 

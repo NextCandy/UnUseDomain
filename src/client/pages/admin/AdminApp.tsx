@@ -1,37 +1,68 @@
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
-
-import { BrandMark } from "../../components/AppShell";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
-  IconArrowUpRight,
-  IconBell,
-  IconDoc,
-  IconGlobe,
-  IconHome,
-  IconLogout,
-  IconSettings,
-  IconShield,
-  IconTag,
-} from "../../components/icons";
-import { Toast, type ToastMessage } from "../../components/Toast";
-import { ApiError, api } from "../../lib/api";
-import type { AdminUser, AdminView } from "./types";
-import { CategoriesView } from "./views/CategoriesView";
-import { DomainsView } from "./views/DomainsView";
-import { LogsView } from "./views/LogsView";
-import { NotificationsView } from "./views/NotificationsView";
-import { OverviewView } from "./views/OverviewView";
-import { SecurityView } from "./views/SecurityView";
-import { SettingsView } from "./views/SettingsView";
+  Bell,
+  ChevronDown,
+  Globe,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Tag,
+  type LucideIcon,
+} from "lucide-react";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
-const NAV: Array<[AdminView, string, ReactNode]> = [
-  ["overview", "概览", <IconHome size={19} key="i" />],
-  ["domains", "域名管理", <IconGlobe size={19} key="i" />],
-  ["categories", "分类", <IconTag size={19} key="i" />],
-  ["settings", "站点设置", <IconSettings size={19} key="i" />],
-  ["notifications", "到期提醒", <IconBell size={19} key="i" />],
-  ["security", "账户安全", <IconShield size={19} key="i" />],
-  ["logs", "操作日志", <IconDoc size={19} key="i" />],
-];
+import { ThemeToggle } from "../../components/ThemeToggle";
+import { Toast, type ToastMessage } from "../../components/Toast";
+import { ApiError, api, download } from "../../lib/api";
+import { formatExact, formatRelative } from "../../lib/format-time";
+
+type AdminView = "overview" | "domains" | "categories" | "settings" | "notifications" | "security" | "logs";
+
+interface AdminUser {
+  id: number;
+  email: string;
+  sessionId: string;
+}
+
+interface DashboardData {
+  counts: { total: number; listed: number; hidden: number; featured: number };
+  expiring90d: Array<{ full_domain: string; expires_at: string }>;
+  tlds: Array<{ tld: string; count: number }>;
+  recentLogs: Array<{ id: number; level: string; action: string; message: string; success: number; created_at: string }>;
+  hasExpirationData: boolean;
+  notificationHealth: Array<{ channel: NotificationChannelKey; enabled: number; last_test: string | null }>;
+  stats: { today: { pv: number; uv: number }; sevenDays: Array<{ day: string; pv: number; uv: number }>; topDomains: Array<{ domain: string; clicks: number; latest: number }>; countries: Array<{ country: string; visitors: number }> };
+}
+
+interface AdminDomain {
+  id: number;
+  full_domain: string;
+  name: string;
+  tld: string;
+  category: string | null;
+  is_featured: number;
+  is_listed: number;
+  notes: string | null;
+  description: string;
+  auto_category: string;
+  auto_subcategory: string;
+  auto_category_confidence: number;
+  effective_category: string;
+  category_source: "auto" | "manual";
+  registered_at: string | null;
+  expires_at: string | null;
+  registrar_name: string | null;
+}
+
+interface AdminDomainPage {
+  items: AdminDomain[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
 function LoginPage({ onLogin }: { onLogin: (user: AdminUser) => void }) {
   const [email, setEmail] = useState("");
@@ -59,153 +90,535 @@ function LoginPage({ onLogin }: { onLogin: (user: AdminUser) => void }) {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <BrandMark />
-        <span className="login-kicker">安全管理控制台</span>
-        <h1>欢迎回来</h1>
-        <p>请使用管理员账号继续。</p>
+        <a href="/" className="brand login-brand"><span className="brand-mark">玩</span><span>玩米</span></a>
+        <div className="login-heading"><span>安全管理控制台</span><h1>欢迎回来</h1><p>请使用管理员账号继续。</p></div>
         <form onSubmit={submit}>
-          <label className="field">
-            <span>管理员邮箱</span>
-            <input
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              autoFocus
-            />
-          </label>
-          <label className="field">
-            <span>密码</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </label>
-          {error && <div className="field-error">{error}</div>}
-          <button className="btn btn-primary" disabled={loading}>
-            {loading ? "正在验证…" : "登录"}
-          </button>
+          <label>管理员邮箱<input type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus /></label>
+          <label>密码<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+          {error && <div className="inline-error">{error}</div>}
+          <button className="primary-button login-button" disabled={loading}>{loading ? "正在验证…" : "登录"}</button>
         </form>
-        <a className="back-link" href="/" style={{ marginTop: 20, justifyContent: "center", display: "flex" }}>
-          ← 返回域名展示页
-        </a>
+        <a className="back-link" href="/">← 返回域名展示页</a>
       </div>
     </div>
   );
 }
 
-export function AdminApp() {
-  const [user, setUser] = useState<AdminUser | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [view, setView] = useState<AdminView>("overview");
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [presetTld, setPresetTld] = useState<string | undefined>(undefined);
+function Panel({ title, description, actions, children }: { title: string; description?: string; actions?: ReactNode; children: ReactNode }) {
+  return <section className="admin-panel"><div className="panel-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{actions && <div className="panel-actions">{actions}</div>}</div>{children}</section>;
+}
 
-  const notify = useCallback(
-    (text: string, tone: "success" | "error" = "success") => setToast({ id: Date.now(), text, tone }),
-    [],
-  );
-
+function OverviewView({ onTldClick, onDomainClick }: { onTldClick: (tld: string) => void; onDomainClick?: (domain: string) => void }) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState("");
   useEffect(() => {
-    api<AdminUser>("/api/auth/me")
-      .then(setUser)
-      .catch((reason: unknown) => {
-        if (!(reason instanceof ApiError) || reason.status !== 401) {
-          notify(reason instanceof Error ? reason.message : "会话检查失败", "error");
-        }
-      })
-      .finally(() => setChecking(false));
-  }, [notify]);
+    api<DashboardData>("/api/admin/dashboard").then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "概览加载失败"));
+  }, []);
+  if (error) return <div className="state-panel error-panel">{error}</div>;
+  if (!data) return <div className="state-panel">正在读取真实统计…</div>;
+  const cards = [
+    ["域名总数", data.counts.total], ["前台展示", data.counts.listed], ["已隐藏", data.counts.hidden], ["精品域名", data.counts.featured],
+  ];
+  return <div className="admin-stack">
+    <div className="stat-grid">{cards.map(([label, value]) => <div className="stat-card" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+    <div className="stats-overview"><div className="stats-kpis"><div><span>今日 PV</span><strong>{data.stats.today.pv ?? 0}</strong></div><div><span>今日 UV</span><strong>{data.stats.today.uv ?? 0}</strong></div><div><span>域名点击</span><strong>{data.stats.topDomains.reduce((total, item) => total + Number(item.clicks || 0), 0)}</strong></div></div><div className="stats-chart"><ResponsiveContainer width="100%" height={180}><LineChart data={data.stats.sevenDays}><XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={10} /><Tooltip /><Line type="monotone" dataKey="pv" stroke="var(--brand)" strokeWidth={2} dot={false} /><Line type="monotone" dataKey="uv" stroke="var(--ink)" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div></div>
+    <div className="admin-two-columns"><Panel title="域名点击 Top 10"><div className="kpi-list">{data.stats.topDomains.length ? data.stats.topDomains.map((item) => <button key={item.domain} onClick={() => onDomainClick?.(item.domain)}><span className="mono">{item.domain}</span><b>{item.clicks} 次</b><small title={formatExact(item.latest * 1000)}>{formatRelative(item.latest * 1000)}</small></button>) : <div className="empty-inline">尚无域名点击</div>}</div></Panel><Panel title="访客地区 Top 5"><div className="kpi-list">{data.stats.countries.map((item) => <div key={item.country}><span>{item.country}</span><b>{item.visitors}</b></div>)}</div></Panel></div>
+    <Panel title="后缀分布" description="点击跳转到筛选后的域名管理"><div className="distribution-list">{data.tlds.slice(0, 12).map((item) => <a key={item.tld} onClick={() => onTldClick(item.tld)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onTldClick(item.tld); }}><span>.{item.tld}</span><div className="bar"><i style={{ width: `${Math.max(4, item.count / Math.max(data.counts.total, 1) * 100)}%` }} /></div><strong>{item.count}</strong></a>)}</div></Panel>
+    <div className="admin-two-columns">
+      <Panel title="90 天内到期"><div className="kpi-list">{data.expiring90d.length ? data.expiring90d.map((item) => <div key={item.full_domain}><span className="mono">{item.full_domain}</span><b>{new Date(item.expires_at).toLocaleDateString("zh-CN")}</b></div>) : <div className="empty-inline">暂无 90 天内到期的域名（或尚无到期数据）</div>}</div></Panel>
+    </div>
+    <div className="admin-two-columns">
+      <Panel title="最近操作"><div className="activity-list">{data.recentLogs.length ? data.recentLogs.map((log) => <div key={log.id}><span className={log.success ? "dot-success" : "dot-error"} /><div><strong>{log.message}</strong><small title={formatExact(log.created_at)}>{formatRelative(log.created_at)}</small></div></div>) : <div className="empty-inline">暂无操作记录</div>}</div></Panel>
+      <Panel title="通知渠道健康"><div className="infra-list">{data.notificationHealth.map((item) => { const test = item.last_test ? JSON.parse(item.last_test) as { ok: boolean; at: string } : null; return <div key={item.channel}><span>{CHANNEL_LABELS[item.channel]}</span><strong className={test?.ok ? "status-ok" : test ? "status-error" : ""} title={test ? formatExact(test.at) : undefined}>{!item.enabled ? "未启用" : test ? `${test.ok ? "正常" : "失败"} · ${formatRelative(test.at)}` : "待测试"}</strong></div>; })}</div></Panel>
+    </div>
+  </div>;
+}
 
-  if (checking) {
-    return (
-      <div className="app-loading">
-        <span className="brand-mark">玩</span>
-        <p>正在验证玩米会话…</p>
-      </div>
-    );
-  }
+type DomainOrderBy = "domain";
+const OPTIONAL_COLUMNS: Array<[string, string]> = [["description", "简介"], ["category", "人工分类"]];
+const DEFAULT_COLUMNS = ["description", "category"];
 
-  if (!user) {
-    return (
-      <LoginPage
-        onLogin={(loggedIn) => {
-          setUser(loggedIn);
-          setView("overview");
-        }}
-      />
-    );
-  }
+function loadColumns(): Set<string> {
+  try {
+    const stored = JSON.parse(localStorage.getItem("wanmi-admin-columns") ?? "null") as string[] | null;
+    if (Array.isArray(stored)) return new Set(stored.filter((key) => OPTIONAL_COLUMNS.some(([k]) => k === key)));
+  } catch { /* 使用默认列 */ }
+  return new Set(DEFAULT_COLUMNS);
+}
 
-  async function logout() {
+interface CategoryRow { id: number; name: string; domain_count: number; is_auto?: number }
+interface DomainFilterOptions { tlds: Array<{ tld: string; count: number }>; categories: Array<{ name: string; count: number }> }
+
+function DomainEditModal({ domain, onClose, onSaved, notify }: { domain: AdminDomain; onClose: () => void; onSaved: () => void; notify: (text: string, tone?: "success" | "error") => void }) {
+  const [fullDomain, setFullDomain] = useState(domain.full_domain);
+  const [tld, setTld] = useState(domain.tld);
+  const [registeredAt, setRegisteredAt] = useState(domain.registered_at?.slice(0, 10) ?? "");
+  const [expiresAt, setExpiresAt] = useState(domain.expires_at?.slice(0, 10) ?? "");
+  const [registrarName, setRegistrarName] = useState(domain.registrar_name ?? "");
+  const [description, setDescription] = useState(domain.description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
     try {
-      await api("/api/auth/logout", { method: "POST" });
+      await api(`/api/admin/domains/${domain.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          fullDomain,
+          tld: tld.replace(/^\./, ""),
+          registeredAt: registeredAt || null,
+          expiresAt: expiresAt || null,
+          registrarName: registrarName || null,
+          description,
+        }),
+      });
+      notify(`${fullDomain} 已更新`);
+      onSaved();
+      onClose();
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : "域名信息保存失败", "error");
     } finally {
-      setUser(null);
+      setSaving(false);
     }
   }
 
-  return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <BrandMark />
-        <nav aria-label="后台导航">
-          {NAV.map(([key, label, icon]) => (
-            <button
-              key={key}
-              className={view === key ? "active" : ""}
-              aria-current={view === key ? "page" : undefined}
-              onClick={() => setView(key)}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-user">
-          <div>
-            <strong>{user.email}</strong>
-            <span>管理员</span>
-          </div>
-          <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => void logout()} aria-label="退出登录" title="退出登录">
-            <IconLogout size={17} />
-          </button>
-        </div>
-      </aside>
-
-      <div className="admin-main">
-        <header className="admin-header">
-          <h1>{NAV.find(([key]) => key === view)?.[1]}</h1>
-          <div className="admin-header-actions">
-            <a className="btn btn-secondary btn-sm" href="/" target="_blank" rel="noreferrer">
-              查看前台 <IconArrowUpRight size={15} />
-            </a>
-          </div>
-        </header>
-
-        <main className="admin-content">
-          {view === "overview" && (
-            <OverviewView
-              onTldClick={(tld) => {
-                setPresetTld(tld);
-                setView("domains");
-              }}
-            />
-          )}
-          {view === "domains" && <DomainsView key={presetTld ?? "all"} notify={notify} presetTld={presetTld} />}
-          {view === "categories" && <CategoriesView notify={notify} />}
-          {view === "settings" && <SettingsView notify={notify} />}
-          {view === "notifications" && <NotificationsView notify={notify} />}
-          {view === "security" && <SecurityView user={user} notify={notify} />}
-          {view === "logs" && <LogsView />}
-        </main>
-      </div>
-
-      <Toast message={toast} onClose={() => setToast(null)} />
+  return <div className="modal-backdrop" onMouseDown={onClose}><form className="domain-edit-modal" onSubmit={(event) => void submit(event)} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="domain-edit-title">
+    <button type="button" className="modal-close" aria-label="关闭" onClick={onClose}>×</button>
+    <div><span className="eyebrow">DOMAIN DETAILS</span><h2 id="domain-edit-title">编辑域名信息</h2><p>这些字段会同步用于前台详情和 CSV 导出。</p></div>
+    <div className="domain-edit-grid">
+      <label className="wide">域名<input value={fullDomain} onChange={(event) => setFullDomain(event.target.value.trim())} required /></label>
+      <label>后缀<input value={tld} onChange={(event) => setTld(event.target.value.replace(/^\./, ""))} placeholder="com" required /></label>
+      <label>注册商<input value={registrarName} onChange={(event) => setRegistrarName(event.target.value)} placeholder="例如 Spaceship" /></label>
+      <label>注册日期<input type="date" value={registeredAt} onChange={(event) => setRegisteredAt(event.target.value)} /></label>
+      <label>到期日期<input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+      <label className="wide">简介<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={4} /></label>
     </div>
-  );
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={saving}>{saving ? "保存中…" : "保存修改"}</button></div>
+  </form></div>;
+}
+
+interface ImportPreviewData {
+  file: File;
+  report: { parsedCount: number; invalidCount: number; duplicateCount: number };
+  preview: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    duplicateRows: number;
+    newRows: number;
+    existingRows: number;
+    rows: Array<{ rowNumber: number; domain: string; status: "new" | "existing" }>;
+    issues: Array<{ rowNumber: number; domain: string; code: string; reason: string }>;
+    truncated: boolean;
+  };
+}
+
+function ImportPreviewModal({ data, onClose, onConfirm }: { data: ImportPreviewData; onClose: () => void; onConfirm: (mode: "skip" | "update") => Promise<void> }) {
+  const [mode, setMode] = useState<"skip" | "update">("skip");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirm() {
+    setSubmitting(true);
+    setError("");
+    try {
+      await onConfirm(mode);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "CSV 导入失败");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const { preview } = data;
+  return <div className="modal-backdrop" onMouseDown={onClose}><section className="import-preview-modal" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="import-preview-title">
+    <button type="button" className="modal-close" aria-label="关闭导入预览" onClick={onClose}>×</button>
+    <div className="import-preview-heading"><span className="eyebrow">CSV IMPORT PREVIEW</span><h2 id="import-preview-title">确认导入 {data.file.name}</h2><p>正式导入会在后端重新解析和校验；不会删除或隐藏 CSV 中未出现的现有域名。</p></div>
+    <div className="import-preview-stats">
+      <div><span>CSV 总行数</span><strong>{preview.totalRows}</strong></div>
+      <div><span>有效唯一</span><strong>{preview.validRows}</strong></div>
+      <div><span>新增</span><strong>{preview.newRows}</strong></div>
+      <div><span>已存在 / 冲突</span><strong>{preview.existingRows}</strong></div>
+      <div><span>无效</span><strong>{preview.invalidRows}</strong></div>
+      <div><span>文件内重复</span><strong>{preview.duplicateRows}</strong></div>
+    </div>
+    <fieldset className="conflict-mode"><legend>现有记录如何处理</legend><label className={mode === "skip" ? "active" : ""}><input type="radio" name="conflict-mode" checked={mode === "skip"} onChange={() => setMode("skip")} /><span><strong>跳过现有记录（默认）</strong><small>新增 {preview.newRows} 条，跳过 {preview.existingRows} 条；不覆盖人工设置。</small></span></label><label className={mode === "update" ? "active" : ""}><input type="radio" name="conflict-mode" checked={mode === "update"} onChange={() => setMode("update")} /><span><strong>更新现有记录</strong><small>新增 {preview.newRows} 条，更新 {preview.existingRows} 条；人工分类、精品、展示和备注仍受后端保护。</small></span></label></fieldset>
+    <div className="import-preview-tables">
+      <div><h3>记录预览</h3><div className="preview-table"><table><thead><tr><th>行号</th><th>域名</th><th>状态</th></tr></thead><tbody>{preview.rows.map((row) => <tr key={`${row.rowNumber}-${row.domain}`}><td>{row.rowNumber}</td><td className="mono">{row.domain}</td><td><span className={row.status === "new" ? "badge-status badge-listed" : "badge-status badge-warning"}>{row.status === "new" ? "新增" : mode === "update" ? "将更新" : "将跳过"}</span></td></tr>)}</tbody></table></div></div>
+      <div><h3>错误行</h3>{preview.issues.length ? <div className="preview-errors">{preview.issues.map((issue) => <div key={`${issue.rowNumber}-${issue.code}-${issue.domain}`}><strong>第 {issue.rowNumber} 行 · {issue.domain || "空域名"}</strong><span>{issue.reason}</span></div>)}</div> : <div className="empty-inline">没有错误行</div>}</div>
+    </div>
+    {preview.truncated && <p className="preview-note">预览仅显示前 120 条；统计数字覆盖完整文件。</p>}
+    {error && <div className="inline-error" role="alert">{error}</div>}
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>取消</button><button type="button" className="primary-button" onClick={() => void confirm()} disabled={submitting}>{submitting ? "正在重新校验并导入…" : mode === "update" ? `确认新增 ${preview.newRows}、更新 ${preview.existingRows}` : `确认新增 ${preview.newRows}、跳过 ${preview.existingRows}`}</button></div>
+  </section></div>;
+}
+
+function DomainsView({ notify, presetTld, presetQuery }: { notify: (text: string, tone?: "success" | "error") => void; presetTld?: string; presetQuery?: string }) {
+  const [data, setData] = useState<AdminDomainPage | null>(null);
+  const [q, setQ] = useState(presetQuery ?? "");
+  const [listed, setListed] = useState("");
+  const [featured, setFeatured] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [tld, setTld] = useState(presetTld ?? "");
+  const [page, setPage] = useState(1);
+  const [orderBy, setOrderBy] = useState<DomainOrderBy | null>(null);
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [columns, setColumns] = useState<Set<string>>(loadColumns);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [filterOptions, setFilterOptions] = useState<DomainFilterOptions>({ tlds: [], categories: [] });
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [editing, setEditing] = useState<AdminDomain | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreviewData | null>(null);
+  const manualCategories = useMemo(() => categories.filter((item) => !item.is_auto), [categories]);
+  const manualCategoryNames = useMemo(() => new Set(manualCategories.map((item) => item.name)), [manualCategories]);
+
+  const load = useCallback(() => {
+    const params = new URLSearchParams({ page: String(page), pageSize: "50" });
+    if (q) params.set("q", q);
+    if (listed) params.set("listed", listed);
+    if (featured) params.set("featured", featured);
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (tld) params.set("tld", tld);
+    if (orderBy) { params.set("orderBy", orderBy); params.set("dir", dir); }
+    setLoading(true);
+    api<AdminDomainPage>(`/api/admin/domains?${params}`)
+      .then(setData)
+      .catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "域名加载失败", "error"))
+      .finally(() => setLoading(false));
+  }, [categoryFilter, dir, featured, listed, notify, orderBy, page, q, tld]);
+  useEffect(load, [load, refresh]);
+  useEffect(() => {
+    api<CategoryRow[]>("/api/admin/categories").then(setCategories).catch(() => setCategories([]));
+    api<DomainFilterOptions>("/api/admin/domains/filters").then(setFilterOptions).catch(() => setFilterOptions({ tlds: [], categories: [] }));
+  }, [refresh]);
+
+  function toggleColumn(key: string) {
+    setColumns((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      localStorage.setItem("wanmi-admin-columns", JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  function toggleSort(key: DomainOrderBy) {
+    if (orderBy === key) setDir((current) => (current === "asc" ? "desc" : "asc"));
+    else { setOrderBy(key); setDir(key === "domain" ? "asc" : "desc"); }
+    setPage(1);
+  }
+  const arrow = (key: DomainOrderBy) => orderBy === key ? <span className="sort-arrow">{dir === "asc" ? "↑" : "↓"}</span> : null;
+
+  async function setCategoryFor(domain: AdminDomain, value: string) {
+    if (value === "__new__") {
+      const name = window.prompt("新分类名称");
+      if (!name?.trim()) return;
+      try {
+        await api("/api/admin/categories", { method: "POST", body: JSON.stringify({ name: name.trim() }) });
+        await patch(domain.id, { category: name.trim() }, `已归入新分类 ${name.trim()}`);
+      } catch (reason) { notify(reason instanceof Error ? reason.message : "新建分类失败", "error"); }
+      return;
+    }
+    await patch(domain.id, { category: value || null }, value ? "分类已更新" : "已清除分类");
+  }
+
+  async function patch(id: number, body: Record<string, unknown>, message: string) {
+    try {
+      await api(`/api/admin/domains/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+      notify(message);
+      setRefresh((value) => value + 1);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); }
+  }
+
+  async function editDescription(domain: AdminDomain) {
+    const value = window.prompt(`编辑 ${domain.full_domain} 的公开简介（最多 500 字，可留空）`, domain.description);
+    if (value === null) return;
+    if (value.length > 500) { notify("简介不能超过 500 个字符", "error"); return; }
+    await patch(domain.id, { description: value }, value ? "简介已保存" : "简介已清空");
+  }
+
+  async function bulk(action: string) {
+    if (!selected.size) return;
+    if (action === "delete" && !window.confirm(`确认删除所选 ${selected.size} 个真实域名？此操作不可撤销。`)) return;
+    let category: string | null | undefined;
+    if (action === "categorize") category = window.prompt("输入新分类；留空将清除分类") ?? undefined;
+    if (action === "categorize" && category === undefined) return;
+    try {
+      const result = await api<{ changed: number }>("/api/admin/domains/bulk", { method: "POST", body: JSON.stringify({ ids: [...selected], action, category }) });
+      notify(`已更新 ${result.changed} 个域名`);
+      setSelected(new Set());
+      setRefresh((value) => value + 1);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "批量操作失败", "error"); }
+  }
+
+  function exportSelected() {
+    if (!selected.size) return;
+    void exportCsv(`/api/admin/domains/export?ids=${[...selected].join(",")}`);
+  }
+
+  async function exportCsv(url: string) {
+    try { await download(url); notify("CSV 已开始下载"); }
+    catch (reason) { notify(reason instanceof Error ? reason.message : "CSV 导出失败", "error"); }
+  }
+
+  async function addDomain() {
+    const fullDomain = window.prompt("输入要添加的完整域名");
+    if (!fullDomain) return;
+    try {
+      await api("/api/admin/domains", { method: "POST", body: JSON.stringify({ fullDomain }) });
+      notify(`已添加 ${fullDomain}`);
+      setRefresh((value) => value + 1);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "添加失败", "error"); }
+  }
+
+  async function removeDomain(domain: AdminDomain) {
+    if (!window.confirm(`确认删除 ${domain.full_domain}？此操作不可撤销。`)) return;
+    try {
+      await api(`/api/admin/domains/${domain.id}`, { method: "DELETE" });
+      notify(`已删除 ${domain.full_domain}`);
+      setRefresh((value) => value + 1);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "删除失败", "error"); }
+  }
+
+  async function importCsv(file: File) {
+    try {
+      const dryForm = new FormData(); dryForm.set("file", file); dryForm.set("dryRun", "true");
+      const dry = await api<Omit<ImportPreviewData, "file">>("/api/admin/domains/import", { method: "POST", body: dryForm });
+      setImportPreview({ file, report: dry.report, preview: dry.preview });
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "导入失败", "error"); }
+  }
+
+  async function confirmImport(mode: "skip" | "update") {
+    if (!importPreview) return;
+    const form = new FormData();
+    form.set("file", importPreview.file);
+    form.set("conflictMode", mode);
+    const result = await api<{ imported: number; inserted: number; updated: number; skipped: number; errorCount: number; errorDownloadUrl: string | null }>("/api/admin/domains/import", { method: "POST", body: form });
+    notify(`导入完成：新增 ${result.inserted}、更新 ${result.updated}、跳过 ${result.skipped}、错误 ${result.errorCount}`);
+    if (result.errorDownloadUrl) await download(result.errorDownloadUrl);
+    setImportPreview(null);
+    setRefresh((value) => value + 1);
+  }
+
+  const allSelected = Boolean(data?.items.length) && data!.items.every((domain) => selected.has(domain.id));
+  const has = (key: string) => columns.has(key);
+  return <><Panel title="域名管理" description="前后台共享同一份 D1 数据" actions={<><button className="secondary-button" onClick={() => void exportCsv("/api/admin/domains/export")}>导出全部</button><button className="secondary-button" onClick={() => void exportCsv(`/api/admin/domains/export?q=${encodeURIComponent(q)}&listed=${listed}${tld ? `&tld=${encodeURIComponent(tld)}` : ""}`)}>导出筛选</button><label className="secondary-button file-button">导入 CSV<input type="file" accept=".csv,text/csv" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importCsv(file); event.currentTarget.value = ""; }} /></label><button className="primary-button" onClick={() => void addDomain()}>添加域名</button></>}>
+    <div className="admin-toolbar">
+      <input value={q} onChange={(event) => { setQ(event.target.value); setPage(1); }} placeholder="搜索完整域名" />
+      <select value={listed} onChange={(event) => { setListed(event.target.value); setPage(1); }}><option value="">全部展示状态</option><option value="true">前台展示</option><option value="false">已隐藏</option></select>
+      <select value={featured} onChange={(event) => { setFeatured(event.target.value); setPage(1); }}><option value="">全部精品状态</option><option value="true">精品</option><option value="false">非精品</option></select>
+      <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); setPage(1); }} aria-label="分类筛选"><option value="">全部分类</option>{filterOptions.categories.map((item) => <option key={item.name} value={item.name}>{item.name}（{item.count}）</option>)}</select>
+      <select value={tld} onChange={(event) => { setTld(event.target.value); setPage(1); }} aria-label="后缀筛选"><option value="">全部后缀</option>{filterOptions.tlds.map((item) => <option key={item.tld} value={item.tld}>.{item.tld}（{item.count}）</option>)}</select>
+      <details className="column-picker"><summary>列显示 ▾</summary><div>{OPTIONAL_COLUMNS.map(([key, label]) => <label key={key}><input type="checkbox" checked={columns.has(key)} onChange={() => toggleColumn(key)} />{label}</label>)}</div></details>
+      <span>{loading ? "读取中…" : `共 ${data?.total ?? 0} 个`}</span>
+    </div>
+    {selected.size > 0 && <div className="bulk-bar"><strong>已选 {selected.size}</strong><button onClick={() => void bulk("feature")}>设为精品</button><button onClick={() => void bulk("unfeature")}>取消精品</button><button onClick={() => void bulk("list")}>上架</button><button onClick={() => void bulk("hide")}>隐藏</button><button onClick={() => void bulk("categorize")}>设置分类</button><button onClick={() => exportSelected()}>导出选中</button><button className="danger-text" onClick={() => void bulk("delete")}>删除</button><button onClick={() => setSelected(new Set())}>清空选择</button></div>}
+    <div className="admin-table-wrap domains-table-wrap"><table className="admin-table domains-table"><thead><tr>
+      <th><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(data?.items.map((domain) => domain.id)))} aria-label="全选当前页" /></th>
+      <th className="sortable" onClick={() => toggleSort("domain")}>域名{arrow("domain")}</th>
+      {has("description") && <th>简介</th>}
+      {has("category") && <th>分类</th>}
+      <th>精品</th><th>前台展示</th><th>操作</th>
+    </tr></thead><tbody>{data?.items.map((domain) => <tr key={domain.id}>
+      <td data-label="选择"><input type="checkbox" checked={selected.has(domain.id)} onChange={() => setSelected((current) => { const next = new Set(current); if (next.has(domain.id)) next.delete(domain.id); else next.add(domain.id); return next; })} /></td>
+      <td data-label="域名"><strong>{domain.full_domain}</strong><small>.{domain.tld}</small></td>
+      {has("description") && <td data-label="简介" className="description-cell"><span>{domain.description}</span><button className="table-link" onClick={() => void editDescription(domain)}>编辑简介</button></td>}
+      {has("category") && <td data-label="分类"><small>{domain.category_source === "manual" ? "人工" : "自动"} · {domain.auto_category}/{domain.auto_subcategory}</small><select className="table-link" value={domain.category && manualCategoryNames.has(domain.category) ? domain.category : domain.category ?? ""} onChange={(event) => void setCategoryFor(domain, event.target.value)} aria-label={`${domain.full_domain} 分类`}>
+        <option value="">恢复自动（{domain.auto_category}）</option>
+        {domain.category && !manualCategoryNames.has(domain.category) && <option value={domain.category}>{domain.category}</option>}
+        {manualCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
+        <option value="__new__">＋ 新建分类…</option>
+      </select></td>}
+      <td data-label="精品"><button className={`switch ${domain.is_featured ? "on gold" : ""}`} aria-label={`${domain.full_domain} 精品状态`} onClick={() => void patch(domain.id, { isFeatured: !domain.is_featured }, domain.is_featured ? "已取消精品" : "已设为精品")}><i /></button></td>
+      <td data-label="展示"><button className={`switch ${domain.is_listed ? "on" : ""}`} aria-label={`${domain.full_domain} 展示状态`} onClick={() => void patch(domain.id, { isListed: !domain.is_listed }, domain.is_listed ? "已从前台隐藏" : "已恢复展示")}><i /></button></td>
+      <td data-label="操作"><button className="table-link" onClick={() => setEditing(domain)}>编辑</button><button className="table-link danger-text" onClick={() => void removeDomain(domain)}>删除</button></td>
+    </tr>)}</tbody></table></div>
+    {data && data.totalPages > 1 && <div className="pagination admin-pagination"><button disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>上一页</button><span>第 {page} / {data.totalPages} 页</span><button disabled={page >= data.totalPages} onClick={() => setPage((value) => value + 1)}>下一页</button></div>}
+  </Panel>{editing && <DomainEditModal domain={editing} notify={notify} onClose={() => setEditing(null)} onSaved={() => setRefresh((value) => value + 1)} />}{importPreview && <ImportPreviewModal data={importPreview} onClose={() => setImportPreview(null)} onConfirm={confirmImport} />}</>;
+}
+
+function CategoriesView({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [name, setName] = useState("");
+  const [classifying, setClassifying] = useState(false);
+  const load = useCallback(() => { api<CategoryRow[]>("/api/admin/categories").then(setCategories).catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "分类加载失败", "error")); }, [notify]);
+  useEffect(load, [load]);
+  async function add(event: FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return;
+    try { await api("/api/admin/categories", { method: "POST", body: JSON.stringify({ name: name.trim() }) }); setName(""); notify("分类已创建"); load(); }
+    catch (reason) { notify(reason instanceof Error ? reason.message : "创建失败", "error"); }
+  }
+  async function remove(category: CategoryRow) {
+    if (!window.confirm(`删除分类「${category.name}」？其下 ${category.domain_count} 个域名将变为未分类。`)) return;
+    try { await api(`/api/admin/categories/${category.id}`, { method: "DELETE" }); notify("分类已删除"); load(); }
+    catch (reason) { notify(reason instanceof Error ? reason.message : "删除失败", "error"); }
+  }
+  async function autoClassify() {
+    setClassifying(true);
+    try {
+      const result = await api<{ domains: number; tags: number }>("/api/admin/categories/auto-classify", { method: "POST" });
+      notify(`已扫描 ${result.domains} 个域名，生成 ${result.tags} 个自动分类标签`);
+      load();
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "自动分类失败", "error"); }
+    finally { setClassifying(false); }
+  }
+  const automatic = categories.filter((category) => category.is_auto);
+  const manual = categories.filter((category) => !category.is_auto);
+  return <div className="admin-stack"><Panel title="自动分类" description="自动标签只读，不会覆盖人工分类" actions={<button className="primary-button" disabled={classifying} onClick={() => void autoClassify()}>{classifying ? "正在分类…" : "重新自动分类"}</button>}>
+    <div className="tag-grid">{automatic.map((category) => <span className="tag-pill tag-auto" key={category.id}>{category.name}<em>{category.domain_count}</em><small>自动</small></span>)}</div>
+  </Panel><Panel title="人工分类" description="仅显示管理员创建的分类，避免与自动标签混在同一列表">
+    <div className="tag-grid">{manual.length ? manual.map((category) => <span className="tag-pill" key={category.id}>{category.name}<em>{category.domain_count}</em><button onClick={() => void remove(category)} title={`删除 ${category.name}`}>×</button></span>) : <div className="empty-inline">还没有人工分类。</div>}</div>
+    <form className="tag-form" onSubmit={(event) => void add(event)}><input value={name} onChange={(event) => setName(event.target.value)} placeholder="新分类名称" maxLength={80} required /><button className="primary-button">新建分类</button></form>
+  </Panel></div>;
+}
+
+interface SiteSettingsForm {
+  site_name: string; site_description: string; site_bio: string | null; accent_color: string; display_density: "compact" | "comfortable" | "spacious";
+  featured_first: number; show_admin_link_in_footer: number; copyright_text: string | null; icp_number: string | null;
+  contact_email: string | null; contact_wechat: string | null; contact_telegram: string | null; contact_whatsapp: string | null; contact_x: string | null; contact_xiaohongshu: string | null; contact_qq: string | null;
+  logo_url: string | null; favicon_url: string | null; wechat_qr_url: string | null;
+}
+
+function SettingsView({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
+  const [form, setForm] = useState<SiteSettingsForm | null>(null);
+  useEffect(() => { api<SiteSettingsForm>("/api/admin/settings").then(setForm).catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "设置加载失败", "error")); }, [notify]);
+  if (!form) return <div className="state-panel">正在读取站点设置…</div>;
+  function field<K extends keyof SiteSettingsForm>(key: K, value: SiteSettingsForm[K]) { setForm((current) => current ? { ...current, [key]: value } : current); }
+  async function save(event: FormEvent) { event.preventDefault(); const current = form; if (!current) return; try { await api("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ ...current, featured_first: Boolean(current.featured_first), show_admin_link_in_footer: Boolean(current.show_admin_link_in_footer) }) }); notify("站点设置已保存并影响前台"); } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); } }
+  async function upload(file: File, target: "logo" | "favicon" | "wechatQr") { const body = new FormData(); body.set("file", file); body.set("target", target); try { const result = await api<{ url: string }>("/api/admin/uploads", { method: "POST", body }); field(target === "logo" ? "logo_url" : target === "favicon" ? "favicon_url" : "wechat_qr_url", result.url); notify("图片已上传到 R2"); } catch (reason) { notify(reason instanceof Error ? reason.message : "上传失败", "error"); } }
+  return <Panel title="站点设置" description="按品牌、联系方式、展示偏好和集成分区管理"><form className="settings-form settings-sections" onSubmit={(event) => void save(event)}>
+    <fieldset><legend>品牌</legend><div className="form-grid"><label>站点名称<input value={form.site_name} onChange={(event) => field("site_name", event.target.value)} /></label><label>主题色<div className="color-field"><input type="color" value={form.accent_color} onChange={(event) => field("accent_color", event.target.value)} /><span>{form.accent_color}</span></div></label><label className="wide">站点 Slogan<input value={form.site_description} onChange={(event) => field("site_description", event.target.value)} /></label><label className="wide">品牌简介<input value={form.site_bio ?? ""} onChange={(event) => field("site_bio", event.target.value || null)} maxLength={500} /></label></div><div className="site-preview" style={{ "--preview-accent": form.accent_color } as CSSProperties}><span>实时预览</span><strong>{form.site_name}</strong><p>{form.site_description}</p></div><div className="upload-grid">{(["logo", "favicon", "wechatQr"] as const).map((target) => { const preview = target === "logo" ? form.logo_url : target === "favicon" ? form.favicon_url : form.wechat_qr_url; return <label className="upload-card" key={target}>{preview ? <img src={preview} alt="" /> : <span>拖拽或选择图片</span>}<strong>{target === "logo" ? "Logo" : target === "favicon" ? "Favicon" : "微信二维码"}</strong><small>PNG / JPEG / WebP，最大 2 MB</small><input type="file" accept="image/png,image/jpeg,image/webp,image/x-icon" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file, target); }} /></label>; })}</div></fieldset>
+    <fieldset><legend>联系方式</legend><div className="form-grid"><label>公开邮箱<input type="email" value={form.contact_email ?? ""} onChange={(event) => field("contact_email", event.target.value || null)} /></label><label>微信<input value={form.contact_wechat ?? ""} onChange={(event) => field("contact_wechat", event.target.value || null)} /></label><label>Telegram<input value={form.contact_telegram ?? ""} onChange={(event) => field("contact_telegram", event.target.value || null)} /></label><label>WhatsApp<input value={form.contact_whatsapp ?? ""} onChange={(event) => field("contact_whatsapp", event.target.value || null)} placeholder="国际区号手机号" /></label><label>X<input value={form.contact_x ?? ""} onChange={(event) => field("contact_x", event.target.value || null)} /></label><label>小红书 URL<input value={form.contact_xiaohongshu ?? ""} onChange={(event) => field("contact_xiaohongshu", event.target.value || null)} /></label><label>QQ<input value={form.contact_qq ?? ""} onChange={(event) => field("contact_qq", event.target.value || null)} /></label></div></fieldset>
+    <fieldset><legend>展示偏好</legend><div className="form-grid"><label>页面密度<select value={form.display_density} onChange={(event) => field("display_density", event.target.value as SiteSettingsForm["display_density"])}><option value="compact">紧凑</option><option value="comfortable">舒适</option><option value="spacious">宽松</option></select></label><label>ICP备案号<input value={form.icp_number ?? ""} onChange={(event) => field("icp_number", event.target.value || null)} /></label><label>版权文字<input value={form.copyright_text ?? ""} onChange={(event) => field("copyright_text", event.target.value || null)} /></label></div><div className="checkbox-row"><label><input type="checkbox" checked={Boolean(form.featured_first)} onChange={(event) => field("featured_first", event.target.checked ? 1 : 0)} />精品优先</label><label><input type="checkbox" checked={Boolean(form.show_admin_link_in_footer)} onChange={(event) => field("show_admin_link_in_footer", event.target.checked ? 1 : 0)} />页脚显示管理入口</label></div></fieldset>
+    <button className="primary-button align-start">保存全部设置</button>
+  </form></Panel>;
+}
+
+type NotificationChannelKey = "email" | "telegram" | "bark" | "serverchan" | "wecom" | "feishu" | "discord";
+interface NotificationChannelForm { channel: NotificationChannelKey; enabled: number; configured: boolean; config: Record<string, string | undefined>; last_test: { ok: boolean; at: string; error: string | null } | null; }
+interface NotificationForm { reminder_days_json: string; timezone: string; channels: NotificationChannelForm[]; }
+const CHANNEL_LABELS: Record<NotificationChannelKey, string> = { email: "Email · Resend", telegram: "Telegram", bark: "Bark", serverchan: "Server 酱", wecom: "企业微信", feishu: "飞书", discord: "Discord" };
+
+function NotificationsView({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
+  const [form, setForm] = useState<NotificationForm | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
+  useEffect(() => { api<NotificationForm>("/api/admin/notifications").then(setForm).catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "通知设置加载失败", "error")); }, [notify]);
+  if (!form) return <div className="state-panel">正在读取通知设置…</div>;
+  const field = (channel: string, key: string, fallback = "") => drafts[channel]?.[key] ?? form.channels.find((item) => item.channel === channel)?.config[key] ?? fallback;
+  const change = (channel: string, key: string, value: string) => setDrafts((current) => ({ ...current, [channel]: { ...current[channel], [key]: value } }));
+  const reminderDays = (() => { try { const value: unknown = JSON.parse(form.reminder_days_json); return Array.isArray(value) ? value.filter((day): day is number => Number.isInteger(day)) : []; } catch { return []; } })();
+  const setReminderDays = (days: number[]) => setForm({ ...form, reminder_days_json: JSON.stringify([...new Set(days)].sort((a, b) => b - a)) });
+  async function saveSchedule() { try { await api("/api/admin/notifications", { method: "PATCH", body: JSON.stringify({ reminder_days: reminderDays, timezone: "Asia/Shanghai" }) }); notify("提醒日期已保存"); } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); } }
+  async function saveChannel(item: NotificationChannelForm) {
+    try {
+      await api("/api/admin/notifications/channel", { method: "PATCH", body: JSON.stringify({ channel: item.channel, enabled: Boolean(item.enabled), config: drafts[item.channel] ?? {} }) });
+      notify(`${CHANNEL_LABELS[item.channel]} 已保存`);
+      setDrafts((current) => ({ ...current, [item.channel]: {} }));
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); }
+  }
+  async function test(channel: NotificationChannelKey) { try { const result = await api<{ last_test: NotificationChannelForm["last_test"] }>("/api/admin/notifications/test", { method: "POST", body: JSON.stringify({ channel }) }); setForm((current) => current ? { ...current, channels: current.channels.map((item) => item.channel === channel ? { ...item, last_test: result.last_test } : item) } : current); notify(`${CHANNEL_LABELS[channel]} 测试发送成功`); } catch (reason) { api<NotificationForm>("/api/admin/notifications").then(setForm).catch(() => undefined); notify(reason instanceof Error ? reason.message : "通知发送失败", "error"); } }
+  const setEnabled = (channel: NotificationChannelKey, enabled: boolean) => setForm((current) => current ? { ...current, channels: current.channels.map((item) => item.channel === channel ? { ...item, enabled: enabled ? 1 : 0 } : item) } : current);
+  return <Panel title="到期提醒与通知渠道" description="Cloudflare Cron 每天 09:00（Asia/Shanghai）检查；密钥/Webhook 一律 AES-GCM 加密存储">
+    <div className="notification-stack">
+      <div className="reminder-editor"><div><strong>到期前提醒</strong><small>按天设置，可自由增删</small></div><div className="reminder-chips">{reminderDays.map((day) => <button key={day} onClick={() => setReminderDays(reminderDays.filter((value) => value !== day))}>{day} 天 ×</button>)}<button className="add-chip" onClick={() => { const value = Number(window.prompt("输入提前提醒天数", "60")); if (Number.isInteger(value) && value > 0 && value <= 365) setReminderDays([...reminderDays, value]); }}>＋ 添加</button></div><button className="secondary-button" onClick={() => void saveSchedule()}>保存提醒日期</button></div>
+      {form.channels.map((item) => <div className="channel-card" key={item.channel}>
+        <label><input type="checkbox" checked={Boolean(item.enabled)} onChange={(event) => setEnabled(item.channel, event.target.checked)} />{CHANNEL_LABELS[item.channel]}</label>
+        {item.channel === "bark" && <><input value={field(item.channel, "server_url", "https://api.day.app")} onChange={(event) => change(item.channel, "server_url", event.target.value)} placeholder="https://api.day.app" /><input type="password" value={field(item.channel, "device_key")} onChange={(event) => change(item.channel, "device_key", event.target.value)} placeholder={item.configured ? "Device Key 已加密；留空不修改" : "Device Key"} /></>}
+        {item.channel === "telegram" && <><input type="password" value={field(item.channel, "bot_token")} onChange={(event) => change(item.channel, "bot_token", event.target.value)} placeholder={item.configured ? "Bot Token 已加密；留空不修改" : "Bot Token"} /><input value={field(item.channel, "chat_id")} onChange={(event) => change(item.channel, "chat_id", event.target.value)} placeholder="Chat ID" /></>}
+        {item.channel === "serverchan" && <input type="password" value={field(item.channel, "send_key")} onChange={(event) => change(item.channel, "send_key", event.target.value)} placeholder={item.configured ? "SendKey 已加密；留空不修改" : "SendKey"} />}
+        {(["wecom", "feishu", "discord"] as string[]).includes(item.channel) && <input type="password" value={field(item.channel, "webhook_url")} onChange={(event) => change(item.channel, "webhook_url", event.target.value)} placeholder={item.configured ? "Webhook 已加密；留空不修改" : "Webhook URL"} />}
+        {item.channel === "email" && <><input type="email" value={field(item.channel, "from")} onChange={(event) => change(item.channel, "from", event.target.value)} placeholder="发件邮箱" /><input type="email" value={field(item.channel, "to")} onChange={(event) => change(item.channel, "to", event.target.value)} placeholder="收件邮箱" /></>}
+        <div className={`test-badge ${item.last_test?.ok ? "ok" : item.last_test ? "failed" : ""}`}>{item.last_test ? `${item.last_test.ok ? "最近测试成功" : "最近测试失败"} · ${new Date(item.last_test.at).toLocaleString("zh-CN")}${item.last_test.error ? ` · ${item.last_test.error}` : ""}` : "尚未测试"}</div>
+        <button onClick={() => void saveChannel(item)}>保存</button><button onClick={() => void test(item.channel)}>发送真实测试</button>
+      </div>)}
+    </div>
+  </Panel>;
+}
+
+interface SessionRow { id: string; expires_at: string; created_at: string; last_seen_at: string; user_agent: string; ip_country: string | null; is_current: number; }
+function SecurityView({ user, notify }: { user: AdminUser; notify: (text: string, tone?: "success" | "error") => void }) {
+  const [sessions, setSessions] = useState<SessionRow[]>([]); const [currentPassword, setCurrentPassword] = useState(""); const [newPassword, setNewPassword] = useState("");
+  const passwordStrength = Math.min(4, [newPassword.length >= 12, /[A-Z]/.test(newPassword), /\d/.test(newPassword), /[^A-Za-z0-9]/.test(newPassword)].filter(Boolean).length);
+  const load = useCallback(() => { api<SessionRow[]>("/api/auth/sessions").then(setSessions).catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "会话加载失败", "error")); }, [notify]); useEffect(load, [load]);
+  async function changePassword(event: FormEvent) { event.preventDefault(); try { await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }); setCurrentPassword(""); setNewPassword(""); notify("密码已修改，其他旧会话已失效"); load(); } catch (reason) { notify(reason instanceof Error ? reason.message : "修改失败", "error"); } }
+  return <div className="admin-stack"><Panel title="账户安全" description={`当前管理员：${user.email}`}><form className="security-form" onSubmit={(event) => void changePassword(event)}><label>当前密码<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label><label>新密码<input type="password" autoComplete="new-password" minLength={12} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="至少 12 位" /><span className="password-strength" aria-label={`密码强度 ${passwordStrength}/4`}>{[1, 2, 3, 4].map((level) => <i key={level} className={level <= passwordStrength ? "active" : ""} />)}</span></label><button className="primary-button">修改密码</button></form></Panel><Panel title="双重验证（TOTP）" description="为管理员登录增加动态验证码保护"><div className="empty-inline">即将支持 · 当前请使用高强度密码并定期检查会话</div></Panel><Panel title="当前会话" actions={<button className="secondary-button" onClick={() => void api<{ revoked: number }>("/api/auth/logout-others", { method: "POST" }).then((result) => { notify(`已退出其他 ${result.revoked} 个会话`); load(); })}>退出其他会话</button>}><div className="session-list">{sessions.map((session) => <div key={session.id}><div><strong>{session.is_current ? "当前设备" : "其他设备"}{session.ip_country ? ` · ${session.ip_country}` : ""}</strong><span>{session.user_agent}</span><small title={formatExact(session.last_seen_at)}>最近活动 {formatRelative(session.last_seen_at)} · 到期 {formatRelative(session.expires_at)}</small></div>{!session.is_current && <button className="danger-text" onClick={() => void api(`/api/auth/sessions/${session.id}`, { method: "DELETE" }).then(() => { notify("会话已撤销"); load(); })}>撤销</button>}</div>)}</div></Panel></div>;
+}
+
+interface LogPage {
+  items: Array<{
+    id: number;
+    level: string;
+    action: string;
+    resource_type: string;
+    resource_id: string | null;
+    actor_email: string;
+    message: string;
+    success: number;
+    created_at: string;
+  }>;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+const LOG_ACTIONS: Array<[string, string]> = [
+  ["auth.login", "管理员登录"],
+  ["domains.create", "创建域名"],
+  ["domains.update", "修改域名"],
+  ["domains.delete", "删除域名"],
+  ["domains.import", "CSV 导入"],
+  ["domains.export", "CSV 导出"],
+  ["domains.bulk.feature", "批量设为精品"],
+  ["domains.bulk.unfeature", "批量取消精品"],
+  ["domains.bulk.categorize", "批量设置分类"],
+  ["domains.bulk.delete", "批量删除"],
+  ["settings.update", "系统设置"],
+];
+
+function LogsView() {
+  const [data, setData] = useState<LogPage | null>(null);
+  const [level, setLevel] = useState("");
+  const [action, setAction] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [page, setPage] = useState(1);
+  const params = useCallback(() => {
+    const search = new URLSearchParams({ page: String(page), pageSize: "50" });
+    if (level) search.set("level", level);
+    if (action) search.set("action", action);
+    if (keyword.trim()) search.set("q", keyword.trim());
+    if (from) search.set("from", from);
+    if (to) search.set("to", to);
+    return search;
+  }, [action, from, keyword, level, page, to]);
+  useEffect(() => { void api<LogPage>(`/api/admin/logs?${params()}`).then(setData).catch(() => setData({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 })); }, [params]);
+  return <Panel title="操作日志" description="日志来自 D1，不记录密码、Token 或完整凭据；90 天前的日志由 Cron 自动清理" actions={<button className="secondary-button" onClick={() => void download(`/api/admin/logs/export?${params()}`)}>导出 CSV</button>}>
+    <div className="log-filter">
+      <select value={level} onChange={(event) => { setLevel(event.target.value); setPage(1); }} aria-label="级别筛选"><option value="">全部级别</option><option value="info">信息</option><option value="warning">警告</option><option value="error">错误</option></select>
+      <select value={action} onChange={(event) => { setAction(event.target.value); setPage(1); }} aria-label="操作类型筛选"><option value="">全部操作类型</option>{LOG_ACTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <input value={keyword} onChange={(event) => { setKeyword(event.target.value); setPage(1); }} placeholder="消息、动作、对象或操作者" aria-label="日志关键字" />
+      <input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPage(1); }} aria-label="开始日期" />
+      <input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPage(1); }} aria-label="结束日期" />
+      <span>共 {data?.total ?? 0} 条</span>
+    </div>
+    <div className="log-table log-table-enhanced"><header><span>结果</span><span>时间</span><span>操作</span><span>对象</span><span>操作者</span><span>说明</span></header>{data ? (data.items.length ? data.items.map((log) => <div key={log.id}><span className={log.success ? "log-result success" : "log-result error"}>{log.success ? "成功" : "失败"}</span><time title={formatExact(log.created_at)}>{new Date(log.created_at).toLocaleString("zh-CN")}</time><strong>{LOG_ACTIONS.find(([value]) => value === log.action)?.[1] ?? log.action}</strong><span>{log.resource_type}{log.resource_id ? ` #${log.resource_id}` : ""}</span><span>{log.actor_email}</span><span>{log.message}</span></div>) : <div className="empty-inline">没有匹配的日志</div>) : <div className="empty-inline">正在读取日志…</div>}</div>
+    {data && data.totalPages > 1 && <div className="pagination admin-pagination"><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>上一页</button><span>第 {data.page} / {data.totalPages} 页</span><button type="button" disabled={page >= data.totalPages} onClick={() => setPage((value) => value + 1)}>下一页</button></div>}
+  </Panel>;
+}
+
+export function AdminApp() {
+  const [user, setUser] = useState<AdminUser | null>(null); const [checking, setChecking] = useState(true); const [view, setView] = useState<AdminView>("overview"); const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [domainsPresetTld, setDomainsPresetTld] = useState<string | undefined>(undefined);
+  const notify = useCallback((text: string, tone: "success" | "error" = "success") => setToast({ id: Date.now(), text, tone }), []);
+  useEffect(() => { api<AdminUser>("/api/auth/me").then(setUser).catch((reason: unknown) => { if (!(reason instanceof ApiError) || reason.status !== 401) notify(reason instanceof Error ? reason.message : "会话检查失败", "error"); }).finally(() => setChecking(false)); }, [notify]);
+  if (checking) return <div className="app-loading"><span className="brand-mark">玩</span><p>正在验证玩米会话…</p></div>;
+  if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); setView("overview"); }} />;
+  const nav: Array<[AdminView, string, LucideIcon]> = [["overview", "概览", LayoutDashboard], ["domains", "域名管理", Globe], ["categories", "分类", Tag], ["settings", "站点设置", Settings], ["notifications", "到期提醒", Bell], ["security", "账户安全", ShieldCheck], ["logs", "操作日志", History]];
+  async function logout() { try { await api("/api/auth/logout", { method: "POST" }); } finally { setUser(null); } }
+  return <div className="admin-shell"><aside className="admin-sidebar"><a href="/" className="brand admin-brand"><span className="brand-mark">玩</span><span>玩米</span></a><nav>{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? "active" : ""} onClick={() => setView(key)}><Icon aria-hidden="true" />{label}</button>)}</nav><details className="sidebar-user"><summary><span className="user-avatar">{user.email.slice(0, 1).toUpperCase()}</span><span><strong>{user.email}</strong><small>管理员</small></span><ChevronDown aria-hidden="true" /></summary><div className="user-menu"><button onClick={() => setView("security")}><ShieldCheck aria-hidden="true" />修改密码</button><button onClick={() => void logout()}><LogOut aria-hidden="true" />退出登录</button></div></details></aside><div className="admin-main"><header className="admin-header"><div><span>玩米管理后台</span><h1>{nav.find(([key]) => key === view)?.[1]}</h1></div><div className="admin-header-actions"><ThemeToggle /><a href="/" target="_blank">查看前台 ↗</a></div></header><main>{view === "overview" && <OverviewView onTldClick={(tld) => { setDomainsPresetTld(tld); setView("domains"); }} />}{view === "domains" && <DomainsView key={domainsPresetTld ?? "all"} notify={notify} presetTld={domainsPresetTld} />}{view === "categories" && <CategoriesView notify={notify} />}{view === "settings" && <SettingsView notify={notify} />}{view === "notifications" && <NotificationsView notify={notify} />}{view === "security" && <SecurityView user={user} notify={notify} />}{view === "logs" && <LogsView />}</main></div><Toast message={toast} onClose={() => setToast(null)} /></div>;
 }

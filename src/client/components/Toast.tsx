@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 
-import { IconAlert, IconCheck } from "./icons";
-
 export interface ToastMessage {
   id: number;
   text: string;
@@ -17,7 +15,7 @@ export function Toast({ message, onClose }: { message: ToastMessage | null; onCl
   if (!message) return null;
   return (
     <div className={`toast ${message.tone === "error" ? "toast-error" : ""}`} role="status">
-      <span>{message.tone === "error" ? <IconAlert size={16} /> : <IconCheck size={16} />}</span>
+      <span aria-hidden="true">{message.tone === "error" ? "!" : "✓"}</span>
       {message.text}
     </div>
   );

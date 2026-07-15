@@ -15,7 +15,7 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
   c.header(
     "Content-Security-Policy",
     isHtmlDocument
-      ? "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:"
+      ? "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com ws: wss:"
       : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
   );
   if (c.req.path.startsWith("/api/admin/") || c.req.path.startsWith("/api/auth/")) {
