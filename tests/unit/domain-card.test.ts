@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { DomainCard } from "../../src/client/components/DomainCard";
+import { DomainDetailDialog } from "../../src/client/components/DomainDetailDialog";
 import type { PublicDomain } from "../../src/shared/types/api";
 
 const domain: PublicDomain = {
@@ -57,5 +58,32 @@ describe("DomainCard", () => {
     expect(markup).not.toContain("domain-keywords");
     expect(markup).not.toContain("domain-featured-dot");
     expect(markup).toContain('aria-label="访问 mx.ooo"');
+  });
+});
+
+describe("DomainDetailDialog", () => {
+  function renderDialog(value: PublicDomain): string {
+    return renderToStaticMarkup(createElement(DomainDetailDialog, {
+      domain: value,
+      candidates: [value],
+      favorite: false,
+      onClose: vi.fn(),
+      onCopy: vi.fn(),
+      onFavorite: vi.fn(),
+      onSelect: vi.fn(),
+    }));
+  }
+
+  it("精品域名速览显示独立详情页入口", () => {
+    const markup = renderDialog(domain);
+    expect(markup).toContain('class="detail-page-link"');
+    expect(markup).toContain('href="/d/mx.ooo"');
+    expect(markup).toContain("查看详情页 →");
+  });
+
+  it("普通域名速览不显示独立详情页入口", () => {
+    const markup = renderDialog({ ...domain, is_featured: false });
+    expect(markup).not.toContain("detail-page-link");
+    expect(markup).not.toContain("查看详情页");
   });
 });

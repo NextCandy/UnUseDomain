@@ -7,6 +7,12 @@ import { authRoutes } from "./routes/auth";
 import { publicRoutes } from "./routes/public";
 import { trackRoutes } from "./routes/track";
 import { runExpirationReminders } from "./services/expiration-reminders";
+import {
+  escapeHtml,
+  featuredDomainDescription,
+  loadFeaturedDomainDetail,
+  renderFeaturedDomainSsr,
+} from "./services/featured-domain";
 import type { AppBindings, Env } from "./types";
 
 export const app = new Hono<AppBindings>();
@@ -84,10 +90,19 @@ app.get("/", async (c) => {
     .transform(shell);
 });
 
-app.get("/sitemap.xml", (c) => {
+app.get("/sitemap.xml", async (c) => {
   const origin = new URL(c.req.url).origin;
+  const featured = await c.env.DB.prepare(
+    `SELECT full_domain, updated_at FROM domains
+     WHERE is_listed = 1 AND is_featured = 1
+     ORDER BY normalized_domain ASC`,
+  ).all<{ full_domain: string; updated_at: string }>();
   const urls = [
     `<url><loc>${origin}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`,
+    ...featured.results.map((domain) => {
+      const lastmod = domain.updated_at?.slice(0, 10);
+      return `<url><loc>${origin}/d/${encodeURIComponent(domain.full_domain)}</loc>${lastmod ? `<lastmod>${escapeHtml(lastmod)}</lastmod>` : ""}<changefreq>weekly</changefreq><priority>0.8</priority></url>`;
+    }),
   ];
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`,
@@ -97,12 +112,57 @@ app.get("/sitemap.xml", (c) => {
 
 app.get("/robots.txt", (c) => c.text("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/track\nSitemap: https://wanmi.org/sitemap.xml\n"));
 
-// 旧详情链接回到首页搜索结果；卡片本身直接打开域名。
-app.get("/d/:name", (c) => {
+app.get("/d/:name", async (c) => {
   const url = new URL(c.req.url);
-  const name = decodeURIComponent(c.req.param("name")).trim().toLowerCase();
-  if (!/^[a-z0-9.-]{3,253}$/.test(name)) return c.redirect(`${url.origin}/`, 302);
-  return c.redirect(`${url.origin}/?q=${encodeURIComponent(name)}`, 301);
+  let name: string;
+  try {
+    name = decodeURIComponent(c.req.param("name")).trim().toLowerCase();
+  } catch {
+    return c.redirect(`${url.origin}/domains`, 302);
+  }
+  if (!/^[a-z0-9.-]{3,253}$/.test(name)) return c.redirect(`${url.origin}/domains`, 302);
+
+  const detail = await loadFeaturedDomainDetail(c.env.DB, name);
+  if (!detail) return c.redirect(`${url.origin}/domains?q=${encodeURIComponent(name)}`, 301);
+
+  const shell = await c.env.ASSETS.fetch(new Request(`${url.origin}/`, { headers: c.req.raw.headers }));
+  const domain = detail.domain;
+  const title = `${domain.domain} · ${detail.site.name}精选域名`;
+  const description = featuredDomainDescription(domain);
+  const canonical = `${url.origin}/d/${encodeURIComponent(domain.domain)}`;
+  const image = `${url.origin}/api/public/og/${encodeURIComponent(domain.domain)}`;
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: domain.domain,
+    description,
+    category: domain.type,
+    url: canonical,
+    image,
+  };
+  const bootstrapData = safeJsonLd(detail);
+  const headMarkup = [
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<script type="application/ld+json">${safeJsonLd(productSchema)}</script>`,
+    `<script id="featured-domain-data" type="application/json">${bootstrapData}</script>`,
+  ].join("");
+
+  return new HTMLRewriter()
+    .on("title", { element: (element) => { element.setInnerContent(title); } })
+    .on('meta[name="description"]', { element: (element) => { element.setAttribute("content", description); } })
+    .on('meta[property="og:type"]', { element: (element) => { element.setAttribute("content", "product"); } })
+    .on('meta[property="og:title"]', { element: (element) => { element.setAttribute("content", title); } })
+    .on('meta[property="og:description"]', { element: (element) => { element.setAttribute("content", description); } })
+    .on('meta[property="og:url"]', { element: (element) => { element.setAttribute("content", canonical); } })
+    .on('meta[property="og:image"]', { element: (element) => { element.setAttribute("content", image); } })
+    .on('meta[name="twitter:title"]', { element: (element) => { element.setAttribute("content", title); } })
+    .on('meta[name="twitter:description"]', { element: (element) => { element.setAttribute("content", description); } })
+    .on('meta[name="twitter:image"]', { element: (element) => { element.setAttribute("content", image); } })
+    .on('link[rel="canonical"]', { element: (element) => { element.setAttribute("href", canonical); } })
+    .on("head", { element: (element) => { element.append(headMarkup, { html: true }); } })
+    .on("#root", { element: (element) => { element.setInnerContent(renderFeaturedDomainSsr(detail), { html: true }); } })
+    .transform(shell);
 });
 
 app.all("/cdn-cgi/handler/scheduled", (c) => fail(c, 404, "NOT_FOUND", "未找到资源"));

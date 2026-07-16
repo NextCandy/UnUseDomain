@@ -51,6 +51,7 @@ export function DomainDetailDialog({ domain, candidates, favorite, onClose, onCo
           <button type="button" className="secondary-button" onClick={() => onCopy(domain.domain)}>复制域名</button>
           <button type="button" className="secondary-button" aria-pressed={favorite} onClick={() => onFavorite(domain)}>{favorite ? "取消收藏" : "收藏域名"}</button>
           <a className="secondary-button" href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer">访问域名 ↗</a>
+          {domain.is_featured && <a className="detail-page-link" href={`/d/${encodeURIComponent(domain.domain)}`}>查看详情页 →</a>}
         </div>
         {similar.length > 0 && <div className="quick-similar"><strong>相似域名</strong><div>{similar.map((item) => <button type="button" key={item.id} onClick={() => onSelect(item)}>{item.domain}</button>)}</div></div>}
       </section>

@@ -37,6 +37,31 @@ export interface PublicHomeData {
   featuredCount: number;
 }
 
+export interface FeaturedDomainRecord extends PublicDomain {
+  registrar_name: string | null;
+  updated_at: string;
+  character_count: number;
+  type: string;
+}
+
+export interface FeaturedDomainRecommendation {
+  id: number;
+  domain: string;
+  name: string;
+  tld: string;
+  is_featured: boolean;
+}
+
+export interface FeaturedDomainDetail {
+  domain: FeaturedDomainRecord;
+  same_tld: FeaturedDomainRecommendation[];
+  same_length: FeaturedDomainRecommendation[];
+  site: {
+    name: string;
+    description: string;
+  };
+}
+
 export interface Paginated<T> {
   items: T[];
   page: number;

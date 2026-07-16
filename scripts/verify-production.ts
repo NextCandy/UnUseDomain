@@ -11,6 +11,19 @@ interface PublicList {
   items: Array<{ id: number; domain: string; is_featured: boolean; description: string; keywords: string[] }>;
 }
 
+interface PublicFacets {
+  total_domains: number;
+  total_featured: number;
+}
+
+function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
+  invariant(bytes.length >= 24, "OG 图片不是有效的 PNG");
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  invariant(signature.every((byte, index) => bytes[index] === byte), "OG 图片缺少 PNG 签名");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -79,21 +92,26 @@ async function eventually<T>(
 const origin = (process.env.WANMI_ORIGIN ?? "https://wanmi.org").replace(/\/$/, "");
 const write = process.argv.includes("--write");
 
-const [health, settings, domains, facets, rootResponse, legacyDetailResponse, sitemapResponse, adminResponse] = await Promise.all([
+const [health, settings, domains, facets, rootResponse, featuredDetailResponse, ordinaryDetailResponse, ogResponse, sitemapResponse, adminResponse] = await Promise.all([
   api<{ status: string; service: string }>(origin, "/api/health"),
   api<{ accent_color: string }>(origin, "/api/public/settings"),
   api<PublicList>(origin, "/api/public/domains?pageSize=1"),
-  api<{ total: number }>(origin, "/api/public/facets"),
+  api<PublicFacets>(origin, "/api/public/facets"),
   fetch(`${origin}/`, { redirect: "error" }),
+  fetch(`${origin}/d/mx.ooo`, { redirect: "error" }),
   fetch(`${origin}/d/wanmi.org`, { redirect: "manual" }),
+  fetch(`${origin}/api/public/og/mx.ooo`, { redirect: "error" }),
   fetch(`${origin}/sitemap.xml`, { redirect: "error" }),
   fetch(`${origin}/admin`, { redirect: "error" }),
 ]);
 
-const [rootHtml, sitemapXml] = await Promise.all([
+const [rootHtml, featuredDetailHtml, ogBytes, sitemapXml] = await Promise.all([
   responseText(rootResponse, "首页"),
+  responseText(featuredDetailResponse, "精品域名详情页"),
+  ogResponse.arrayBuffer().then((value) => new Uint8Array(value)),
   responseText(sitemapResponse, "站点地图"),
 ]);
+invariant(ogResponse.ok, `OG 图片返回 HTTP ${ogResponse.status}`);
 const removedPublicResponses = await Promise.all([
   fetch(`${origin}/api/public/domains/wanmi.org`, { redirect: "error" }),
   fetch(`${origin}/api/public/rdap/wanmi.org`, { redirect: "error" }),
@@ -108,17 +126,24 @@ invariant(adminResponse.ok, `/admin 返回 HTTP ${adminResponse.status}`);
 invariant(health.data.status === "ok", "健康检查状态不是 ok");
 invariant(domains.data.total >= 859, "公开域名数量异常");
 invariant(domains.data.items.every((domain) => Array.isArray(domain.keywords)), "公开域名 API 缺少关键词数组");
-invariant(facets.data.total === domains.data.total, "列表与分类统计不一致");
+invariant(facets.data.total_domains === domains.data.total, "列表与分类统计不一致");
 invariant(rootHtml.includes('"@type":"ItemList"'), "首页缺少 ItemList JSON-LD");
 invariant(rootHtml.includes(`"numberOfItems":${domains.data.total}`), "首页 JSON-LD 数量不是实时值");
 invariant(rootHtml.includes(`<link rel="canonical" href="${origin}/"`), "首页 canonical 不正确");
-invariant([301, 302].includes(legacyDetailResponse.status), `旧详情链接返回 HTTP ${legacyDetailResponse.status}`);
+invariant(featuredDetailHtml.includes('<meta property="og:image"'), "精品详情页缺少 OG 图片元数据");
+invariant(featuredDetailHtml.includes('"@type":"Product"'), "精品详情页缺少 Product JSON-LD");
+invariant(featuredDetailHtml.includes("mx.ooo"), "精品详情页缺少域名内容");
+invariant([301, 302].includes(ordinaryDetailResponse.status), `普通域名详情链接返回 HTTP ${ordinaryDetailResponse.status}`);
 invariant(
-  new URL(legacyDetailResponse.headers.get("location") ?? "/", origin).toString() === `${origin}/?q=wanmi.org`,
-  "旧详情链接没有回到首页搜索结果",
+  new URL(ordinaryDetailResponse.headers.get("location") ?? "/", origin).toString() === `${origin}/domains?q=wanmi.org`,
+  "普通域名详情链接没有回到域名目录搜索结果",
 );
+const ogSize = pngDimensions(ogBytes);
+invariant(ogResponse.headers.get("content-type")?.startsWith("image/png"), "OG 图片 Content-Type 不正确");
+invariant(ogSize.width === 1200 && ogSize.height === 630, "OG 图片尺寸不是 1200x630");
 invariant(sitemapXml.includes(`<loc>${origin}/</loc>`), "站点地图缺少首页");
-invariant(!sitemapXml.includes("/d/"), "站点地图仍包含已移除的详情页");
+invariant(sitemapXml.includes(`<loc>${origin}/d/mx.ooo</loc>`), "站点地图缺少精品详情页");
+invariant((sitemapXml.match(/<loc>/g) ?? []).length === facets.data.total_featured + 1, "站点地图 URL 数量与精品域名数量不一致");
 invariant(removedPublicResponses.every((response) => response.status === 404), "已移除的公开接口仍可访问");
 
 const report: Record<string, unknown> = {
@@ -126,7 +151,16 @@ const report: Record<string, unknown> = {
   health: health.data.status,
   publicDomains: domains.data.total,
   accentColor: settings.data.accent_color,
-  seo: { itemList: true, liveCount: true, canonical: true, legacyDetailRedirect: true, rootOnlySitemap: true },
+  seo: {
+    itemList: true,
+    liveCount: true,
+    canonical: true,
+    featuredDetail: true,
+    productSchema: true,
+    ordinaryDetailRedirect: true,
+    ogImage: `${ogSize.width}x${ogSize.height}`,
+    sitemapUrls: facets.data.total_featured + 1,
+  },
   removedPublicApis: true,
 };
 

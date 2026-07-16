@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { parseDomainCsv } from "../../src/shared/csv";
 import { buildImportStatements, statementsToSql } from "../../src/shared/import-plan";
 import { app } from "../../src/worker";
+import { loadFeaturedDomainDetail, renderFeaturedDomainSsr } from "../../src/worker/services/featured-domain";
 import type { Env } from "../../src/worker/types";
 import { executeSql, SqliteD1Database } from "./sqlite-d1";
 
@@ -27,17 +28,35 @@ describe.sequential("WanMi API 集成", () => {
   beforeAll(async () => {
     directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-api-"));
     const databasePath = path.join(directory, "wanmi.sqlite");
-    const [migration, source] = await Promise.all([readAllMigrations(), fs.readFile("data/source/WanMi.csv", "utf8")]);
+    const [migration, source, htmlShell, instrumentSerif, notoSansSc] = await Promise.all([
+      readAllMigrations(),
+      fs.readFile("data/source/WanMi.csv", "utf8"),
+      fs.readFile("index.html", "utf8"),
+      fs.readFile("public/fonts/InstrumentSerif-Regular.ttf"),
+      fs.readFile("public/fonts/NotoSansSC-WanMi.ttf"),
+    ]);
     executeSql(databasePath, migration);
     const records = parseDomainCsv(source).records;
     executeSql(databasePath, statementsToSql(buildImportStatements(records, { importId: "api-import" })));
+    const assetResponse = (value: Uint8Array, contentType: string) => {
+      const body = new Uint8Array(value.byteLength);
+      body.set(value);
+      return new Response(body.buffer, { headers: { "Content-Type": contentType } });
+    };
     env = {
       DB: new SqliteD1Database(databasePath) as unknown as D1Database,
       ADMIN_EMAIL: "admin@example.com",
       BOOTSTRAP_ADMIN_PASSWORD: password,
       SESSION_SECRET: "integration-session-secret-at-least-32-bytes",
       CREDENTIALS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
-      ASSETS: { fetch: () => Promise.resolve(new Response("asset")) } as unknown as Fetcher,
+      ASSETS: {
+        fetch: (input: RequestInfo | URL) => {
+          const requestUrl = new URL(input instanceof Request ? input.url : String(input));
+          if (requestUrl.pathname === "/fonts/InstrumentSerif-Regular.ttf") return Promise.resolve(assetResponse(instrumentSerif, "font/ttf"));
+          if (requestUrl.pathname === "/fonts/NotoSansSC-WanMi.ttf") return Promise.resolve(assetResponse(notoSansSc, "font/ttf"));
+          return Promise.resolve(new Response(htmlShell, { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+        },
+      } as unknown as Fetcher,
       UPLOADS: {} as R2Bucket,
     };
   });
@@ -61,6 +80,56 @@ describe.sequential("WanMi API 集成", () => {
     expect(productionDocumentPolicy).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(apiPolicy).toContain("script-src 'self'");
     expect(apiPolicy).not.toContain("fonts.googleapis.com");
+  });
+
+  it("精品域名详情查询与 SSR 标记包含完整内容和两组推荐", async () => {
+    const detail = await loadFeaturedDomainDetail(env.DB, "mx.ooo");
+    expect(detail).not.toBeNull();
+    expect(detail!.domain).toMatchObject({ domain: "mx.ooo", is_featured: true, character_count: 2 });
+    expect(["纯字母", "字母"]).toContain(detail!.domain.type);
+    expect(detail!.same_tld).toHaveLength(3);
+    expect(detail!.same_length).toHaveLength(3);
+
+    const html = renderFeaturedDomainSsr(detail!);
+    expect(html).toContain('data-featured-detail-ssr');
+    expect(html).toContain("<h1>mx.ooo</h1>");
+    expect(html).toContain("访问该域名 →");
+    expect(html).toContain("相似域名推荐");
+  });
+
+  it("普通或不存在的域名详情链接仍重定向到目录搜索", async () => {
+    const response = await request("/d/nonfeatured.com");
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe("http://localhost/domains?q=nonfeatured.com");
+  });
+
+  it("精品 OG 接口生成 1200x630 PNG，普通域名返回 404", async () => {
+    const [featured, ordinary] = await Promise.all([
+      request("/api/public/og/mx.ooo"),
+      request("/api/public/og/wanmi.org"),
+    ]);
+    const bytes = new Uint8Array(await featured.arrayBuffer());
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    expect(featured.status).toBe(200);
+    expect(featured.headers.get("content-type")).toBe("image/png");
+    expect(featured.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(Array.from(bytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(view.getUint32(16)).toBe(1200);
+    expect(view.getUint32(20)).toBe(630);
+    expect(ordinary.status).toBe(404);
+  });
+
+  it("sitemap 包含首页与全部 87 个精品详情页", async () => {
+    const response = await request("/sitemap.xml");
+    const xml = await response.text();
+    const locations = [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1]);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(locations).toHaveLength(88);
+    expect(locations[0]).toBe("http://localhost/");
+    expect(locations).toContain("http://localhost/d/mx.ooo");
   });
 
   it("未登录访问管理 API 返回 401", async () => expect((await request("/api/admin/dashboard")).status).toBe(401));

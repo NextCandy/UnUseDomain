@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@cf-wasm/resvg':
+        specifier: 0.3.4
+        version: 0.3.4
       '@hono/zod-validator':
         specifier: ^0.7.6
         version: 0.7.6(hono@4.12.30)(zod@4.4.3)
@@ -92,6 +95,9 @@ importers:
         version: 4.110.0
 
 packages:
+
+  '@cf-wasm/resvg@0.3.4':
+    resolution: {integrity: sha512-CMgV0ynRszZvTaHif5yPFFW4ibkopIfnaQZnklC5p80neJR/DCAUKGUgOFGhIVD8Biziiu86TFC0IQYRJyfWdw==}
 
   '@cloudflare/kv-asset-handler@0.5.0':
     resolution: {integrity: sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg==}
@@ -576,6 +582,14 @@ packages:
         optional: true
       react-redux:
         optional: true
+
+  '@resvg/resvg-wasm@2.4.1':
+    resolution: {integrity: sha512-yi6R0HyHtsoWTRA06Col4WoDs7SvlXU3DLMNP2bdAgs7HK18dTEVl1weXgxRzi8gwLteGUbIg29zulxIB3GSdg==}
+    engines: {node: '>= 10'}
+
+  '@resvg/resvg-wasm@2.6.2':
+    resolution: {integrity: sha512-FqALmHI8D4o6lk/LRWDnhw95z5eO+eAa6ORjVg09YRR7BkcM6oPHU9uyC0gtQG5vpFLvgpeU4+zEAz2H8APHNw==}
+    engines: {node: '>= 10'}
 
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
@@ -1628,6 +1642,11 @@ packages:
 
 snapshots:
 
+  '@cf-wasm/resvg@0.3.4':
+    dependencies:
+      '@resvg/resvg-wasm': 2.6.2
+      '@resvg/resvg-wasm-legacy': '@resvg/resvg-wasm@2.4.1'
+
   '@cloudflare/kv-asset-handler@0.5.0': {}
 
   '@cloudflare/unenv-preset@2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260708.1)':
@@ -1963,6 +1982,10 @@ snapshots:
     optionalDependencies:
       react: 19.2.7
       react-redux: 9.3.0(@types/react@19.2.17)(react@19.2.7)(redux@5.0.1)
+
+  '@resvg/resvg-wasm@2.4.1': {}
+
+  '@resvg/resvg-wasm@2.6.2': {}
 
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true

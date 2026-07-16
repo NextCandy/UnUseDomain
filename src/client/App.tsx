@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 
 import { PublicPage } from "./pages/public/PublicPage";
+import { FeaturedDomainPage } from "./pages/public/FeaturedDomainPage";
 
 const AdminApp = lazy(() => import("./pages/admin/AdminApp").then((module) => ({ default: module.AdminApp })));
 
@@ -11,12 +12,6 @@ function RouteLoading() {
 export function App() {
   const path = window.location.pathname;
   if (path.startsWith("/admin")) return <Suspense fallback={<RouteLoading />}><AdminApp /></Suspense>;
-  if (path.startsWith("/d/")) {
-    const name = decodeURIComponent(path.slice(3)).trim().toLowerCase();
-    if (name) {
-      window.location.replace(`/?q=${encodeURIComponent(name)}`);
-      return <RouteLoading />;
-    }
-  }
+  if (path.startsWith("/d/")) return <FeaturedDomainPage />;
   return <PublicPage />;
 }

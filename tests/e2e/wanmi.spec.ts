@@ -27,6 +27,42 @@ function localCredentials(): { email: string; password: string } {
 }
 
 test.describe.serial("WanMi 生产流程", () => {
+  test("精品详情页、OG、sitemap 与速览入口形成完整公开链路", async ({ page, request }) => {
+    await page.goto("/d/mx.ooo", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveTitle(/mx\.ooo · .+精选域名/);
+    await expect(page.getByRole("heading", { name: "mx.ooo", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "访问该域名 →" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "相似域名推荐" })).toBeVisible();
+    const seo = await page.evaluate(() => ({
+      ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute("content"),
+      product: [...document.querySelectorAll('script[type="application/ld+json"]')]
+        .map((element) => JSON.parse(element.textContent ?? "{}") as { "@type"?: string })
+        .find((schema) => schema["@type"] === "Product"),
+    }));
+    expect(seo.ogImage).toContain("/api/public/og/mx.ooo");
+    expect(seo.product).toMatchObject({ "@type": "Product", name: "mx.ooo" });
+
+    const ordinary = await request.get("/d/nonfeatured.com", { maxRedirects: 0 });
+    expect(ordinary.status()).toBe(301);
+    expect(ordinary.headers().location).toContain("/domains?q=nonfeatured.com");
+
+    const og = await request.get("/api/public/og/mx.ooo");
+    const png = Buffer.from(await og.body());
+    expect(og.status()).toBe(200);
+    expect(og.headers()["content-type"]).toBe("image/png");
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+
+    const sitemap = await request.get("/sitemap.xml");
+    const xml = await sitemap.text();
+    expect([...xml.matchAll(/<loc>/g)]).toHaveLength(88);
+    expect(xml).toContain("/d/mx.ooo</loc>");
+
+    await page.goto("/?q=mx.ooo", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "速览 mx.ooo" }).click();
+    await expect(page.getByRole("dialog").getByRole("link", { name: "查看详情页 →" })).toHaveAttribute("href", "/d/mx.ooo");
+  });
+
   test("前台读取 D1、搜索和后缀筛选", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("共 859 个域名")).toBeVisible();

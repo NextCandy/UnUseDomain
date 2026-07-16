@@ -6,6 +6,7 @@ import { publicDomainQuerySchema } from "../../../shared/schemas/api";
 import type { PublicDomain } from "../../../shared/types/api";
 import { fail, ok } from "../../http";
 import type { AppBindings } from "../../types";
+import { renderFeaturedDomainOg } from "./og";
 
 interface PublicDomainRow {
   id: number;
@@ -69,6 +70,8 @@ function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, un
 }
 
 export const publicRoutes = new Hono<AppBindings>();
+
+publicRoutes.get("/og/:domain", renderFeaturedDomainOg);
 
 publicRoutes.get("/settings", async (c) => {
   const settings = await c.env.DB.prepare(
