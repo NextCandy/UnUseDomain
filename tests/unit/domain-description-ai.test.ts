@@ -11,6 +11,7 @@ import {
   buildDomainDescriptionPrompt,
   extractDomainDescription,
   generateDomainDescription,
+  resolveAiEndpoint,
   type AiConfigRow,
 } from "../../src/worker/services/domain-description-ai";
 
@@ -82,5 +83,33 @@ describe("域名简介 AI 服务", () => {
       keywords: [],
     }, encryptionKey, fetcher as typeof fetch)).resolves.toContain("品牌延展空间");
     expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it("识别完整 Chat Completions 端点且不会重复追加路径", () => {
+    expect(resolveAiEndpoint("https://opencode.ai/zen/v1/chat/completions")).toEqual({
+      protocol: "chat_completions",
+      url: "https://opencode.ai/zen/v1/chat/completions",
+    });
+  });
+
+  it("支持 OpenAI Responses 完整端点并读取 output_text 内容", async () => {
+    const config = await configuredRow();
+    config.base_url = "https://opencode.ai/zen/v1/responses";
+    config.model = "gpt-5.4-mini";
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      expect(url).toBe("https://opencode.ai/zen/v1/responses");
+      const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as { input: string; max_output_tokens: number };
+      expect(body.input).toContain("02cloud.com");
+      expect(body.max_output_tokens).toBe(180);
+      return Response.json({ output: [{ content: [{ type: "output_text", text: "适合云服务与数字品牌场景，名称简洁易记，具有清晰的科技属性。" }] }] });
+    });
+    await expect(generateDomainDescription(config, {
+      domain: "02cloud.com",
+      tld: "com",
+      length: 7,
+      type: "杂米",
+      keywords: [],
+    }, encryptionKey, fetcher as typeof fetch)).resolves.toContain("科技属性");
   });
 });

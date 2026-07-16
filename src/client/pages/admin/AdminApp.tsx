@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Bell,
+  BrainCircuit,
   ChevronDown,
   Globe,
   History,
@@ -22,10 +23,12 @@ import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER,
   DEFAULT_DOMAIN_DESCRIPTION_PROMPT,
+  OPENCODE_ZEN_BASE_URL,
+  OPENCODE_ZEN_MODEL,
   type AiProvider,
 } from "../../../shared/ai-config";
 
-type AdminView = "overview" | "domains" | "categories" | "settings" | "notifications" | "security" | "logs";
+type AdminView = "overview" | "ai" | "domains" | "categories" | "settings" | "notifications" | "security" | "logs";
 
 interface AdminUser {
   id: number;
@@ -570,6 +573,13 @@ function AiConfigModal({ config, onClose, onSaved }: { config: AiConfig | null; 
     }
   }
 
+  function useOpenCodeZenPreset() {
+    setName("OpenCode Zen");
+    setProvider("openai_compatible");
+    setBaseUrl(OPENCODE_ZEN_BASE_URL);
+    setModel(OPENCODE_ZEN_MODEL);
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -594,10 +604,11 @@ function AiConfigModal({ config, onClose, onSaved }: { config: AiConfig | null; 
   return <div className="modal-backdrop" onMouseDown={onClose}><form className="domain-edit-modal ai-config-modal" onSubmit={(event) => void submit(event)} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ai-config-title">
     <button type="button" className="modal-close" aria-label="关闭 AI 配置" onClick={onClose}>×</button>
     <div><span className="eyebrow">AI DESCRIPTION</span><h2 id="ai-config-title">{config ? "编辑 AI 配置" : "新增 AI 配置"}</h2><p>用于生成域名简介；API Key 加密保存且不会再次回传。</p></div>
+    <div className="ai-config-presets"><span>快速配置</span><button type="button" className="secondary-button" onClick={useOpenCodeZenPreset}>OpenCode Zen · DeepSeek V4 Flash Free</button></div>
     <div className="domain-edit-grid ai-config-form">
       <label>配置名称<input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required /></label>
       <label>提供商<select value={provider} onChange={(event) => changeProvider(event.target.value as AiProvider)}><option value="deepseek">DeepSeek</option><option value="openai_compatible">OpenAI 兼容</option></select></label>
-      <label className="wide">接口地址<input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={DEFAULT_AI_BASE_URL} required /></label>
+      <label className="wide">接口地址<input type="url" aria-label="接口地址" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={DEFAULT_AI_BASE_URL} required /><small>可填基础地址，或完整的 /chat/completions、/responses 端点。</small></label>
       <label>模型<input value={model} onChange={(event) => setModel(event.target.value)} placeholder={DEFAULT_AI_MODEL} required /></label>
       <label>API Key<input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={config?.configured ? "已加密保存；留空不修改" : "请输入 API Key"} required={!config?.configured} /></label>
       <label className="wide">简介提示词<textarea value={promptTemplate} onChange={(event) => setPromptTemplate(event.target.value)} rows={6} maxLength={2000} required /><small>可用变量：&#123;domain&#125;、&#123;tld&#125;、&#123;length&#125;、&#123;type&#125;、&#123;keywords&#125;</small></label>
@@ -635,6 +646,8 @@ function AiConfigsPanel({ notify }: { notify: (text: string, tone?: "success" | 
   const [configs, setConfigs] = useState<AiConfig[] | null>(null);
   const [editing, setEditing] = useState<AiConfig | "new" | null>(null);
   const [deleting, setDeleting] = useState<AiConfig | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { tone: "success" | "error"; text: string }>>({});
   const load = useCallback(async () => {
     try {
       const result = await api<{ items: AiConfig[] }>("/api/admin/ai-configs");
@@ -661,11 +674,28 @@ function AiConfigsPanel({ notify }: { notify: (text: string, tone?: "success" | 
     await load();
   }
 
+  async function testConfig(config: AiConfig) {
+    setTestingId(config.id);
+    setTestResults((current) => ({ ...current, [config.id]: { tone: "success", text: "正在连接并生成测试简介…" } }));
+    try {
+      const result = await api<{ description: string; model: string }>(`/api/admin/ai-configs/${config.id}/test`, { method: "POST" });
+      setTestResults((current) => ({ ...current, [config.id]: { tone: "success", text: `连接成功：${result.description}` } }));
+      notify(`${config.name} 连接测试通过`);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "连接测试失败";
+      setTestResults((current) => ({ ...current, [config.id]: { tone: "error", text: message } }));
+      notify(message, "error");
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   return <Panel title="AI 简介配置" description="可保存多个 DeepSeek 或 OpenAI 兼容配置；域名编辑页使用当前启用配置生成简介" actions={<button className="primary-button" onClick={() => setEditing("new")}>新增配置</button>}>
     {!configs ? <div className="state-panel">正在读取 AI 配置…</div> : <div className="ai-config-list">{configs.map((config) => <article className={`ai-config-card ${config.isActive ? "active" : ""}`} key={config.id}>
       <div className="ai-config-summary"><div><strong>{config.name}</strong><span>{config.provider === "deepseek" ? "DeepSeek" : "OpenAI 兼容"} · {config.model}</span></div><div className="ai-config-badges">{config.isActive ? <span className="status-badge success">当前启用</span> : null}<span className={`status-badge ${config.configured ? "success" : "warning"}`}>{config.configured ? "Key 已加密" : "待填写 Key"}</span></div></div>
       <code>{config.baseUrl}</code>
-      <div className="ai-config-actions"><button className="secondary-button" onClick={() => setEditing(config)}>编辑</button><button className="secondary-button" onClick={() => void activate(config)} disabled={config.isActive || !config.configured}>{config.isActive ? "已启用" : "设为启用"}</button><button className="secondary-button danger-text" onClick={() => setDeleting(config)} disabled={config.isActive}>删除</button></div>
+      {testResults[config.id] ? <div className={`ai-config-test-result ${testResults[config.id].tone}`} role="status">{testResults[config.id].text}</div> : null}
+      <div className="ai-config-actions"><button className="secondary-button" onClick={() => setEditing(config)}>编辑</button><button className="secondary-button" onClick={() => void testConfig(config)} disabled={!config.configured || testingId === config.id}>{testingId === config.id ? "测试中…" : "测试连接"}</button><button className="secondary-button" onClick={() => void activate(config)} disabled={config.isActive || !config.configured}>{config.isActive ? "已启用" : "设为启用"}</button><button className="secondary-button danger-text" onClick={() => setDeleting(config)} disabled={config.isActive}>删除</button></div>
     </article>)}{configs.length === 0 ? <div className="empty-inline">还没有 AI 配置。</div> : null}</div>}
     {editing ? <AiConfigModal config={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={(message) => { notify(message); void load(); }} /> : null}
     {deleting ? <AiConfigDeleteModal config={deleting} onClose={() => setDeleting(null)} onConfirm={() => remove(deleting)} /> : null}
@@ -686,12 +716,12 @@ function SettingsView({ notify }: { notify: (text: string, tone?: "success" | "e
   function field<K extends keyof SiteSettingsForm>(key: K, value: SiteSettingsForm[K]) { setForm((current) => current ? { ...current, [key]: value } : current); }
   async function save(event: FormEvent) { event.preventDefault(); const current = form; if (!current) return; try { await api("/api/admin/settings", { method: "PATCH", body: JSON.stringify({ ...current, featured_first: Boolean(current.featured_first), show_admin_link_in_footer: Boolean(current.show_admin_link_in_footer) }) }); notify("站点设置已保存并影响前台"); } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); } }
   async function upload(file: File, target: "logo" | "favicon" | "wechatQr") { const body = new FormData(); body.set("file", file); body.set("target", target); try { const result = await api<{ url: string }>("/api/admin/uploads", { method: "POST", body }); field(target === "logo" ? "logo_url" : target === "favicon" ? "favicon_url" : "wechat_qr_url", result.url); notify("图片已上传到 R2"); } catch (reason) { notify(reason instanceof Error ? reason.message : "上传失败", "error"); } }
-  return <div className="admin-stack"><Panel title="站点设置" description="按品牌、联系方式、展示偏好和集成分区管理"><form className="settings-form settings-sections" onSubmit={(event) => void save(event)}>
+  return <div className="admin-stack"><Panel title="站点设置" description="按品牌、联系方式和展示偏好分区管理"><form className="settings-form settings-sections" onSubmit={(event) => void save(event)}>
     <fieldset><legend>品牌</legend><div className="form-grid"><label>站点名称<input value={form.site_name} onChange={(event) => field("site_name", event.target.value)} /></label><label>主题色<div className="color-field"><input type="color" value={form.accent_color} onChange={(event) => field("accent_color", event.target.value)} /><span>{form.accent_color}</span></div></label><label className="wide">站点 Slogan<input value={form.site_description} onChange={(event) => field("site_description", event.target.value)} /></label><label className="wide">品牌简介<input value={form.site_bio ?? ""} onChange={(event) => field("site_bio", event.target.value || null)} maxLength={500} /></label></div><div className="site-preview" style={{ "--preview-accent": form.accent_color } as CSSProperties}><span>实时预览</span><strong>{form.site_name}</strong><p>{form.site_description}</p></div><div className="upload-grid">{(["logo", "favicon", "wechatQr"] as const).map((target) => { const preview = target === "logo" ? form.logo_url : target === "favicon" ? form.favicon_url : form.wechat_qr_url; return <label className="upload-card" key={target}>{preview ? <img src={preview} alt="" /> : <span>拖拽或选择图片</span>}<strong>{target === "logo" ? "Logo" : target === "favicon" ? "Favicon" : "微信二维码"}</strong><small>PNG / JPEG / WebP，最大 2 MB</small><input type="file" accept="image/png,image/jpeg,image/webp,image/x-icon" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file, target); }} /></label>; })}</div></fieldset>
     <fieldset><legend>联系方式</legend><div className="form-grid"><label>公开邮箱<input type="email" value={form.contact_email ?? ""} onChange={(event) => field("contact_email", event.target.value || null)} /></label><label>微信<input value={form.contact_wechat ?? ""} onChange={(event) => field("contact_wechat", event.target.value || null)} /></label><label>Telegram<input value={form.contact_telegram ?? ""} onChange={(event) => field("contact_telegram", event.target.value || null)} /></label><label>WhatsApp<input value={form.contact_whatsapp ?? ""} onChange={(event) => field("contact_whatsapp", event.target.value || null)} placeholder="国际区号手机号" /></label><label>X<input value={form.contact_x ?? ""} onChange={(event) => field("contact_x", event.target.value || null)} /></label><label>小红书 URL<input value={form.contact_xiaohongshu ?? ""} onChange={(event) => field("contact_xiaohongshu", event.target.value || null)} /></label><label>QQ<input value={form.contact_qq ?? ""} onChange={(event) => field("contact_qq", event.target.value || null)} /></label></div></fieldset>
     <fieldset><legend>展示偏好</legend><div className="form-grid"><label>页面密度<select value={form.display_density} onChange={(event) => field("display_density", event.target.value as SiteSettingsForm["display_density"])}><option value="compact">紧凑</option><option value="comfortable">舒适</option><option value="spacious">宽松</option></select></label><label>ICP备案号<input value={form.icp_number ?? ""} onChange={(event) => field("icp_number", event.target.value || null)} /></label><label>版权文字<input value={form.copyright_text ?? ""} onChange={(event) => field("copyright_text", event.target.value || null)} /></label></div><div className="checkbox-row"><label><input type="checkbox" checked={Boolean(form.featured_first)} onChange={(event) => field("featured_first", event.target.checked ? 1 : 0)} />精品优先</label><label><input type="checkbox" checked={Boolean(form.show_admin_link_in_footer)} onChange={(event) => field("show_admin_link_in_footer", event.target.checked ? 1 : 0)} />页脚显示管理入口</label></div></fieldset>
     <button className="primary-button align-start">保存全部设置</button>
-  </form></Panel><AiConfigsPanel notify={notify} /></div>;
+  </form></Panel></div>;
 }
 
 type NotificationChannelKey = "email" | "telegram" | "bark" | "serverchan" | "wecom" | "feishu" | "discord";
@@ -776,6 +806,7 @@ const LOG_ACTIONS: Array<[string, string]> = [
   ["domains.bulk.delete", "批量删除"],
   ["ai.config.create", "新增 AI 配置"],
   ["ai.config.update", "更新 AI 配置"],
+  ["ai.config.test", "测试 AI 配置"],
   ["ai.config.activate", "启用 AI 配置"],
   ["ai.config.delete", "删除 AI 配置"],
   ["settings.update", "系统设置"],
@@ -820,7 +851,7 @@ export function AdminApp() {
   useEffect(() => { api<AdminUser>("/api/auth/me").then(setUser).catch((reason: unknown) => { if (!(reason instanceof ApiError) || reason.status !== 401) notify(reason instanceof Error ? reason.message : "会话检查失败", "error"); }).finally(() => setChecking(false)); }, [notify]);
   if (checking) return <div className="app-loading"><span className="brand-mark">玩</span><p>正在验证玩米会话…</p></div>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); setView("overview"); }} />;
-  const nav: Array<[AdminView, string, LucideIcon]> = [["overview", "概览", LayoutDashboard], ["domains", "域名管理", Globe], ["categories", "分类", Tag], ["settings", "站点设置", Settings], ["notifications", "到期提醒", Bell], ["security", "账户安全", ShieldCheck], ["logs", "操作日志", History]];
+  const nav: Array<[AdminView, string, LucideIcon]> = [["overview", "概览", LayoutDashboard], ["ai", "AI 配置", BrainCircuit], ["domains", "域名管理", Globe], ["categories", "分类", Tag], ["settings", "站点设置", Settings], ["notifications", "到期提醒", Bell], ["security", "账户安全", ShieldCheck], ["logs", "操作日志", History]];
   async function logout() { try { await api("/api/auth/logout", { method: "POST" }); } finally { setUser(null); } }
-  return <div className="admin-shell"><aside className="admin-sidebar"><a href="/" className="brand admin-brand"><span className="brand-mark">玩</span><span>玩米</span></a><nav>{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? "active" : ""} onClick={() => setView(key)}><Icon aria-hidden="true" />{label}</button>)}</nav><details className="sidebar-user"><summary><span className="user-avatar">{user.email.slice(0, 1).toUpperCase()}</span><span><strong>{user.email}</strong><small>管理员</small></span><ChevronDown aria-hidden="true" /></summary><div className="user-menu"><button onClick={() => setView("security")}><ShieldCheck aria-hidden="true" />修改密码</button><button onClick={() => void logout()}><LogOut aria-hidden="true" />退出登录</button></div></details></aside><div className="admin-main"><header className="admin-header"><div><span>玩米管理后台</span><h1>{nav.find(([key]) => key === view)?.[1]}</h1></div><div className="admin-header-actions"><a href="/" target="_blank">查看前台 ↗</a></div></header><main>{view === "overview" && <OverviewView onTldClick={(tld) => { setDomainsPresetTld(tld); setView("domains"); }} />}{view === "domains" && <DomainsView key={domainsPresetTld ?? "all"} notify={notify} presetTld={domainsPresetTld} />}{view === "categories" && <CategoriesView notify={notify} />}{view === "settings" && <SettingsView notify={notify} />}{view === "notifications" && <NotificationsView notify={notify} />}{view === "security" && <SecurityView user={user} notify={notify} />}{view === "logs" && <LogsView />}</main></div><Toast message={toast} onClose={() => setToast(null)} /></div>;
+  return <div className="admin-shell"><aside className="admin-sidebar"><a href="/" className="brand admin-brand"><span className="brand-mark">玩</span><span>玩米</span></a><nav>{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? "active" : ""} onClick={() => setView(key)}><Icon aria-hidden="true" />{label}</button>)}</nav><details className="sidebar-user"><summary><span className="user-avatar">{user.email.slice(0, 1).toUpperCase()}</span><span><strong>{user.email}</strong><small>管理员</small></span><ChevronDown aria-hidden="true" /></summary><div className="user-menu"><button onClick={() => setView("security")}><ShieldCheck aria-hidden="true" />修改密码</button><button onClick={() => void logout()}><LogOut aria-hidden="true" />退出登录</button></div></details></aside><div className="admin-main"><header className="admin-header"><div><span>玩米管理后台</span><h1>{nav.find(([key]) => key === view)?.[1]}</h1></div><div className="admin-header-actions"><a href="/" target="_blank">查看前台 ↗</a></div></header><main>{view === "overview" && <OverviewView onTldClick={(tld) => { setDomainsPresetTld(tld); setView("domains"); }} />}{view === "ai" && <div className="admin-stack"><AiConfigsPanel notify={notify} /></div>}{view === "domains" && <DomainsView key={domainsPresetTld ?? "all"} notify={notify} presetTld={domainsPresetTld} />}{view === "categories" && <CategoriesView notify={notify} />}{view === "settings" && <SettingsView notify={notify} />}{view === "notifications" && <NotificationsView notify={notify} />}{view === "security" && <SecurityView user={user} notify={notify} />}{view === "logs" && <LogsView />}</main></div><Toast message={toast} onClose={() => setToast(null)} /></div>;
 }

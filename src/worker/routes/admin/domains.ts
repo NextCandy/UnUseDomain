@@ -391,8 +391,9 @@ domainAdminRoutes.post("/:id/suggest-description", async (c) => {
     }, c.env.CREDENTIALS_ENCRYPTION_KEY);
     return ok(c, { description, config: { id: config.id, name: config.name, model: config.model } });
   } catch (error) {
-    console.warn("域名简介 AI 生成失败", error instanceof Error ? error.message : "未知错误");
-    return fail(c, 502, "DESCRIPTION_SUGGESTION_FAILED", "简介生成失败，请手动填写");
+    const message = error instanceof Error ? error.message : "未知错误";
+    console.warn("域名简介 AI 生成失败", message);
+    return fail(c, 502, "DESCRIPTION_SUGGESTION_FAILED", `简介生成失败：${message}`);
   }
 });
 

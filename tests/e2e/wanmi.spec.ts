@@ -97,6 +97,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "概览", exact: true })).toBeVisible();
     const adminNavigation = page.locator(".admin-sidebar nav");
+    expect((await adminNavigation.getByRole("button").allInnerTexts()).slice(0, 2)).toEqual(["概览", "AI 配置"]);
     await expect(adminNavigation).not.toContainText("求购");
     await expect(adminNavigation).not.toContainText("线索");
     await expect(adminNavigation).not.toContainText("DNS");
@@ -144,14 +145,14 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
   });
 
-  test("站点设置可保存多个 AI 简介配置并通过应用内弹窗删除", async ({ page }) => {
+  test("AI 配置独立导航可保存、测试并通过应用内弹窗删除", async ({ page }) => {
     const credentials = localCredentials();
     const configName = `E2E 备用配置 ${Date.now()}`;
     await page.goto("/admin", { waitUntil: "domcontentloaded" });
     await page.getByLabel("管理员邮箱").fill(credentials.email);
     await page.getByLabel("密码").fill(credentials.password);
     await page.getByRole("button", { name: "登录", exact: true }).click();
-    await page.getByRole("button", { name: /站点设置/ }).click();
+    await page.getByRole("button", { name: /AI 配置/ }).click();
     await expect(page.getByRole("heading", { name: "AI 简介配置" })).toBeVisible();
     await expect(page.getByText("DeepSeek 默认配置", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "新增配置" }).click();
@@ -165,6 +166,11 @@ test.describe.serial("WanMi 生产流程", () => {
     const card = page.locator(".ai-config-card").filter({ hasText: configName });
     await expect(card).toBeVisible();
     await expect(card.getByText("Key 已加密")).toBeVisible();
+    await page.route("**/api/admin/ai-configs/*/test", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: { description: "测试简介已成功生成。", model: "example-chat", protocol: "chat_completions" }, error: null }) });
+    });
+    await card.getByRole("button", { name: "测试连接" }).click();
+    await expect(card.getByText("连接成功：测试简介已成功生成。")).toBeVisible();
     await card.getByRole("button", { name: "删除" }).click();
     const deleteDialog = page.getByRole("dialog", { name: "删除 AI 配置" });
     await expect(deleteDialog.getByText(configName, { exact: false })).toBeVisible();

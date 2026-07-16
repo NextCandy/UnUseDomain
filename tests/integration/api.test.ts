@@ -243,10 +243,14 @@ describe.sequential("WanMi API 集成", () => {
       const unchanged = await env.DB.prepare("SELECT description FROM domains WHERE id = ?").bind(targetId).first<{ description: string }>();
       expect(unchanged?.description).toBe("");
 
+      const tested = await request(`/api/admin/ai-configs/${createdBody.data.id}/test`, { method: "POST", headers });
+      expect(tested.status).toBe(200);
+      expect(await tested.json()).toMatchObject({ data: { description: expect.stringContaining("云服务联想"), model: "example-chat", protocol: "chat_completions" } });
+
       vi.stubGlobal("fetch", vi.fn(async () => new Response("rate limited", { status: 429 })));
       const failed = await request(`/api/admin/domains/${targetId}/suggest-description`, { method: "POST", headers });
       expect(failed.status).toBe(502);
-      expect(await failed.json()).toMatchObject({ error: { code: "DESCRIPTION_SUGGESTION_FAILED", message: "简介生成失败，请手动填写" } });
+      expect(await failed.json()).toMatchObject({ error: { code: "DESCRIPTION_SUGGESTION_FAILED", message: "简介生成失败：AI 服务请求过于频繁，请稍后重试" } });
     } finally {
       vi.unstubAllGlobals();
     }

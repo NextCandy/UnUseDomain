@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { aiConfigCreateSchema, aiConfigPatchSchema } from "../../../shared/schemas/api";
 import { fail, ok, writeOperationLog } from "../../http";
 import { encryptCredentials } from "../../security/crypto";
-import type { AiConfigRow } from "../../services/domain-description-ai";
+import { generateDomainDescription, resolveAiEndpoint, type AiConfigRow } from "../../services/domain-description-ai";
 import type { AppBindings } from "../../types";
 
 export const aiConfigRoutes = new Hono<AppBindings>();
@@ -103,6 +103,46 @@ aiConfigRoutes.patch("/ai-configs/:id", async (c) => {
   });
   const updated = await c.env.DB.prepare("SELECT * FROM ai_configs WHERE id = ?").bind(id).first<AiConfigRow>();
   return ok(c, presentConfig(updated!));
+});
+
+aiConfigRoutes.post("/ai-configs/:id/test", async (c) => {
+  const id = c.req.param("id");
+  const existing = await c.env.DB.prepare("SELECT * FROM ai_configs WHERE id = ?").bind(id).first<AiConfigRow>();
+  if (!existing) return fail(c, 404, "AI_CONFIG_NOT_FOUND", "AI 配置不存在");
+  if (!existing.api_key_encrypted || !existing.api_key_iv) return fail(c, 409, "AI_CONFIG_NOT_READY", "请先填写 API Key 再测试连接");
+  const user = c.get("authUser");
+  try {
+    const description = await generateDomainDescription(existing, {
+      domain: "wanmi.org",
+      tld: "org",
+      length: 5,
+      type: "英文",
+      keywords: ["域名", "品牌"],
+    }, c.env.CREDENTIALS_ENCRYPTION_KEY);
+    await writeOperationLog(c.env.DB, {
+      action: "ai.config.test",
+      resourceType: "ai_config",
+      resourceId: id,
+      message: `AI 配置连接测试通过：${existing.name}`,
+      details: { provider: existing.provider, model: existing.model, protocol: resolveAiEndpoint(existing.base_url).protocol },
+      actorUserId: user.id,
+      success: true,
+    });
+    return ok(c, { description, model: existing.model, protocol: resolveAiEndpoint(existing.base_url).protocol });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    await writeOperationLog(c.env.DB, {
+      level: "warning",
+      action: "ai.config.test",
+      resourceType: "ai_config",
+      resourceId: id,
+      message: `AI 配置连接测试失败：${existing.name}`,
+      details: { provider: existing.provider, model: existing.model, error: message },
+      actorUserId: user.id,
+      success: false,
+    });
+    return fail(c, 502, "AI_CONFIG_TEST_FAILED", `连接测试失败：${message}`);
+  }
 });
 
 aiConfigRoutes.post("/ai-configs/:id/activate", async (c) => {
