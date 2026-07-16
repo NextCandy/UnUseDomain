@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "wanmi-search-history";
 const STORAGE_VERSION = 1;
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 5;
 
 interface StoredHistory {
   version: typeof STORAGE_VERSION;

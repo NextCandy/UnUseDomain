@@ -206,6 +206,44 @@ describe.sequential("WanMi API 集成", () => {
     expect((await request("/api/public/domains?minLength=8&maxLength=2")).status).toBe(422);
   });
 
+  it("公共 API 支持六种目录排序并让随机结果绕过缓存", async () => {
+    const fetchItems = async (sort: string) => {
+      const response = await request(`/api/public/domains?pageSize=100&sort=${sort}`);
+      expect(response.status).toBe(200);
+      const body = await response.json() as { data: { items: Array<{ id: number; name: string; tld: string }> } };
+      return { response, items: body.data.items };
+    };
+
+    const expectedDefault = await env.DB.prepare(
+      "SELECT id FROM domains WHERE is_listed = 1 ORDER BY updated_at DESC, normalized_domain ASC LIMIT 100",
+    ).all<{ id: number }>();
+    const expectedAdded = await env.DB.prepare(
+      "SELECT id FROM domains WHERE is_listed = 1 ORDER BY created_at DESC, normalized_domain ASC LIMIT 100",
+    ).all<{ id: number }>();
+    const defaults = await fetchItems("default");
+    const added = await fetchItems("added_desc");
+    const lengthAscending = await fetchItems("length_asc");
+    const lengthDescending = await fetchItems("length_desc");
+    const tldAscending = await fetchItems("tld_asc");
+    const randomFirst = await fetchItems("random");
+    const randomSecond = await fetchItems("random");
+
+    expect(defaults.items.map((item) => item.id)).toEqual(expectedDefault.results.map((item) => item.id));
+    expect(added.items.map((item) => item.id)).toEqual(expectedAdded.results.map((item) => item.id));
+    expect(lengthAscending.items.map((item) => item.name.replaceAll(".", "").length)).toEqual(
+      [...lengthAscending.items].map((item) => item.name.replaceAll(".", "").length).sort((left, right) => left - right),
+    );
+    expect(lengthDescending.items.map((item) => item.name.replaceAll(".", "").length)).toEqual(
+      [...lengthDescending.items].map((item) => item.name.replaceAll(".", "").length).sort((left, right) => right - left),
+    );
+    expect(tldAscending.items.map((item) => item.tld)).toEqual(
+      [...tldAscending.items].map((item) => item.tld).sort((left, right) => left.localeCompare(right)),
+    );
+    expect(randomFirst.response.headers.get("cache-control")).toBe("no-store");
+    expect(randomFirst.items.map((item) => item.id)).not.toEqual(randomSecond.items.map((item) => item.id));
+    expect((await request("/api/public/domains?sort=unsupported")).status).toBe(422);
+  });
+
   it("CSRF 缺失时拒绝写操作", async () => {
     const response = await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers: { Origin: origin, Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ isListed: false }) });
     expect(response.status).toBe(403);
@@ -348,18 +386,15 @@ describe.sequential("WanMi API 集成", () => {
     expect((await request("/api/admin/domains/bulk", { method: "POST", headers, body: JSON.stringify({ ids, action: "keywords", keywords: "" }) })).status).toBe(200);
   });
 
-  it("精品状态会影响默认排序", async () => {
+  it("精品状态会立即影响公开精品筛选", async () => {
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: true }) })).status).toBe(200);
-    const featured = await (await request("/api/public/domains?pageSize=10")).json() as { data: { items: Array<{ domain: string; is_featured: boolean }> } };
-    expect(featured.data.items[0].is_featured).toBe(true);
-    const target = await (await request("/api/public/domains?q=02cloud.com")).json() as { data: { items: Array<{ is_featured: boolean }> } };
+    const target = await (await request("/api/public/domains?q=02cloud.com&featured=true")).json() as { data: { items: Array<{ is_featured: boolean }> } };
+    expect(target.data.items).toHaveLength(1);
     expect(target.data.items[0].is_featured).toBe(true);
-    for (const sort of ["domain_asc", "domain_desc", "added_desc", "length_asc"]) {
-      const sorted = await (await request(`/api/public/domains?pageSize=10&sort=${sort}`)).json() as { data: { items: Array<{ is_featured: boolean }> } };
-      expect(sorted.data.items[0].is_featured, `${sort} 仍应精品优先`).toBe(true);
-    }
     expect((await request(`/api/admin/domains/${targetId}`, { method: "PATCH", headers, body: JSON.stringify({ isFeatured: false }) })).status).toBe(200);
+    const hidden = await (await request("/api/public/domains?q=02cloud.com&featured=true")).json() as { data: { items: unknown[] } };
+    expect(hidden.data.items).toHaveLength(0);
   });
 
   it("管理员生命周期资料、关键词、简介与精品修改会保存，公开字段立即映射且可恢复", async () => {

@@ -211,20 +211,21 @@ publicRoutes.get("/domains", async (c) => {
   }
   const { where, params } = publicFilters(query);
   const offset = (query.page - 1) * query.pageSize;
-  const defaultSort = "d.is_featured DESC, length(replace(d.name, '.', '')) ASC, d.normalized_domain ASC";
-  const premiumFirst = "d.is_featured DESC, ";
   const sortSql =
-    query.sort === "domain_asc" ? `${premiumFirst}d.normalized_domain ASC`
-    : query.sort === "domain_desc" ? `${premiumFirst}d.normalized_domain DESC`
-    : query.sort === "added_desc" ? `${premiumFirst}d.created_at DESC, d.normalized_domain ASC`
-    : query.sort === "length_asc" ? `${premiumFirst}length(replace(d.name, '.', '')) ASC, d.normalized_domain ASC`
-    : defaultSort;
+    query.sort === "added_desc" ? "d.created_at DESC, d.normalized_domain ASC"
+    : query.sort === "length_asc" ? "length(replace(d.name, '.', '')) ASC, d.normalized_domain ASC"
+    : query.sort === "length_desc" ? "length(replace(d.name, '.', '')) DESC, d.normalized_domain ASC"
+    : query.sort === "tld_asc" ? "d.tld ASC, d.normalized_domain ASC"
+    : query.sort === "random" ? "RANDOM()"
+    : query.sort === "domain_asc" ? "d.normalized_domain ASC"
+    : query.sort === "domain_desc" ? "d.normalized_domain DESC"
+    : "d.updated_at DESC, d.normalized_domain ASC";
   const [countResult, dataResult] = await c.env.DB.batch([
     c.env.DB.prepare(`SELECT COUNT(*) AS total FROM domains d WHERE ${where}`).bind(...params),
     c.env.DB.prepare(`${PUBLIC_SELECT} WHERE ${where} ORDER BY ${sortSql} LIMIT ? OFFSET ?`).bind(...params, query.pageSize, offset),
   ]);
   const total = Number((countResult.results[0] as { total?: number } | undefined)?.total ?? 0);
-  c.header("Cache-Control", "public, max-age=0, must-revalidate");
+  c.header("Cache-Control", query.sort === "random" ? "no-store" : "public, max-age=0, must-revalidate");
   return ok(c, {
     items: (dataResult.results as unknown as PublicDomainRow[]).map(serializePublic),
     page: query.page,

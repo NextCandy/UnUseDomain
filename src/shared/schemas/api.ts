@@ -36,7 +36,10 @@ export const publicDomainQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(60),
   sort: z
-    .enum(["default", "domain_asc", "domain_desc", "price_desc", "price_asc", "views_desc", "added_desc", "length_asc"])
+    .enum([
+      "default", "added_desc", "length_asc", "length_desc", "tld_asc", "random",
+      "domain_asc", "domain_desc", "price_desc", "price_asc", "views_desc",
+    ])
     .default("default"),
 });
 

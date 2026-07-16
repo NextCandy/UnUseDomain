@@ -39,3 +39,34 @@ export function getSimilarDomains(
     .slice(0, Math.max(0, limit))
     .map(({ candidate }) => candidate);
 }
+
+export interface SimilarDomainGroups {
+  sameTld: PublicDomain[];
+  sameLength: PublicDomain[];
+}
+
+function rankCandidates(domain: PublicDomain, candidates: PublicDomain[]): PublicDomain[] {
+  return candidates
+    .map((candidate) => ({ candidate, score: similarityScore(domain, candidate) }))
+    .sort((left, right) => right.score - left.score || left.candidate.domain.localeCompare(right.candidate.domain))
+    .map(({ candidate }) => candidate);
+}
+
+export function getSimilarDomainGroups(
+  domain: PublicDomain,
+  allDomains: PublicDomain[],
+  limitPerGroup = 5,
+): SimilarDomainGroups {
+  const seen = new Set<number>([domain.id]);
+  const candidates = allDomains.filter((candidate) => {
+    if (seen.has(candidate.id)) return false;
+    seen.add(candidate.id);
+    return true;
+  });
+  const limit = Math.max(0, limitPerGroup);
+
+  return {
+    sameTld: rankCandidates(domain, candidates.filter((candidate) => candidate.tld === domain.tld)).slice(0, limit),
+    sameLength: rankCandidates(domain, candidates.filter((candidate) => candidate.name.length === domain.name.length)).slice(0, limit),
+  };
+}

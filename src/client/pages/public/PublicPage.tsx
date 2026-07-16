@@ -41,14 +41,16 @@ interface SiteSettings {
   contact_qq: string | null;
 }
 
-type SortKey = "default" | "added_desc" | "length_asc" | "domain_asc";
+type SortKey = "default" | "added_desc" | "length_asc" | "length_desc" | "tld_asc" | "random";
 type GroupKey = "all" | "featured" | "two" | "three";
 
 const SORTS: Array<[SortKey, string]> = [
   ["default", "默认"],
-  ["added_desc", "最新添加"],
-  ["length_asc", "位数"],
-  ["domain_asc", "字母序"],
+  ["added_desc", "最新加入"],
+  ["length_asc", "字符数升序"],
+  ["length_desc", "字符数降序"],
+  ["tld_asc", "后缀字母序"],
+  ["random", "随机"],
 ];
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -118,7 +120,7 @@ function catalogueUrl(filters: Filters, page = filters.page): string {
     ...(filters.category ? { category: filters.category } : {}),
     ...groupParams(filters.group),
     ...advancedParams(filters.advanced),
-    ...(filters.sort !== "default" ? { sort: filters.sort } : {}),
+    sort: filters.sort,
     page: String(page),
     pageSize: "36",
   });
@@ -140,6 +142,23 @@ function pageItems(current: number, total: number): Array<number | string> {
 
 function SearchIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.2 16.2 4.1 4.1"/></svg>;
+}
+
+function TrashIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>;
+}
+
+function LinkIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>;
+}
+
+function pickRandomDomains(domains: PublicDomain[], count: number): PublicDomain[] {
+  const shuffled = domains.filter((domain) => domain.is_featured).slice();
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[target]] = [shuffled[target], shuffled[index]];
+  }
+  return shuffled.slice(0, count);
 }
 
 export function PublicPage() {
@@ -197,7 +216,7 @@ export function PublicPage() {
     if (filters.category) params.set("category", filters.category);
     if (filters.group === "featured") params.set("category", "精品");
     else if (filters.group !== "all") params.set("group", filters.group);
-    if (filters.sort !== "default") params.set("sort", filters.sort);
+    params.set("sort", filters.sort);
     if (filters.page > 1) params.set("page", String(filters.page));
     Object.entries(advancedParams(filters.advanced)).forEach(([key, value]) => params.set(key, value));
     const basePath = window.location.pathname.startsWith("/domains") ? "/domains" : "/";
@@ -270,7 +289,7 @@ export function PublicPage() {
   ], [facets]);
   const catalogueItems = pageData?.items ?? [];
   const displayedItems = favoritesOnly ? favorites.items : catalogueItems;
-  const historyMatches = history.items.filter((item) => !draftSearch || item.toLocaleLowerCase().includes(draftSearch.toLocaleLowerCase()));
+  const emptyRecommendations = useMemo(() => pickRandomDomains(facets?.featured_domains ?? [], 3), [facets?.featured_domains]);
 
   function applySearch(value: string) {
     const query = value.trim();
@@ -289,6 +308,8 @@ export function PublicPage() {
   function resetFilters() {
     setDraftSearch("");
     setFavoritesOnly(false);
+    setAdvancedOpen(false);
+    setHistoryFocused(false);
     setFilters({ q: "", tld: "", category: "", group: "all", sort: "default", page: 1, advanced: EMPTY_ADVANCED_FILTERS });
   }
 
@@ -301,6 +322,11 @@ export function PublicPage() {
 
   const copyDomain = useCallback(async (domain: string) => {
     if (await copyText(domain)) notify(`已复制 ${domain}`);
+    else notify("复制失败，请手动复制", "error");
+  }, [notify]);
+
+  const copyFilterLink = useCallback(async () => {
+    if (await copyText(window.location.href)) notify("链接已复制");
     else notify("复制失败，请手动复制", "error");
   }, [notify]);
 
@@ -365,7 +391,10 @@ export function PublicPage() {
         <section className="domain-section" id="domains" aria-labelledby="domain-section-title">
           <header className="asset-section-heading all-assets-heading">
             <h2 id="domain-section-title">全部资产</h2>
-            <span>{facets?.total_domains ?? 0} 个域名</span>
+            <div className="asset-heading-actions">
+              <span>{facets?.total_domains ?? 0} 个域名</span>
+              <button type="button" className="copy-filter-link" onClick={() => void copyFilterLink()}><LinkIcon />复制链接</button>
+            </div>
           </header>
           <aside className="category-rail" aria-label="域名分类">
             <div className="category-list">
@@ -379,27 +408,36 @@ export function PublicPage() {
             </div>
           </aside>
           <div className="catalogue-toolbar">
-            <div className="search-area" onFocus={() => setHistoryFocused(true)} onBlur={() => window.setTimeout(() => setHistoryFocused(false), 100)}>
+            <div
+              className="search-area"
+              onFocus={() => setHistoryFocused(true)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setHistoryFocused(false);
+              }}
+            >
               <form className="filter-search" onSubmit={submitSearch}>
                 <SearchIcon /><input value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="搜索完整域名，例如 wanmi.org" aria-label="搜索域名" autoComplete="off" />
                 {draftSearch && <button className="search-clear" type="button" aria-label="清空搜索" onClick={() => { setDraftSearch(""); setFilters((current) => ({ ...current, q: "", page: 1 })); }}>×</button>}
                 <button className="search-submit" type="submit">搜索</button>
               </form>
-              {historyFocused && historyMatches.length > 0 && <div className="search-history" role="region" aria-label="最近搜索"><header><strong>最近搜索</strong><button type="button" onClick={history.clear}>清空</button></header>{historyMatches.map((item) => <div key={item}><button type="button" onClick={() => applySearch(item)}>{item}</button><button type="button" aria-label={`删除搜索记录 ${item}`} onClick={() => history.remove(item)}>×</button></div>)}</div>}
+              {historyFocused && history.items.length > 0 && <div className="search-history" role="region" aria-label="最近搜索"><header><strong>最近搜索</strong><button type="button" className="clear-search-history" aria-label="清除搜索历史" title="清除搜索历史" onClick={history.clear}><TrashIcon /></button></header>{history.items.map((item) => <div key={item}><button type="button" onClick={() => applySearch(item)}>{item}</button><button type="button" aria-label={`删除搜索记录 ${item}`} onClick={() => history.remove(item)}>×</button></div>)}</div>}
             </div>
             <div className="toolbar-filters">
               <label><span>后缀</span><select aria-label="后缀筛选" value={filters.tld} onChange={(event) => { setFavoritesOnly(false); setFilters((current) => ({ ...current, tld: event.target.value, page: 1 })); }}><option value="">全部</option>{(facets?.tlds ?? []).map((tld) => <option key={tld} value={tld}>.{tld}</option>)}</select></label>
               <label><span>位数</span><select aria-label="位数筛选" value={["two", "three"].includes(filters.group) ? filters.group : "all"} onChange={(event) => { setFavoritesOnly(false); setFilters((current) => ({ ...current, group: event.target.value as GroupKey, page: 1 })); }}><option value="all">全部</option><option value="two">2 位</option><option value="three">3 位</option></select></label>
+              <label className="sort-control"><span>排序</span><select aria-label="排序方式" value={filters.sort} onChange={(event) => { setFavoritesOnly(false); setFilters((current) => ({ ...current, sort: event.target.value as SortKey, page: 1 })); }}>{SORTS.map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
               <button type="button" className={`advanced-toggle${hasAdvancedFilters(filters.advanced) ? " active" : ""}`} aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((open) => !open)}>高级筛选{hasAdvancedFilters(filters.advanced) ? " · 已启用" : ""}</button>
             </div>
-            <div className="sort-row" aria-label="排序"><span>排序</span>{SORTS.map(([key, label]) => <button type="button" key={key} className={filters.sort === key ? "active" : ""} onClick={() => { setFavoritesOnly(false); setFilters((current) => ({ ...current, sort: key, page: 1 })); }}>{label}</button>)}</div>
             <div className="toolbar-summary"><span>{favoritesOnly ? `本地收藏 ${favorites.items.length} 个` : loading ? "正在读取…" : `共 ${pageData?.total ?? 0} 个域名`}</span><div className="view-switch"><button type="button" className={viewMode === "cards" ? "active" : ""} onClick={() => setViewMode("cards")}>卡片</button><button type="button" className={viewMode === "compact" ? "active" : ""} onClick={() => setViewMode("compact")}>紧凑</button></div>{(hasActiveFilter || favoritesOnly) && <button type="button" className="clear-filter" onClick={resetFilters}>清除筛选</button>}</div>
             <AdvancedSearchPanel open={advancedOpen} value={filters.advanced} onClose={() => setAdvancedOpen(false)} onReset={() => setFilters((current) => ({ ...current, advanced: EMPTY_ADVANCED_FILTERS, page: 1 }))} onApply={(advanced) => { setFavoritesOnly(false); setFilters((current) => ({ ...current, advanced, page: 1 })); setAdvancedOpen(false); }} />
           </div>
 
           {!favoritesOnly && error && <div className="state-panel error-panel"><strong>加载失败</strong><span>{error}</span><button type="button" onClick={() => { clearCatalogueCache(); setFilters((current) => ({ ...current })); }}>重试</button></div>}
           {!favoritesOnly && loading && <div className="domain-list skeleton-list">{Array.from({ length: 8 }, (_, index) => <div className="domain-card skeleton" key={index} />)}</div>}
-          {!loading && !error && !favoritesOnly && pageData?.items.length === 0 && <div className="state-panel"><strong>没有匹配的域名</strong><span>换一个关键词，或清除筛选后再试。</span><button type="button" onClick={resetFilters}>清除筛选</button></div>}
+          {!loading && !error && !favoritesOnly && pageData?.items.length === 0 && <section className="empty-results" aria-labelledby="empty-results-title">
+            <div className="state-panel"><strong id="empty-results-title">未找到匹配的域名</strong><span>换一个关键词，或清除筛选后再试。</span><button type="button" onClick={resetFilters}>清除筛选</button></div>
+            {emptyRecommendations.length > 0 && <div className="empty-recommendations"><header><span>为你推荐</span><h3>试试这些精选域名</h3></header><div className="domain-list card-view">{emptyRecommendations.map((domain) => <DomainCard key={domain.id} domain={domain} favorite={favorites.ids.has(domain.id)} highlighted={highlightedId === domain.id} onCopy={copyDomain} onFavorite={toggleFavorite} onQuickView={setSelectedDomain} />)}</div></div>}
+          </section>}
           {favoritesOnly && favorites.items.length === 0 && <div className="state-panel favorites-empty"><strong>还没有收藏</strong><span>点击域名卡片上的“收藏”，它会只保存在当前浏览器。</span><button type="button" onClick={() => setFavoritesOnly(false)}>浏览全部域名</button></div>}
           {displayedItems.length > 0 && (!loading || favoritesOnly) && <div className={`domain-list ${viewMode === "compact" ? "compact-view" : "card-view"}`}>
             {displayedItems.map((domain) => <DomainCard

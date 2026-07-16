@@ -63,9 +63,14 @@ describe("DomainCard", () => {
 
 describe("DomainDetailDialog", () => {
   function renderDialog(value: PublicDomain): string {
+    const candidates: PublicDomain[] = [
+      value,
+      { ...domain, id: 8, domain: "aa.ooo", name: "aa", is_featured: false },
+      { ...domain, id: 9, domain: "yu.com", name: "yu", tld: "com", is_featured: false },
+    ];
     return renderToStaticMarkup(createElement(DomainDetailDialog, {
       domain: value,
-      candidates: [value],
+      candidates,
       favorite: false,
       onClose: vi.fn(),
       onCopy: vi.fn(),
@@ -85,5 +90,21 @@ describe("DomainDetailDialog", () => {
     const markup = renderDialog({ ...domain, is_featured: false });
     expect(markup).not.toContain("detail-page-link");
     expect(markup).not.toContain("查看详情页");
+  });
+
+  it("显示价值维度、外部查询与分组后的相似域名", () => {
+    const markup = renderDialog(domain);
+
+    expect(markup).toContain("域名价值维度");
+    expect(markup).toContain("字符构成");
+    expect(markup).toContain("纯字母");
+    expect(markup).toContain("特色");
+    expect(markup).toContain("WHOIS 查询");
+    expect(markup).toContain('href="https://whois.com/whois/mx.ooo" target="_blank" rel="noopener noreferrer"');
+    expect(markup).toContain('href="https://web.archive.org/web/*/mx.ooo" target="_blank" rel="noopener noreferrer"');
+    expect(markup).toContain('href="https://www.infibeam.com/" target="_blank" rel="noopener noreferrer"');
+    expect(markup).toContain("同后缀");
+    expect(markup).toContain("同长度");
+    expect(markup).not.toMatch(/购买|注册引导/);
   });
 });

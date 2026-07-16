@@ -92,6 +92,51 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(orgOption).toBeAttached();
     await page.getByLabel("后缀筛选").selectOption("org");
     await expect(page.getByText(/共 154 个域名/)).toBeVisible();
+    await expect(page.getByLabel("排序方式").locator("option")).toHaveCount(6);
+    expect(await page.getByLabel("排序方式").locator("option").allInnerTexts()).toEqual([
+      "默认", "最新加入", "字符数升序", "字符数降序", "后缀字母序", "随机",
+    ]);
+    await page.getByLabel("排序方式").selectOption("length_desc");
+    await expect(page).toHaveURL(/sort=length_desc/);
+  });
+
+  test("前台搜索历史、空结果推荐与筛选链接可以完整复用", async ({ page, context }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("wanmi-search-history", JSON.stringify({
+        version: 1,
+        items: ["wanmi.org", "02cloud.com", "mx.ooo", "aa.am", "ai.cat", "extra.example"],
+      }));
+    });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const search = page.getByRole("textbox", { name: "搜索域名" });
+    await search.focus();
+    const history = page.locator(".search-history");
+    await expect(history.locator(":scope > div")).toHaveCount(5);
+    await history.getByRole("button", { name: "wanmi.org", exact: true }).click();
+    await expect(page).toHaveURL(/q=wanmi\.org/);
+    await expect(page.getByTitle("复制 wanmi.org")).toBeVisible();
+
+    await search.fill("definitely-no-such-wanmi-domain");
+    await page.getByRole("button", { name: "搜索", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "未找到匹配的域名" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "试试这些精选域名" })).toBeVisible();
+    await expect(page.locator(".empty-recommendations .domain-card")).toHaveCount(3);
+    await expect(page.locator(".empty-recommendations .domain-featured-dot")).toHaveCount(3);
+
+    await page.getByRole("button", { name: "复制链接" }).click();
+    await expect(page.getByText("链接已复制", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+
+    await page.locator(".empty-results").getByRole("button", { name: "清除筛选" }).click();
+    await expect(page).toHaveURL(/sort=default/);
+    await expect(page.locator(".domain-card:not(.skeleton)")).toHaveCount(36);
+
+    await search.focus();
+    await page.getByRole("button", { name: "清除搜索历史" }).click();
+    await expect(page.locator(".search-history")).toHaveCount(0);
+    expect(await page.evaluate(() => window.localStorage.getItem("wanmi-search-history"))).toBe('{"version":1,"items":[]}');
   });
 
   test("前台高级筛选、搜索历史、收藏与域名速览", async ({ page }) => {
@@ -111,6 +156,16 @@ test.describe.serial("WanMi 生产流程", () => {
     const dialog = page.getByRole("dialog", { name: /02cloud\.com/ });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("完整域名")).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "域名价值维度" })).toBeVisible();
+    await expect(dialog.getByText("字母数字", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("热门", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("img", { name: "02cloud.com 访问二维码" })).toHaveAttribute("width", "128");
+    await expect(dialog.getByRole("link", { name: "下载 PNG" })).toHaveAttribute("download", "02cloud.com-qrcode.png");
+    for (const label of ["WHOIS 查询", "历史存档", "后缀信息"]) {
+      const link = dialog.getByRole("link", { name: label });
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
     await dialog.getByRole("button", { name: "关闭域名速览" }).click();
 
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -150,7 +205,7 @@ test.describe.serial("WanMi 生产流程", () => {
 
     const publicPage = await context.newPage();
     await publicPage.goto("/?q=02cloud.com", { waitUntil: "domcontentloaded" });
-    await expect(publicPage.getByText("没有匹配的域名")).toBeVisible();
+    await expect(publicPage.getByText("未找到匹配的域名")).toBeVisible();
     await publicPage.close();
 
     await row.locator("button.switch").nth(1).click();
