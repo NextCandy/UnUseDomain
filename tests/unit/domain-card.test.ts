@@ -32,24 +32,35 @@ describe("DomainCard", () => {
     const markup = renderCard();
 
     expect(markup).toContain('class="domain-card featured"');
-    expect(markup).toContain('class="domain-featured-dot"');
-    expect(markup).toContain('<strong>mx</strong><span>.ooo</span>');
-    expect(markup).toContain('class="domain-divider"');
+    expect(markup).toContain('class="domain-featured-badge"');
+    expect(markup).toContain("精选");
+    expect(markup).toContain('<strong>mx</strong>');
+    expect(markup).toContain('class="domain-tld">.ooo</span>');
+    expect(markup).toContain('class="domain-description placeholder"');
+    expect(markup).toContain('class="meta-chip"');
     expect(markup).toContain(".ooo");
-    expect(markup).toContain("2字符");
+    expect(markup).toContain("2 字符");
     expect(markup).toContain("纯字母");
     expect(markup.match(/<button/g)).toHaveLength(2);
     expect(markup).toContain('aria-label="复制 mx.ooo"');
     expect(markup).toContain('aria-label="速览 mx.ooo"');
     expect(markup).toContain('class="domain-visit"');
+    expect(markup).toContain("访问域名");
     expect(markup).toContain('aria-label="访问 mx.ooo"');
   });
 
   it("普通域名不渲染精品标记", () => {
     const markup = renderCard({ ...domain, is_featured: false });
 
-    expect(markup).not.toContain("domain-featured-dot");
+    expect(markup).not.toContain("domain-featured-badge");
     expect(markup).toContain('aria-label="访问 mx.ooo"');
+  });
+
+  it("有简介时显示简介文案", () => {
+    const markup = renderCard({ ...domain, description: "这是一个简短的品牌介绍" });
+
+    expect(markup).toContain("这是一个简短的品牌介绍");
+    expect(markup).not.toContain("placeholder");
   });
 });
 

@@ -242,17 +242,85 @@ a { color: inherit; text-decoration: none; }
 /* 域名卡片 */
 .domain-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
 .domain-card {
-  position: relative; min-width: 0; padding: 16px 15px 13px; overflow: visible;
+  position: relative; min-width: 0; padding: 18px 18px 16px; overflow: visible;
   border: 1px solid var(--border); border-radius: var(--radius-l); background: var(--surface-2);
   text-align: left; cursor: pointer; color: inherit;
-  display: flex; flex-direction: column; gap: 11px;
-  box-shadow: var(--shadow-s);
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.04);
   transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease);
   animation: card-in var(--dur-3) var(--ease) backwards;
 }
+.domain-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--brand) 60%, transparent), transparent);
+  opacity: 0; transition: opacity var(--dur-2) var(--ease);
+}
+.domain-card:hover { transform: translateY(-4px); border-color: color-mix(in oklab, var(--brand) 55%, var(--border)); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 24px 48px color-mix(in oklab, var(--brand) 14%, rgba(0, 0, 0, 0.04)); }
+.domain-card:hover::before { opacity: 1; }
 .domain-card:active { transform: translateY(-1px) scale(.995); }
-.domain-card.featured { background: linear-gradient(150deg, color-mix(in oklab, var(--premium) 7%, var(--surface-2)), color-mix(in oklab, var(--premium) 14%, var(--surface-2))); border-color: color-mix(in oklab, var(--premium) 45%, var(--border)); }
-.domain-description { min-height: 2.8em; margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.domain-card.featured {
+  background: linear-gradient(160deg, color-mix(in oklab, var(--premium) 12%, #ffffff), color-mix(in oklab, var(--premium) 6%, #ffffff));
+  border-color: color-mix(in oklab, var(--premium) 55%, var(--border));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 4px color-mix(in oklab, var(--premium) 18%, transparent), 0 8px 24px color-mix(in oklab, var(--premium) 12%, transparent);
+}
+.domain-card.featured::before { opacity: 1; background: linear-gradient(90deg, color-mix(in oklab, var(--premium) 30%, transparent), var(--premium), color-mix(in oklab, var(--premium) 30%, transparent)); }
+.domain-featured-badge {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  color: white; background: linear-gradient(135deg, var(--gold-bright), var(--gold-soft));
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--premium) 30%, transparent);
+}
+.domain-featured-badge svg { width: 10px; height: 10px; fill: currentColor; }
+.domain-featured-dot { display: none; }
+.domain-name { display: flex; align-items: baseline; gap: 1px; }
+.domain-name a { display: inline-flex; align-items: baseline; transition: color var(--dur-1) var(--ease); }
+.domain-name strong { font-family: var(--font-display); font-size: clamp(22px, 2.2vw, 28px); font-weight: 600; letter-spacing: -.025em; color: var(--fg); }
+.domain-tld { font-family: var(--font-display); font-size: clamp(18px, 1.8vw, 22px); font-weight: 500; color: var(--muted); letter-spacing: -.02em; }
+.domain-name a:hover { color: var(--brand); }
+.domain-card.featured .domain-name strong { color: color-mix(in oklab, var(--premium) 80%, var(--fg)); }
+.domain-actions { position: absolute; top: 14px; right: 14px; display: inline-flex; gap: 4px; opacity: 0.55; transition: opacity var(--dur-2) var(--ease); z-index: 1; }
+.domain-card:hover .domain-actions { opacity: 1; }
+.domain-card.featured .domain-actions { top: 44px; }
+.domain-actions button {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: color-mix(in oklab, var(--surface-1) 80%, transparent);
+  color: var(--fg-2); cursor: pointer;
+  transition: all var(--dur-1) var(--ease);
+}
+.domain-actions button:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); transform: translateY(-1px); }
+.domain-actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.domain-description { margin: 0; color: var(--fg-2); font-size: 13px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; min-height: 2.6em; }
+.domain-description.placeholder { color: var(--muted); font-style: italic; opacity: 0.7; }
+.domain-divider { display: none; }
+.domain-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.meta-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 500; color: var(--fg-2);
+  background: color-mix(in oklab, var(--surface-1) 60%, transparent);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--dur-1) var(--ease);
+}
+.meta-chip:hover { color: var(--brand); border-color: color-mix(in oklab, var(--brand) 40%, var(--border)); background: var(--brand-soft); }
+.meta-chip svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.domain-visit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 4px; padding: 8px 14px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  color: white; background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  text-decoration: none; align-self: flex-start;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--brand) 25%, transparent);
+  transition: all var(--dur-1) var(--ease);
+}
+.domain-visit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in oklab, var(--brand) 35%, transparent); }
+.domain-visit svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
+
 .description-cell { min-width: 220px; max-width: 320px; }
 .description-cell > span { display: block; min-height: 1.3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-description { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); line-height: 1.7; }
@@ -271,14 +339,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--faint); font-size: 13px; opacity: 0; transform: translateX(4px);
   transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
-.domain-name { white-space: nowrap; min-width: 0; letter-spacing: -.04em; line-height: 1.05; font-size: clamp(19px, 1.75vw, 26px); overflow: hidden; text-overflow: ellipsis; font-weight: 400; }
-.domain-name strong { font-weight: 700; }
-.domain-name span { font-weight: 500; color: var(--faint); transition: color var(--dur-1) var(--ease); }
-.domain-name.domain-short { font-size: clamp(27px, 2.6vw, 36px); }
-.domain-name.domain-mid { font-size: clamp(23px, 2.2vw, 30px); }
-.domain-name.domain-medium { font-size: clamp(16px, 1.5vw, 20px); }
-.domain-name.domain-long { font-size: clamp(13px, 1.2vw, 15px); letter-spacing: -.02em; }
-.domain-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 20px; padding-right: 28px; }
 
 .density-compact .domain-card { padding: 12px 13px 10px; gap: 8px; }
 .density-spacious .domain-card { padding: 22px 17px 17px; gap: 15px; }
@@ -581,40 +641,6 @@ a { color: inherit; text-decoration: none; }
 .sort-row button.active { background: var(--brand); border-color: var(--brand); color: white; }
 
 .domain-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.domain-card {
-  min-height: 164px;
-  padding: 20px 18px 16px;
-  gap: 12px;
-  overflow: visible;
-  border-radius: 8px;
-  background: var(--surface-2);
-  box-shadow: none;
-}
-.domain-card.featured {
-  border-color: color-mix(in oklab, var(--brand) 58%, var(--border));
-  border-top: 3px solid var(--brand);
-  background: var(--surface-2);
-}
-.premium-corner { top: 10px; right: 10px; border-radius: 4px; background: var(--brand-soft); color: var(--brand-strong); box-shadow: none; }
-.domain-name, .domain-name.domain-short, .domain-name.domain-mid, .domain-name.domain-medium, .domain-name.domain-long {
-  min-height: 1.35em;
-  padding-block: .08em .14em;
-  overflow: visible;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-family: var(--font-sans);
-  font-size: clamp(20px, 1.65vw, 27px);
-  font-weight: 650;
-  line-height: 1.28;
-  letter-spacing: -.035em;
-}
-.domain-name.domain-medium { font-size: clamp(17px, 1.35vw, 22px); }
-.domain-name.domain-long { font-size: clamp(14px, 1.05vw, 17px); letter-spacing: -.02em; }
-.domain-name strong { font-weight: 760; }
-.domain-name span { font-weight: 570; }
-.domain-description { min-height: 2.9em; line-height: 1.45; font-size: 13px; }
-.chip { border-radius: 4px; font-family: var(--font-mono); }
-.copy-button { border-radius: 5px; }
 .public-footer { max-width: none; margin: 0 clamp(20px, 3vw, 48px); padding: 28px 0; border-top: 1px solid var(--border); }
 
 @media (max-width: 1080px) {
@@ -669,9 +695,10 @@ a { color: inherit; text-decoration: none; }
 
 /* 2026 public bento catalogue */
 .catalogue-layout { display: block; max-width: 1320px; padding-top: 26px; }
-.view-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 9px; }
-.view-switch button { padding: 5px 9px; border-radius: 6px; font-size: 10px; }
-.view-switch button.active { color: white; background: var(--ink); }
+.view-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: color-mix(in oklab, var(--surface-1) 50%, transparent); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04); }
+.view-switch button { padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted); transition: all var(--dur-1) var(--ease); }
+.view-switch button:hover { color: var(--fg); }
+.view-switch button.active { color: white; background: var(--fg); box-shadow: 0 2px 6px color-mix(in oklab, var(--fg) 30%, transparent); }
 .domain-list.card-view { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; border: 0; }
 .domain-list.card-view .domain-card { position: relative; display: flex; min-height: 190px; padding: 20px; flex-direction: column; align-items: stretch; gap: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); box-shadow: var(--shadow); }
 .domain-list.card-view .domain-tld, .domain-list.card-view .domain-length { display: none; }
@@ -1192,8 +1219,6 @@ a { color: inherit; text-decoration: none; }
 }
 .public-shell .domain-list.card-view .domain-card.featured::before { opacity: 1; }
 .public-shell .domain-list.card-view .domain-card:hover { transform: none; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand) 30%, transparent); }
-.domain-card.highlighted { animation: domain-highlight 1.7s var(--ease); }
-@keyframes domain-highlight { 0%, 100% { box-shadow: var(--shadow-card); } 35% { box-shadow: 0 0 0 4px var(--brand-ring), 0 0 28px color-mix(in oklab, var(--gold) 22%, transparent); } }
 .public-shell .domain-name { letter-spacing: .02em; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 .public-shell .domain-name a { max-width: 100%; }
 .public-shell .domain-name strong { overflow: hidden; text-overflow: ellipsis; }
