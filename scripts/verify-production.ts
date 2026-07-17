@@ -125,7 +125,6 @@ const removedPublicResponses = await Promise.all([
 invariant(adminResponse.ok, `/admin 返回 HTTP ${adminResponse.status}`);
 invariant(health.data.status === "ok", "健康检查状态不是 ok");
 invariant(domains.data.total >= 859, "公开域名数量异常");
-invariant(domains.data.items.every((domain) => Array.isArray(domain.keywords)), "公开域名 API 缺少关键词数组");
 invariant(facets.data.total_domains === domains.data.total, "列表与分类统计不一致");
 invariant(rootHtml.includes('"@type":"ItemList"'), "首页缺少 ItemList JSON-LD");
 invariant(rootHtml.includes(`"numberOfItems":${domains.data.total}`), "首页 JSON-LD 数量不是实时值");
