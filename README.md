@@ -47,6 +47,8 @@
 
 ## 性能策略
 
+- 样式按域拆分：`app.css` 为前台与共享层，`admin.css` 为后台专属层，随已懒加载的 `AdminApp` 按需加载，不进前台首屏（前台 CSS 135.93KB → 108.66KB，gzip 23.54 → 19.19KB）。
+- 拆分依据是真实页面的 DOM 探测而非命名前缀：只有「前台完全不匹配、仅后台匹配」的选择器才进 `admin.css`。实测前后台共享选择器仅 19 个（`html`/`body`/`button`/`.brand`/`.secondary-button`/`.pagination` 等），全部留在 `app.css`；两个文件选择器不重叠，因此 `admin.css` 的加载顺序不影响前台层叠。注意 `.admin-link` 是前台页脚的管理入口，不可按前缀误判为后台样式。
 - 后台域名列表每页 100 条服务端分页，滚动到底自动累积下一页；桌面按视口虚拟化渲染，行高由首行实测得出。
 - 720px 以下表格切换为卡片式布局、行高不定，此时关闭虚拟化直接整段渲染；宽表格只在自身容器内横向滚动，页面本身不横向滚动。
 - 后台搜索输入去抖 300ms，避免逐字符重置累积列表。
@@ -125,7 +127,7 @@ src/shared/            CSV、导入计划、Schema 和共享类型
 scripts/               数据导入、验证、备份与安全扫描
 migrations/            D1 migrations
 data/source/           权威 CSV
-tests/                 单元、集成与 Playwright E2E
+tests/                 单元、集成与 Playwright E2E（含 22 张视觉基线截图）
 docs/                  部署、导入与安全文档
 ```
 

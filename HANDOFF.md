@@ -1,6 +1,17 @@
 # WanMi HANDOFF
 
-## 最新进度（2026-07-17）
+## 最新进度（2026-07-17 · CSS 拆分与视觉基线）
+
+- 新增 22 张 Playwright 视觉基线：前台 8 断点 × 首页/精品详情页共 16 张，后台概览/域名管理 × 390/1024/1440 共 6 张。项目此前没有任何视觉回归保障，而后续配色、响应式、交互方案改的全是 CSS。
+- 基线稳定性依赖三处处理，改任何一处产品代码前都要留意：首页精选区用 `Math.random` 洗牌（`PublicPage.tsx:156`），测试注入固定种子 PRNG；Hero 数字用 rAF 计数（`CatalogueHero.tsx:29`），`animations:"disabled"` 管不了 rAF，改用 `emulateMedia({reducedMotion:"reduce"})` 走组件自身退化分支；卡片用 `content-visibility`，fullPage 截图前先整页滚一遍再回顶部，否则总高抖动。
+- 后台概览页有三处真实动态数据已 mask：`.stats-overview`（今日 PV/UV）、`.admin-two-columns`（访客地区与域名点击计数）、`.activity-list`（相对时间，且每次登录都新增日志）。mask 只遮内容、仍检测布局，已验证未削弱报警能力。
+- 拆出 `admin.css`：前台 CSS 135.93KB → 108.66KB（gzip 23.54 → 19.19KB），后台样式 29.07KB 独立 chunk 按需加载。
+- 拆分方法是 DOM 探测归类，不是按命名前缀：939 个选择器在真实页面逐个探测，只搬「仅后台匹配」的 252 个。前后台共享选择器实测仅 19 个，留在 `app.css`。因两文件选择器不重叠，`admin.css` 加载顺序不影响前台层叠，无需引入 `@layer`。
+- 19 条前后台混用一个声明的规则按选择器拆开分流，典型如 `.domain-name, .stat-card strong, .hero-stats strong, .related-grid a, .kpi-list b, .admin-table td strong { font-family }`。
+- 已知未尽事项：约 14 条后台规则（`.admin-main textarea`、`.stat-card small`、`.admin-table th .sort-arrow` 等）因需要特定交互状态才出现、探测未覆盖，保守留在 `app.css`，功能正确但少减约 1KB。改进方向是按选择器的根来判定归属，而非扩大状态探测。
+- 生产版本 `a35072f2-5ca1-46bb-9c10-c9ccfc70d319`，`verify:production` 通过；发布前完整备份 `backups/wanmi-20260717T014305Z.sql`（862 域名 + 1992 条分类关联，Git 忽略）。
+
+## 前序进度（2026-07-17）
 
 - 后台域名列表改为每页 100 条累积 + 桌面虚拟滚动：`useVirtualRows` 跟随页面滚动，只渲染视口附近的行，上下用占位行撑高；行高由首个真实行实测，列显示切换后重新测量。
 - 虚拟化要求行等高，因此虚拟化状态下关键词强制单行（`.domains-table.is-virtualized`）；720px 以下表格是卡片式布局、行高不定，此时关闭虚拟化直接整段渲染。
