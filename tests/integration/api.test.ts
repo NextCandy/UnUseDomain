@@ -301,7 +301,7 @@ describe.sequential("WanMi API 集成", () => {
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
     const initial = await (await request("/api/admin/ai-configs", { headers })).json() as { data: { items: Array<Record<string, unknown>> } };
     expect(initial.data.items).toHaveLength(1);
-    expect(initial.data.items[0]).toMatchObject({ id: "deepseek-default", provider: "deepseek", model: "deepseek-chat", isActive: true, configured: false });
+    expect(initial.data.items[0]).toMatchObject({ id: "deepseek-default", provider: "deepseek", model: "deepseek-v4-flash", isActive: true, configured: false });
     expect(initial.data.items[0]).not.toHaveProperty("apiKey");
 
     const defaultUpdated = await request("/api/admin/ai-configs/deepseek-default", {

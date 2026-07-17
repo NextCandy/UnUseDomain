@@ -35,8 +35,8 @@ async function configuredRow(): Promise<AiConfigRow> {
 }
 
 describe("域名简介 AI 服务", () => {
-  it("使用 deepseek-chat 默认配置并替换全部简介变量", () => {
-    expect(DEFAULT_AI_MODEL).toBe("deepseek-chat");
+  it("使用 deepseek-v4-flash 默认配置并替换全部简介变量", () => {
+    expect(DEFAULT_AI_MODEL).toBe("deepseek-v4-flash");
     const prompt = buildDomainDescriptionPrompt(DEFAULT_DOMAIN_DESCRIPTION_PROMPT, {
       domain: "02cloud.com",
       tld: "com",
@@ -69,7 +69,7 @@ describe("域名简介 AI 服务", () => {
       expect(url).toBe("https://api.deepseek.com/chat/completions");
       expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer sk-unit-secret");
       const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as { model: string; messages: Array<{ content: string }> };
-      expect(body.model).toBe("deepseek-chat");
+      expect(body.model).toBe("deepseek-v4-flash");
       expect(body.messages[0].content).toContain("02cloud.com");
       return Response.json({ choices: [{ message: { content: "面向云计算与数字服务场景，名称简洁易记，兼具科技感与品牌延展空间。" } }] });
     });
