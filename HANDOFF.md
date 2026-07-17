@@ -1,6 +1,18 @@
 # WanMi HANDOFF
 
-## 最新进度（2026-07-17 · 首页压缩与分类下拉）
+## 最新进度（2026-07-17 · 按 emilkowalski/skills 打磨交互）
+
+- 依 Emil Kowalski 的设计工程 skills（github.com/emilkowalski/skills）审计并修复交互层，本轮改动叠加在另一会话的浅色改版（3dfa368…5fde067，黑金 → 米白纸感 + 深金 #b89530）之上。
+- 审计结论：easing/时长令牌本已达标（强 ease-out cubic-bezier(.22,1,.36,1)、全部 ≤250ms、无 ease-in 误用），修复集中在四类：
+  - 消灭 4 处 `transition: all`，全部改为指定具体属性；
+  - 按压反馈补齐至 14 处 `:active`（卡片图标 scale .92、搜索/访问按钮 .97、分页/视图切换/联系图标等），搜索按钮原来的 `translateY(0)` 按压改为 scale；
+  - 位移类 hover（translateY 悬浮）全部收进 `@media (hover: hover) and (pointer: fine)`，并删除门控外与门控内重复定义的 `.domain-card:hover`（触屏误触发源）；
+  - 速览 dialog 补 `@starting-style` 进入动画：scale(.96)+opacity、200ms、backdrop 同步淡入；modal 保持居中 origin。
+- design.md 已同步浅色现实（原文写黑金，与代码脱节）：Theme 章节改为 Warm Light 并新增 Motion 规范章节（禁 transition:all、禁 ease-in、按压反馈必备、hover 位移门控、modal @starting-style 进入等），后续改动以此为准。
+- 远程浅色改版删了收藏与「复制链接」、精品标记 dot 改 badge，但 E2E 未同步，本轮修复三处：卡片按钮 3→2、`.domain-featured-dot`→`.domain-featured-badge`、删除复制链接断言；「前台高级筛选、搜索历史与域名速览」用例去掉收藏段落并更名。
+- 22 张视觉基线按浅色主题全部重建，三轮复跑稳定；三个前台 E2E 单独跑通过。
+
+## 前序进度（2026-07-17 · 首页压缩与分类下拉）
 
 - 用户要求继续压缩首页：Hero 高度从 700px+ 压至约 366px（1440 宽实测），min-height 移除、padding/gap/字号/统计卡内边距整体收紧，1440×900 首屏可直接看到域名列表。
 - 移除 Hero 下的快捷分类链接行（全部/纯字母/纯数字/拼音/精品）与 `QUICK_LINKS` 常量。

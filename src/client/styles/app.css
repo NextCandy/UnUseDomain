@@ -233,7 +233,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: var(--shadow-s);
   transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
 }
-.filter-search button:active { transform: translateY(0); }
+.filter-search button:active { transform: scale(.97); }
 .featured-toggle { display: flex; gap: 7px; align-items: center; font-size: 12px; color: var(--fg-2); margin-left: 3px; cursor: pointer; }
 .featured-toggle input { accent-color: var(--brand); }
 .clear-filter { margin-left: auto; border: 0; background: transparent; font-size: 12px; color: var(--muted); cursor: pointer; transition: color var(--dur-1) var(--ease); }
@@ -258,7 +258,6 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--brand) 60%, transparent), transparent);
   opacity: 0; transition: opacity var(--dur-2) var(--ease);
 }
-.domain-card:hover { transform: translateY(-4px); border-color: color-mix(in oklab, var(--brand) 55%, var(--border)); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 24px 48px color-mix(in oklab, var(--brand) 14%, rgba(0, 0, 0, 0.04)); }
 .domain-card:hover::before { opacity: 1; }
 .domain-card:active { transform: translateY(-1px) scale(.995); }
 .domain-card.featured {
@@ -291,9 +290,10 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--border); border-radius: 8px;
   background: color-mix(in oklab, var(--surface-1) 80%, transparent);
   color: var(--fg-2); cursor: pointer;
-  transition: all var(--dur-1) var(--ease);
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
-.domain-actions button:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); transform: translateY(-1px); }
+.domain-actions button:hover { color: var(--brand); border-color: var(--brand); background: var(--brand-soft); }
+.domain-actions button:active { transform: scale(.92); }
 .domain-actions svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .domain-description { margin: 0; color: var(--fg-2); font-size: 13px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; min-height: 2.6em; }
 .domain-description.placeholder { color: var(--muted); font-style: italic; opacity: 0.7; }
@@ -305,7 +305,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 11px; font-weight: 500; color: var(--fg-2);
   background: color-mix(in oklab, var(--surface-1) 60%, transparent);
   border: 1px solid var(--border-subtle);
-  transition: all var(--dur-1) var(--ease);
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 .meta-chip:hover { color: var(--brand); border-color: color-mix(in oklab, var(--brand) 40%, var(--border)); background: var(--brand-soft); }
 .meta-chip svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -316,9 +316,9 @@ a { color: inherit; text-decoration: none; }
   color: white; background: linear-gradient(135deg, var(--brand), var(--brand-strong));
   text-decoration: none; align-self: flex-start;
   box-shadow: 0 2px 8px color-mix(in oklab, var(--brand) 25%, transparent);
-  transition: all var(--dur-1) var(--ease);
+  transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
 }
-.domain-visit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in oklab, var(--brand) 35%, transparent); }
+.domain-visit:active { transform: scale(.97); }
 .domain-visit svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
 
 .description-cell { min-width: 220px; max-width: 320px; }
@@ -364,6 +364,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface-2); cursor: pointer; box-shadow: var(--shadow-s);
   transition: border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
+.pagination button:active:not(:disabled) { transform: scale(.96); }
 .pagination button:disabled { opacity: .4; cursor: not-allowed; }
 
 .public-footer {
@@ -531,8 +532,9 @@ a { color: inherit; text-decoration: none; }
 .footer-icp { color: var(--muted); font-size: 11px; }
 .contact-icons-wrap { position: relative; justify-self: center; }
 .contact-icons { display: grid; grid-template-columns: repeat(7, 36px); gap: 7px; justify-content: center; }
-.contact-icons > a, .contact-icons > button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--fg-2); background: var(--surface-1); transition: .2s ease; }
-.contact-icons > a:hover, .contact-icons > button:hover { color: var(--brand); background: var(--brand-soft); transform: translateY(-2px); }
+.contact-icons > a, .contact-icons > button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--fg-2); background: var(--surface-1); transition: color var(--dur-2) var(--ease), background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease); }
+.contact-icons > a:hover, .contact-icons > button:hover { color: var(--brand); background: var(--brand-soft); }
+.contact-icons > a:active, .contact-icons > button:active { transform: scale(.94); }
 .contact-icons svg { width: 17px; height: 17px; fill: none; stroke: currentColor; }
 .contact-icons .brand-contact-icon { fill: currentColor; stroke: none; }
 .wechat-popover { position: absolute; z-index: 20; bottom: calc(100% + 10px); left: 50%; width: 190px; padding: 14px; transform: translateX(-50%); display: grid; gap: 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); box-shadow: var(--shadow); text-align: center; }
@@ -546,6 +548,9 @@ a { color: inherit; text-decoration: none; }
 .tag-pill button:hover { color: var(--danger); }
 /* 精细指针才启用位移悬浮；触屏设备保持直接、无伪 hover。 */
 @media (hover: hover) and (pointer: fine) {
+  .domain-actions button:hover { transform: translateY(-1px); }
+  .domain-visit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in oklab, var(--brand) 35%, transparent); }
+  .contact-icons > a:hover, .contact-icons > button:hover { transform: translateY(-2px); }
   .secondary-button:hover { border-color: var(--faint); transform: translateY(-1px); box-shadow: var(--shadow-m); }
   .admin-link:hover { border-color: color-mix(in oklab, var(--brand) 45%, var(--border-strong)); transform: translateY(-1px); box-shadow: var(--shadow-m); }
   .filter-search button:hover { transform: translateY(-1px); box-shadow: var(--shadow-m); }
@@ -696,7 +701,8 @@ a { color: inherit; text-decoration: none; }
 /* 2026 public bento catalogue */
 .catalogue-layout { display: block; max-width: 1320px; padding-top: 26px; }
 .view-switch { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: color-mix(in oklab, var(--surface-1) 50%, transparent); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04); }
-.view-switch button { padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted); transition: all var(--dur-1) var(--ease); }
+.view-switch button { padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted); transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease); }
+.view-switch button:active { transform: scale(.95); }
 .view-switch button:hover { color: var(--fg); }
 .view-switch button.active { color: white; background: var(--fg); box-shadow: 0 2px 6px color-mix(in oklab, var(--fg) 30%, transparent); }
 .domain-list.card-view { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; border: 0; }
@@ -1268,6 +1274,17 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid color-mix(in oklab, var(--gold) 24%, var(--border)); border-radius: 24px;
   color: var(--fg); background: var(--surface-elevated); box-shadow: 0 36px 100px rgba(0, 0, 0, .36); overflow-x: hidden; overflow-y: auto;
   overscroll-behavior: contain;
+}
+/* 模态从中心轻微放大进入（modal 不做 origin-aware，保持居中）；从 scale(0) 出现违背物理直觉 */
+.domain-detail-dialog[open] {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+  @starting-style { opacity: 0; transform: scale(.96); }
+}
+.domain-detail-dialog[open]::backdrop {
+  transition: opacity var(--dur-2) var(--ease);
+  @starting-style { opacity: 0; }
 }
 .domain-detail-dialog::backdrop { background: rgba(9, 9, 8, .62); backdrop-filter: blur(8px); }
 .domain-detail-dialog > section { position: relative; padding: clamp(24px, 5vw, 44px); }
@@ -2154,7 +2171,7 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   font-size: 12px;
   cursor: pointer;
-  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 .copy-filter-link:hover,
 .copy-filter-link:focus-visible {
@@ -2162,6 +2179,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--gold-bright);
   background: var(--surface-2);
 }
+.copy-filter-link:active { transform: scale(.96); }
 .copy-filter-link svg,
 .clear-search-history svg {
   width: 16px;

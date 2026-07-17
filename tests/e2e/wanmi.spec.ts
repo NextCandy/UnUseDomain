@@ -85,9 +85,10 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByTitle("复制 wanmi.org")).toBeVisible();
     const resultCard = page.locator(".domain-card:not(.skeleton)");
     await expect(resultCard).toHaveCount(1);
+    // 收藏功能已在 3dfa368 移除，卡片只剩复制与速览两枚图标
     const actionButtons = resultCard.locator(".domain-actions button");
-    await expect(actionButtons).toHaveCount(3);
-    expect(await actionButtons.allInnerTexts()).toEqual(["", "", ""]);
+    await expect(actionButtons).toHaveCount(2);
+    expect(await actionButtons.allInnerTexts()).toEqual(["", ""]);
     await expect(page.getByText("我想要", { exact: true })).toHaveCount(0);
     await search.fill("02cloud.com");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
@@ -128,11 +129,8 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByRole("heading", { name: "未找到匹配的域名" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "试试这些精选域名" })).toBeVisible();
     await expect(page.locator(".empty-recommendations .domain-card")).toHaveCount(3);
-    await expect(page.locator(".empty-recommendations .domain-featured-dot")).toHaveCount(3);
-
-    await page.getByRole("button", { name: "复制链接" }).click();
-    await expect(page.getByRole("status")).toContainText("链接已复制");
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+    // 精品标记在 5fde067 从 domain-featured-dot 圆点改为 domain-featured-badge 星形徽标
+    await expect(page.locator(".empty-recommendations .domain-featured-badge")).toHaveCount(3);
 
     await page.locator(".empty-results").getByRole("button", { name: "清除筛选" }).click();
     await expect(page).toHaveURL(/sort=default/);
@@ -144,7 +142,7 @@ test.describe.serial("WanMi 生产流程", () => {
     expect(await page.evaluate(() => window.localStorage.getItem("wanmi-search-history"))).toBe('{"version":1,"items":[]}');
   });
 
-  test("前台高级筛选、搜索历史、收藏与域名速览", async ({ page }) => {
+  test("前台高级筛选、搜索历史与域名速览", async ({ page }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /高级筛选/ }).click();
     await page.getByLabel("必须包含").fill("cloud");
@@ -155,8 +153,6 @@ test.describe.serial("WanMi 生产流程", () => {
     const search = page.getByRole("textbox", { name: "搜索域名" });
     await search.fill("02cloud.com");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
-    await page.getByRole("button", { name: "收藏 02cloud.com" }).click();
-    await expect(page.getByText("已收藏 02cloud.com")).toBeVisible();
     await page.getByRole("button", { name: "速览 02cloud.com" }).click();
     const dialog = page.getByRole("dialog", { name: /02cloud\.com/ });
     await expect(dialog).toBeVisible();
@@ -173,13 +169,6 @@ test.describe.serial("WanMi 生产流程", () => {
     }
     await dialog.getByRole("button", { name: "关闭域名速览" }).click();
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator(".public-header").getByRole("button", { name: /收藏 1/ }).click();
-    await expect(page.getByRole("button", { name: "取消收藏 02cloud.com" })).toBeVisible();
-    await page.getByRole("button", { name: "取消收藏 02cloud.com" }).click();
-    await expect(page.getByText("还没有收藏")).toBeVisible();
-
-    await page.getByRole("button", { name: "浏览全部域名" }).click();
     await page.getByRole("button", { name: "清空搜索" }).click();
     await search.focus();
     await expect(page.locator(".search-history").getByRole("button", { name: "02cloud.com", exact: true })).toBeVisible();
