@@ -22,12 +22,11 @@ function ArrowIcon() {
 
 interface DomainCardProps {
   domain: PublicDomain;
-  highlighted: boolean;
   onCopy: (domain: string) => void;
   onQuickView: (domain: PublicDomain) => void;
 }
 
-function DomainCardComponent({ domain, highlighted, onCopy, onQuickView }: DomainCardProps) {
+function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
   const domainParts = domain.domain.split(".");
   const tld = domainParts.at(-1) || domain.tld;
   const characterCount = domainParts[0]?.length ?? domain.name.length;
@@ -36,7 +35,7 @@ function DomainCardComponent({ domain, highlighted, onCopy, onQuickView }: Domai
     : (domain.categories[0] || "其他");
 
   return (
-    <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}${highlighted ? " highlighted" : ""}`} aria-labelledby={`domain-${domain.id}`}>
+    <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}`} aria-labelledby={`domain-${domain.id}`}>
       {domain.is_featured ? <span className="domain-featured-dot" aria-hidden="true" /> : null}
       <div className="domain-primary">
         <div className="domain-name"><a id={`domain-${domain.id}`} href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer nofollow"><strong>{domain.name}</strong><span>.{domain.tld}</span></a></div>

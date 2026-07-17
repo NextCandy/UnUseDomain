@@ -22,7 +22,6 @@ const domain: PublicDomain = {
 function renderCard(value: PublicDomain = domain): string {
   return renderToStaticMarkup(createElement(DomainCard, {
     domain: value,
-    highlighted: false,
     onCopy: vi.fn(),
     onQuickView: vi.fn(),
   }));

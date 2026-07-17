@@ -170,7 +170,6 @@ export function PublicPage() {
   const [historyFocused, setHistoryFocused] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "compact">("cards");
   const [selectedDomain, setSelectedDomain] = useState<PublicDomain | null>(null);
-  const [highlightedId, setHighlightedId] = useState<number | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const dataVersion = useRef("");
   const requestSequence = useRef(0);
@@ -299,27 +298,13 @@ export function PublicPage() {
     else notify("复制失败，请手动复制", "error");
   }, [notify]);
 
-  function discoverRandom() {
-    const pool = displayedItems.length ? displayedItems : catalogueItems;
-    if (!pool.length) {
-      notify("当前没有可随机发现的公开域名", "error");
-      return;
-    }
-    const candidates = selectedDomain && pool.length > 1 ? pool.filter((item) => item.id !== selectedDomain.id) : pool;
-    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    setSelectedDomain(chosen);
-    setHighlightedId(chosen.id);
-    window.requestAnimationFrame(() => document.getElementById(`domain-card-${chosen.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
-    window.setTimeout(() => setHighlightedId((current) => current === chosen.id ? null : current), 1800);
-  }
-
   return (
     <div className={`public-shell density-${settings?.display_density ?? "comfortable"}`}>
       <header className="public-header">
         <a className="brand" href="/" aria-label="玩米首页">
-          {settings?.logo_url ? <img src={settings.logo_url} alt="玩米 Logo" decoding="async" fetchPriority="high" /> : <span className="brand-mark">玩米</span>}
+          <img className="brand-icon" src="/favicon.svg" alt="玩米 Logo" decoding="async" fetchPriority="high" />
         </a>
-        <div className="header-actions"><button type="button" className="header-discover" onClick={discoverRandom}>随机发现</button></div>
+        <div className="header-stats"><span className="header-stats-label">域名资产</span><strong>{facets ? facets.total_domains.toLocaleString("zh-CN") : "—"}</strong></div>
       </header>
 
       <main className="catalogue-layout">
@@ -365,13 +350,12 @@ export function PublicPage() {
           {loading && <div className="domain-list skeleton-list">{Array.from({ length: 8 }, (_, index) => <div className="domain-card skeleton" key={index} />)}</div>}
           {!loading && !error && pageData?.items.length === 0 && <section className="empty-results" aria-labelledby="empty-results-title">
             <div className="state-panel"><h3 id="empty-results-title">未找到匹配的域名</h3><span>换一个关键词，或清除筛选后再试。</span><button type="button" onClick={resetFilters}>清除筛选</button></div>
-            {emptyRecommendations.length > 0 && <div className="empty-recommendations"><header><span>为你推荐</span><h3>试试这些精选域名</h3></header><div className="domain-list card-view">{emptyRecommendations.map((domain) => <DomainCard key={domain.id} domain={domain} highlighted={highlightedId === domain.id} onCopy={copyDomain} onQuickView={setSelectedDomain} />)}</div></div>}
+            {emptyRecommendations.length > 0 && <div className="empty-recommendations"><header><span>为你推荐</span><h3>试试这些精选域名</h3></header><div className="domain-list card-view">{emptyRecommendations.map((domain) => <DomainCard key={domain.id} domain={domain} onCopy={copyDomain} onQuickView={setSelectedDomain} />)}</div></div>}
           </section>}
           {displayedItems.length > 0 && !loading && <div className={`domain-list ${viewMode === "compact" ? "compact-view" : "card-view"}`}>
             {displayedItems.map((domain) => <DomainCard
               key={domain.id}
               domain={domain}
-              highlighted={highlightedId === domain.id}
               onCopy={copyDomain}
               onQuickView={setSelectedDomain}
             />)}
@@ -382,10 +366,23 @@ export function PublicPage() {
       </main>
 
 
-      <footer className="public-footer footer-grid"><div className="footer-brand"><strong>{settings?.site_name ?? "玩米"}</strong><span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>{settings?.icp_number && <span>{settings.icp_number}</span>}</div>{settings && <ContactIcons settings={settings} notify={notify} />}<div className="footer-right">{settings?.show_admin_link_in_footer && <a className="footer-admin-link" href="/admin">管理</a>}</div></footer>
+      <footer className="public-footer footer-grid">
+        <div className="footer-brand">
+          <div className="footer-brand-row">
+            <strong>{settings?.site_name ?? "玩米"}</strong>
+            <span className="footer-dot" aria-hidden="true">·</span>
+            <span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>
+          </div>
+          {settings?.icp_number && <span className="footer-icp">{settings.icp_number}</span>}
+        </div>
+        {settings && <ContactIcons settings={settings} notify={notify} />}
+        <div className="footer-right">
+          {settings?.show_admin_link_in_footer && <a className="footer-admin-link" href="/admin">管理</a>}
+        </div>
+      </footer>
 
       <DomainDetailDialog domain={selectedDomain} candidates={catalogueItems} onClose={() => setSelectedDomain(null)} onCopy={copyDomain} onSelect={setSelectedDomain} />
-      <PublicBottomNav onRandom={discoverRandom} onAdvanced={() => setAdvancedOpen(true)} />
+      <PublicBottomNav onAdvanced={() => setAdvancedOpen(true)} />
       <Toast message={toast} onClose={() => setToast(null)} />
     </div>
   );
