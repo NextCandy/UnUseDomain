@@ -1,6 +1,15 @@
 # WanMi HANDOFF
 
-## 最新进度（2026-07-17 · CSS 拆分与视觉基线）
+## 最新进度（2026-07-17 · 英文字体自托管）
+
+- Manrope 与 IBM Plex Mono 改为自托管 latin/latin-ext 子集（`public/fonts/*.woff2`），`index.html` 移除这两族的 Google Fonts 外链、改 `preload` Manrope，`fonts.css` 在 `app.css` 前由 `main.tsx` 引入。根因：Google Fonts 在中国大陆不可达，此前国内用户完全拿不到 Manrope（域名展示主字体），只能回退系统字体。
+- 只自托管英文子集：Manrope 变量字体单文件覆盖 400-800，中文站点实际只触发 latin（约 55KB）。中文 Noto Sans SC 体积过大仍走 Google Fonts + 系统回退，未改 design.md 字体规范。
+- 已在模拟国内网络（阻断 Google Fonts）下验证 `document.fonts.check("700 16px Manrope")` 为真、域名元素 computed 字体为 Manrope，且实际只下载命中子集。
+- 字体许可证按项目既有惯例（Instrument Serif 已有）补齐：`Manrope-OFL.txt`、`IBMPlexMono-OFL.txt`。抓取逻辑固化为 `scripts/fetch-fonts.ts`（`pnpm fonts:fetch`），Node fetch 不读代理故用 curl。
+- 顺带修复域名管理基线的既有隐患：该页是虚拟滚动 + 滚动到底累积加载，fullPage 截图会不断触发加载把页面撑高（900/7531/13736px 乱跳），改为只截视口，五轮复跑稳定。
+- 前台 CSS 108.66 → 111.19KB（+2.5KB 为 @font-face 声明）；`pnpm check` 通过，22 张基线已按新字体重建。
+
+## 前序进度（2026-07-17 · CSS 拆分与视觉基线）
 
 - 新增 22 张 Playwright 视觉基线：前台 8 断点 × 首页/精品详情页共 16 张，后台概览/域名管理 × 390/1024/1440 共 6 张。项目此前没有任何视觉回归保障，而后续配色、响应式、交互方案改的全是 CSS。
 - 基线稳定性依赖三处处理，改任何一处产品代码前都要留意：首页精选区用 `Math.random` 洗牌（`PublicPage.tsx:156`），测试注入固定种子 PRNG；Hero 数字用 rAF 计数（`CatalogueHero.tsx:29`），`animations:"disabled"` 管不了 rAF，改用 `emulateMedia({reducedMotion:"reduce"})` 走组件自身退化分支；卡片用 `content-visibility`，fullPage 截图前先整页滚一遍再回顶部，否则总高抖动。

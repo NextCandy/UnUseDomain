@@ -25,6 +25,7 @@
     "domains:import:local": "tsx scripts/import-domain-csv.ts --local",
     "domains:import:remote": "tsx scripts/import-domain-csv.ts --remote",
     "domains:verify": "tsx scripts/verify-domain-import.ts --local",
+    "fonts:fetch": "tsx scripts/fetch-fonts.ts",
     "verify:no-demo-data": "tsx scripts/verify-no-demo-data.ts",
     "verify:production": "tsx scripts/verify-production.ts"
   },

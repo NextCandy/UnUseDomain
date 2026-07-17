@@ -65,25 +65,10 @@ test.describe("后台视觉基线", () => {
       await page.getByRole("button", { name: /域名管理/ }).click();
       await page.locator(".domains-table").first().waitFor();
       await page.evaluate(() => document.fonts.ready);
-      // 桌面端域名表按视口虚拟化渲染（useVirtualRows），滚动后行高才实测稳定
-      await page.evaluate(async () => {
-        await new Promise<void>((resolve) => {
-          let previous = -1;
-          const step = () => {
-            window.scrollBy(0, window.innerHeight);
-            if (window.scrollY === previous) {
-              resolve();
-              return;
-            }
-            previous = window.scrollY;
-            requestAnimationFrame(step);
-          };
-          step();
-        });
-        window.scrollTo(0, 0);
-      });
+      // 这里只截视口，不用 fullPage：域名表是虚拟滚动 + 滚动到底累积下一页（每页 100 条），
+      // 一旦滚动就会不断拉新数据把页面撑高，总高在 900/7531/13736px 之间跳，无法作为基线。
+      // 首屏已覆盖表头、工具栏、批量操作与前若干行，足以发现后台表格的样式破坏。
       await expect(page).toHaveScreenshot(`admin-domains-${width}.png`, {
-        fullPage: true,
         animations: "disabled",
       });
     });
