@@ -80,7 +80,7 @@ publicRoutes.get("/settings", async (c) => {
      FROM site_settings WHERE id = 1`,
   ).first<SettingsRow>();
   if (!settings) return fail(c, 503, "SETTINGS_UNAVAILABLE", "站点设置尚未初始化");
-  c.header("Cache-Control", PUBLIC_CACHE_CONTROL);
+  c.header("Cache-Control", "no-store");
   return ok(c, {
     ...settings,
     featured_first: settings.featured_first === 1,

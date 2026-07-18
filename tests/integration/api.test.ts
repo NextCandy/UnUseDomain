@@ -136,6 +136,12 @@ describe.sequential("WanMi API 集成", () => {
 
   it("未登录访问管理 API 返回 401", async () => expect((await request("/api/admin/dashboard")).status).toBe(401));
 
+  it("公开站点设置禁用缓存以便后台联系方式即时生效", async () => {
+    const response = await request("/api/public/settings");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("错误密码不能登录", async () => {
     const response = await request("/api/auth/login", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@example.com", password: "wrong" }) });
     expect(response.status).toBe(401);

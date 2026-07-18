@@ -2430,36 +2430,43 @@ svg.lucide {
 
 .hero-stats > .hero-contact-links {
   min-width: 0;
-  max-width: 374px;
+  max-width: 200px;
+  max-height: 48px;
   padding: 0 14px;
-  display: grid;
-  grid-template-columns: minmax(0, max-content);
-  align-content: center;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
   justify-content: center;
-  gap: 8px;
+  gap: 1px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-block: contain;
+  scrollbar-width: none;
   border-left: 1px solid var(--border);
 }
-.hero-stats > .hero-contact-links[data-count="2"] { grid-template-columns: repeat(2, minmax(0, max-content)); }
+.hero-stats > .hero-contact-links::-webkit-scrollbar { display: none; }
 .hero-contact-link {
+  flex: 0 0 auto;
   min-width: 0;
-  max-width: 170px;
-  min-height: 32px;
-  padding: 0 8px;
+  max-width: 172px;
+  min-height: 15px;
+  padding: 0 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
-  border-radius: var(--radius-pill);
+  gap: 5px;
+  border: 0;
+  border-radius: 4px;
   color: var(--text-secondary);
-  background: color-mix(in oklab, var(--surface-secondary) 72%, transparent);
-  font-size: 12px;
+  background: transparent;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 15px;
   text-decoration: none;
   transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
-.hero-contact-link svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.hero-contact-link svg { width: 12px; height: 12px; flex: 0 0 12px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .hero-contact-link .brand-contact-icon { fill: currentColor; stroke: none; }
 .hero-contact-link span {
   min-width: 0;
@@ -2492,7 +2499,12 @@ svg.lucide {
   flex-wrap: wrap;
   gap: 7px;
 }
-.public-shell .footer-copyright .footer-icp { flex-basis: 100%; }
+.public-shell .footer-logo {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
+}
 
 @media (max-width: 720px) {
   .public-shell .public-header-inner { padding-inline: 12px; }

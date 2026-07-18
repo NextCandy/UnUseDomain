@@ -12,6 +12,9 @@ import type { AppBindings } from "../types";
  */
 export const edgeCache = createMiddleware<AppBindings>(async (c, next) => {
   if (c.req.method !== "GET" || typeof caches === "undefined") return next();
+  // 站点设置会直接影响联系方式、Logo 等即时可见内容；后台保存后必须绕过
+  // 浏览器与 Cache API 的旧条目，避免不同 POP 继续返回修改前的数据。
+  if (new URL(c.req.url).pathname === "/api/public/settings") return next();
   // tsconfig 同时服务前端（DOM lib）与 Worker：DOM 的 CacheStorage 没有 default，
   // 运行时实际是 Workers 的 caches.default，此处仅做类型收窄。
   const cache = (caches as unknown as { default: Cache }).default;

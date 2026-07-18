@@ -21,7 +21,6 @@ export function ContactLinks({ settings }: { settings: ContactSettings | null | 
     settings?.contact_wechat ? { key: "wechat", href: settings.wechat_qr_url || `weixin://dl/chat?${encodeURIComponent(settings.contact_wechat)}`, label: settings.contact_wechat, ariaLabel: `通过微信联系 ${settings.contact_wechat}`, icon: <BrandIcon icon={siWechat} />, external: Boolean(settings.wechat_qr_url) } : null,
     settings?.contact_qq ? { key: "qq", href: `https://wpa.qq.com/msgrd?v=3&uin=${encodeURIComponent(settings.contact_qq)}&site=qq&menu=yes`, label: `QQ ${settings.contact_qq}`, ariaLabel: `通过 QQ 联系 ${settings.contact_qq}`, icon: <BrandIcon icon={siQq} />, external: true } : null,
   ] satisfies Array<ContactLinkItem | null>).filter((contact): contact is ContactLinkItem => contact !== null);
-  const contacts = configuredContacts.slice(0, 2);
 
-  return contacts.length > 0 ? <div className="hero-contact-links" data-count={contacts.length} aria-label="联系方式">{contacts.map((contact) => <a className="hero-contact-link" key={contact.key} href={contact.href} title={contact.label} aria-label={contact.ariaLabel} {...(contact.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{contact.icon}<span>{contact.label}</span></a>)}</div> : null;
+  return configuredContacts.length > 0 ? <div className="hero-contact-links" aria-label="联系方式">{configuredContacts.map((contact) => <a className="hero-contact-link" key={contact.key} href={contact.href} title={contact.label} aria-label={contact.ariaLabel} {...(contact.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{contact.icon}<span>{contact.label}</span></a>)}</div> : null;
 }

@@ -220,7 +220,7 @@ export function PublicPage() {
   useEffect(() => {
     let active = true;
     void Promise.allSettled([
-      api<SiteSettings>("/api/public/settings"),
+      api<SiteSettings>("/api/public/settings", { cache: "no-store" }),
       api<PublicHomeData>("/api/public/facets"),
     ]).then(([settingsResult, facetsResult]) => {
       if (!active) return;
@@ -449,10 +449,8 @@ export function PublicPage() {
 
       <footer className="public-footer">
         <div className="footer-copyright">
-          <strong>{settings?.site_name ?? "玩米"}</strong>
-          <span className="footer-dot" aria-hidden="true">·</span>
-          <span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>
-          {settings?.icp_number && <span className="footer-icp">{settings.icp_number}</span>}
+          <img className="footer-logo" src={settings?.logo_url || "/logo.svg"} alt="玩米 Logo" decoding="async" />
+          <span>© {new Date().getFullYear()}</span>
         </div>
       </footer>
 
