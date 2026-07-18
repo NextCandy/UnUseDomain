@@ -50,7 +50,7 @@ function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
     <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}`} aria-labelledby={`domain-${domain.id}`}>
       <div className="card-badge-row">
         <span className="tld-badge" data-type={domainType(domain.name)}>.{tld}</span>
-        {category ? <span className="category-badge">{domain.is_featured ? <Star aria-hidden="true" /> : null}{category}{domain.is_featured ? " · 精品" : ""}</span> : null}
+        {category ? <span className="category-badge">{domain.is_featured ? <Star aria-hidden="true" /> : null}{category}</span> : null}
         <div className="domain-actions">
           <button type="button" aria-label={`复制 ${domain.domain}`} title={`复制 ${domain.domain}`} onClick={() => onCopy(domain.domain)}><Copy aria-hidden="true" /></button>
           <button type="button" aria-label={`查看 ${domain.domain}`} title={`查看 ${domain.domain}`} onClick={() => onQuickView(domain)}><Eye aria-hidden="true" /></button>

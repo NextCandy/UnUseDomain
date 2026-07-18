@@ -122,8 +122,9 @@ test.describe.serial("WanMi 生产流程", () => {
         footerCenterGap: Math.abs((footer.left + footer.right) / 2 - document.documentElement.clientWidth / 2),
         contactHeight: contact.height,
         firstStatHeight: firstStat.height,
-        contactsAreVertical: contactLinks.every((link, index) => index === 0 || link.top > contactLinks[index - 1].top),
-        contactsShareLeftEdge: contactLinks.every((link) => Math.abs(link.left - contactLinks[0].left) <= 1),
+        contactsAreHorizontal: contactLinks.every((link, index) => index === 0 || link.left > contactLinks[index - 1].left),
+        contactsShareTopEdge: contactLinks.every((link) => Math.abs(link.top - contactLinks[0].top) <= 1),
+        contactsHaveNoVisibleText: [...document.querySelectorAll(".hero-contact-link")].every((link) => !link.textContent?.trim()),
       };
     });
     expect(frameGeometry.logoTitleGap).toBeLessThanOrEqual(1);
@@ -131,8 +132,9 @@ test.describe.serial("WanMi 生产流程", () => {
     expect(frameGeometry.footerTitleGap).toBeLessThanOrEqual(1);
     expect(frameGeometry.footerCenterGap).toBeLessThanOrEqual(1);
     expect(frameGeometry.contactHeight).toBeLessThanOrEqual(frameGeometry.firstStatHeight);
-    expect(frameGeometry.contactsAreVertical).toBe(true);
-    expect(frameGeometry.contactsShareLeftEdge).toBe(true);
+    expect(frameGeometry.contactsAreHorizontal).toBe(true);
+    expect(frameGeometry.contactsShareTopEdge).toBe(true);
+    expect(frameGeometry.contactsHaveNoVisibleText).toBe(true);
     await expect(page.locator(".hero-contact-link")).toHaveCount(3);
     await expect(page.getByRole("link", { name: "发送邮件至 955555@gmail.com" })).toHaveAttribute("href", "mailto:955555@gmail.com");
     await expect(page.getByRole("link", { name: "在 X 联系 iWangGang" })).toHaveAttribute("href", "https://x.com/iWangGang");

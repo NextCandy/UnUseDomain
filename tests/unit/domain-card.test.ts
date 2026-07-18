@@ -36,10 +36,11 @@ describe("DomainCard", () => {
     const markup = renderCard();
 
     expect(markup).toContain('class="domain-card featured"');
-    // 徽章行：金色 TLD 徽章 + 分类徽章（精品带星与「· 精品」后缀）
+    // 徽章行：金色 TLD 徽章 + 分类徽章，精品只用星标表达。
     expect(markup).toContain('class="tld-badge" data-type="letter">.ooo</span>');
     expect(markup).toContain('class="category-badge"');
-    expect(markup).toContain("纯字母 · 精品");
+    expect(markup).toContain("纯字母");
+    expect(markup).not.toContain("· 精品");
     expect(markup).toContain('<strong>mx</strong>');
     expect(markup).toContain('class="domain-tld">.ooo</span>');
     expect(markup).toContain('class="domain-description placeholder"');
@@ -55,7 +56,7 @@ describe("DomainCard", () => {
     expect(markup).not.toContain("domain-visit");
   });
 
-  it("普通域名不渲染精品标记与「· 精品」后缀", () => {
+  it("普通域名不渲染精品星标", () => {
     const markup = renderCard({ ...domain, is_featured: false });
 
     expect(markup).not.toContain("domain-featured-badge");
