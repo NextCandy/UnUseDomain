@@ -76,7 +76,7 @@ test.describe.serial("WanMi 生产流程", () => {
     });
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveTitle("DOMAIN HUNTER");
-    await expect(page.locator('meta[name="wanmi-build"]')).toHaveAttribute("content", "domain-hunter-2026-07-19-v2");
+    await expect(page.locator('meta[name="wanmi-build"]')).toHaveAttribute("content", "domain-hunter-2026-07-19-v3");
     await expect(page.locator(".domain-total-pill")).toHaveText("859 个域名");
     await expect(page.locator(".public-header .brand-title")).toHaveText("DOMAIN HUNTER");
     await expect(page.locator(".public-header .brand-title")).toBeVisible();

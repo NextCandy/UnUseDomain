@@ -51,7 +51,7 @@ function absoluteAsset(value: string, origin: string): string {
   return `${origin}${value.startsWith("/") ? value : `/${value}`}`;
 }
 
-const HTML_CACHE_VERSION = "domain-hunter-2026-07-19-v2";
+const HTML_CACHE_VERSION = "domain-hunter-2026-07-19-v3";
 const HTML_CACHE_COOKIE = "wanmi_html_cache";
 
 /**
