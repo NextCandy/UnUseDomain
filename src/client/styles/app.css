@@ -2408,3 +2408,97 @@ svg.lucide {
   .public-shell .domain-list.card-view .domain-card { min-height: 0; gap: 14px; }
   .public-shell .domain-description.placeholder { display: none; }
 }
+
+/* 2026-07-18 · 页首、Hero 与页脚统一基线；联系方式归入统计栏。 */
+.public-shell .public-header {
+  display: block;
+  padding: 0;
+}
+.public-shell .public-header-inner {
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  height: 100%;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 3.2vw, 56px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+@media (min-width: 721px) {
+  .public-shell .public-header-inner .header-actions { margin-right: 15px; }
+}
+
+.hero-stats > .hero-contact-links {
+  min-width: 0;
+  max-width: 374px;
+  padding: 0 14px;
+  display: grid;
+  grid-template-columns: minmax(0, max-content);
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-left: 1px solid var(--border);
+}
+.hero-stats > .hero-contact-links[data-count="2"] { grid-template-columns: repeat(2, minmax(0, max-content)); }
+.hero-contact-link {
+  min-width: 0;
+  max-width: 170px;
+  min-height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  background: color-mix(in oklab, var(--surface-secondary) 72%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.hero-contact-link svg { width: 14px; height: 14px; flex: 0 0 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.hero-contact-link .brand-contact-icon { fill: currentColor; stroke: none; }
+.hero-contact-link span {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-contact-link:hover,
+.hero-contact-link:focus-visible { color: var(--brand); border-color: var(--brand-border); background: var(--brand-bg); }
+
+.public-shell .public-footer {
+  width: calc(min(100%, 1440px) - 2 * clamp(16px, 3.2vw, 56px));
+  max-width: none;
+  margin: 24px auto 22px;
+  padding: 26px 0;
+  display: grid;
+  place-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.public-shell .public-footer > .footer-copyright {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.public-shell .footer-copyright .footer-icp { flex-basis: 100%; }
+
+@media (max-width: 720px) {
+  .public-shell .public-header-inner { padding-inline: 12px; }
+  .public-shell .public-footer {
+    width: calc(100% - 16px);
+    margin: 14px auto 8px;
+    padding: 20px 12px;
+  }
+}

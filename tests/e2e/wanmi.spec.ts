@@ -69,6 +69,11 @@ test.describe.serial("WanMi 生产流程", () => {
   });
 
   test("前台读取 D1、搜索和分类、后缀筛选", async ({ page }) => {
+    await page.route("**/api/public/settings", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json() as { data: Record<string, unknown> };
+      await route.fulfill({ response, json: { ...body, data: { ...body.data, contact_email: "955555@gmail.com" } } });
+    });
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("共 859 个域名")).toBeVisible();
     await expect(page.locator(".domain-card:not(.skeleton)")).toHaveCount(36);
@@ -79,6 +84,31 @@ test.describe.serial("WanMi 生产流程", () => {
     });
     expect(searchGeometry.width).toBeLessThanOrEqual(80);
     expect(searchGeometry.rightGap).toBeLessThanOrEqual(1);
+    const frameGeometry = await page.evaluate(() => {
+      const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+      const logo = rect(".public-header .brand-icon");
+      const title = rect(".brand-statement h1");
+      const admin = rect(".public-header .admin-link");
+      const searchButton = rect(".search-submit");
+      const footer = rect(".public-footer");
+      const contact = rect(".hero-contact-links");
+      const firstStat = rect(".hero-stats > div:first-child");
+      return {
+        logoTitleGap: Math.abs(logo.left - title.left),
+        adminSearchGap: Math.abs(admin.right - searchButton.right),
+        footerTitleGap: Math.abs(footer.left - title.left),
+        footerCenterGap: Math.abs((footer.left + footer.right) / 2 - document.documentElement.clientWidth / 2),
+        contactHeight: contact.height,
+        firstStatHeight: firstStat.height,
+      };
+    });
+    expect(frameGeometry.logoTitleGap).toBeLessThanOrEqual(1);
+    expect(frameGeometry.adminSearchGap).toBeLessThanOrEqual(1);
+    expect(frameGeometry.footerTitleGap).toBeLessThanOrEqual(1);
+    expect(frameGeometry.footerCenterGap).toBeLessThanOrEqual(1);
+    expect(frameGeometry.contactHeight).toBeLessThanOrEqual(frameGeometry.firstStatHeight);
+    await expect(page.getByRole("link", { name: "发送邮件至 955555@gmail.com" })).toHaveAttribute("href", "mailto:955555@gmail.com");
+    await expect(page.locator(".public-footer .contact-icons-wrap")).toHaveCount(0);
     const search = page.getByRole("textbox", { name: "搜索域名" });
     await search.fill("wanmi.org");
     await page.getByRole("button", { name: "搜索", exact: true }).click();

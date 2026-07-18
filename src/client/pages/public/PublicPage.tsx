@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ContactIcons } from "../../components/ContactIcons";
+import { ContactLinks } from "../../components/ContactIcons";
 import { DomainCard } from "../../components/DomainCard";
 import { DomainDetailDialog } from "../../components/DomainDetailDialog";
 import { PublicBottomNav } from "../../components/PublicBottomNav";
@@ -358,11 +358,13 @@ export function PublicPage() {
   return (
     <div className={`public-shell density-${settings?.display_density ?? "comfortable"}`}>
       <header className="public-header">
-        <a className="brand" href="/" aria-label="玩米首页">
-          <img className="brand-icon" src={settings?.logo_url || "/logo.svg"} alt="玩米 Logo" decoding="async" fetchPriority="high" />
-        </a>
-        <div className="header-actions">
-          {settings?.show_admin_link_in_footer && <a className="admin-link" href="/admin">后台</a>}
+        <div className="public-header-inner">
+          <a className="brand" href="/" aria-label="玩米首页">
+            <img className="brand-icon" src={settings?.logo_url || "/logo.svg"} alt="玩米 Logo" decoding="async" fetchPriority="high" />
+          </a>
+          <div className="header-actions">
+            {settings?.show_admin_link_in_footer && <a className="admin-link" href="/admin">后台</a>}
+          </div>
         </div>
       </header>
 
@@ -375,6 +377,7 @@ export function PublicPage() {
             <div><strong>{facets ? facets.total_domains.toLocaleString("zh-CN") : "—"}</strong><span>全部域名</span></div>
             <div><strong>{facets ? facets.total_tlds.toLocaleString("zh-CN") : "—"}</strong><span>域名后缀</span></div>
             <div className="featured"><strong>{facets ? facets.total_featured.toLocaleString("zh-CN") : "—"}</strong><span>精选域名</span></div>
+            <ContactLinks settings={settings} />
           </div>
         </section>}
 
@@ -444,17 +447,13 @@ export function PublicPage() {
       </main>
 
 
-      <footer className="public-footer footer-grid">
-        <div className="footer-brand">
-          <div className="footer-brand-row">
-            <strong>{settings?.site_name ?? "玩米"}</strong>
-            <span className="footer-dot" aria-hidden="true">·</span>
-            <span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>
-          </div>
+      <footer className="public-footer">
+        <div className="footer-copyright">
+          <strong>{settings?.site_name ?? "玩米"}</strong>
+          <span className="footer-dot" aria-hidden="true">·</span>
+          <span>{settings?.copyright_text || `© ${new Date().getFullYear()} 保留所有权利`}</span>
           {settings?.icp_number && <span className="footer-icp">{settings.icp_number}</span>}
         </div>
-        {settings && <ContactIcons settings={settings} notify={notify} />}
-        <div className="footer-right" />
       </footer>
 
       <DomainDetailDialog domain={selectedDomain} candidates={catalogueItems} onClose={() => setSelectedDomain(null)} onCopy={copyDomain} onSelect={setSelectedDomain} />
