@@ -56,7 +56,7 @@ function serializeRecommendation(row: RecommendationRow): FeaturedDomainRecommen
 }
 
 export function featuredDomainDescription(domain: FeaturedDomainRecord): string {
-  return domain.description || `${domain.domain} 是 DOMAIN HUNTER 精选域名资产，主体简洁、辨识度高，适合品牌、产品或数字项目使用。`;
+  return domain.description || `${domain.domain} 是玩米精选域名资产，主体简洁、辨识度高，适合品牌、产品或数字项目使用。`;
 }
 
 export async function loadFeaturedDomainDetail(db: D1Database, normalizedDomain: string): Promise<FeaturedDomainDetail | null> {
@@ -106,7 +106,7 @@ export async function loadFeaturedDomainDetail(db: D1Database, normalizedDomain:
     same_tld: (sameTldResult.results as unknown as RecommendationRow[]).map(serializeRecommendation),
     same_length: (sameLengthResult.results as unknown as RecommendationRow[]).map(serializeRecommendation),
     site: {
-      name: settings?.site_name || "DOMAIN HUNTER",
+      name: settings?.site_name || "玩米",
       description: settings?.site_description || "精选域名资产展示",
       logo_url: settings?.logo_url ?? null,
       favicon_url: settings?.favicon_url ?? null,

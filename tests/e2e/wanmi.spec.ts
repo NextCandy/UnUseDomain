@@ -76,7 +76,7 @@ test.describe.serial("WanMi 生产流程", () => {
     });
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveTitle("WanMi · 域名展示");
-    await expect(page.locator('meta[name="wanmi-build"]')).toHaveAttribute("content", "domain-hunter-2026-07-19-v3");
+    await expect(page.locator('meta[name="wanmi-build"]')).toHaveAttribute("content", "elegant-green-gold-2026-07-20-v4");
     await expect(page.locator(".domain-total-pill")).toHaveText("859 个域名");
     await expect(page.locator(".public-header .brand-title")).toHaveText("WanMi");
     await expect(page.locator(".public-header .brand-title")).toBeVisible();
@@ -92,9 +92,11 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.locator(".view-switch")).toHaveCount(0);
     await expect(page.locator(".domain-list.card-view")).toBeVisible();
     await expect(page.locator(".domain-list.compact-view")).toHaveCount(0);
+    /* 首卡因排序打分随库数据浮动，且首屏卡未必有注册日期：
+       这里只断言两种合法形态；完整日期区间格式由 mx.ooo 链路用例守护。 */
     const firstCatalogueCard = page.locator(".domain-card:not(.skeleton)").first();
-    await expect(firstCatalogueCard.locator(".registration-range")).toHaveText(/^\d{4}\.\d{2}\.\d{2}-\d{4}\.\d{2}\.\d{2}$/);
-    await expect(firstCatalogueCard.locator(".remaining-days")).toHaveText(/^(余\d+天|已过期\d+天)$/);
+    await expect(firstCatalogueCard.locator(".registration-range")).toHaveText(/^(\d{4}\.\d{2}\.\d{2}-\d{4}\.\d{2}\.\d{2}|\d{4}\.\d{2}\.\d{2}|日期待补充)$/);
+    await expect(firstCatalogueCard.locator(".remaining-days")).toHaveText(/^(余\d+天|已过期\d+天|有效期未知)$/);
     const cardGeometry = await firstCatalogueCard.evaluate((card) => {
       const rect = (selector: string) => card.querySelector(selector)!.getBoundingClientRect();
       const cardRect = card.getBoundingClientRect();
