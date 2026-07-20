@@ -1,7 +1,7 @@
 {
-  "name": "玩米",
-  "short_name": "玩米",
-  "description": "玩米域名展示与管理系统",
+  "name": "UnUseDomain",
+  "short_name": "UnUseDomain",
+  "description": "Unused Domains List",
   "lang": "zh-CN",
   "start_url": "/",
   "display": "standalone",
@@ -9,9 +9,16 @@
   "theme_color": "#133429",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -6,7 +6,7 @@ import { buildImportStatements, buildRemoteQueryBody, diffImportRecord } from ".
 
 describe("D1 导入计划", () => {
   it("本次记录保持在 D1 免费层单批上限内", async () => {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     const records = parseDomainCsv(source).records;
     const statements = buildImportStatements(records, { importId: "test-import" });
     expect(statements).toHaveLength(866);
@@ -18,7 +18,7 @@ describe("D1 导入计划", () => {
   });
 
   it("重新导入 SQL 保护管理员字段，并仅用非空简介更新展示内容", async () => {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     const statements = buildImportStatements(parseDomainCsv(source).records.slice(0, 1), { importId: "test" });
     const domainsUpsert = statements.find((statement) => statement.sql.includes("INSERT INTO domains"))!.sql;
     expect(domainsUpsert).not.toMatch(/is_featured\s*=\s*excluded/i);
@@ -32,7 +32,7 @@ describe("D1 导入计划", () => {
   });
 
   it("后台预览导入可默认跳过冲突且不会归档文件外域名", async () => {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     const statements = buildImportStatements(parseDomainCsv(source).records.slice(0, 2), {
       importId: "admin-preview",
       conflictMode: "skip",
@@ -48,7 +48,7 @@ describe("D1 导入计划", () => {
 
 describe("dry-run 字段差异", () => {
   async function firstRecord() {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     return parseDomainCsv(source).records[0];
   }
 

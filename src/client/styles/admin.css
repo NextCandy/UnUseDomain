@@ -1,4 +1,4 @@
-/* 玩米后台样式：由 app.css 拆出，仅 /admin 路由加载。
+/* UnUseDomain 后台样式：由 app.css 拆出，仅 /admin 路由加载。
    拆分依据是在真实页面上做 DOM 探测：只有「前台完全不匹配、仅后台匹配」的选择器才搬到这里，
    因此前台文件与本文件的选择器不重叠，本文件的加载顺序不会影响前台层叠。
    共享控件（.brand/.secondary-button/.pagination 等）与基础层留在 app.css，后台同样会加载。 */

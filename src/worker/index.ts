@@ -21,7 +21,7 @@ export const app = new Hono<AppBindings>();
 app.use("*", securityHeaders);
 app.use("/api/*", requireSameOrigin);
 
-app.get("/api/health", (c) => ok(c, { status: "ok", service: "WanMi" }));
+app.get("/api/health", (c) => ok(c, { status: "ok", service: "UnUseDomain" }));
 app.use("/api/public/*", edgeCache);
 app.route("/api/public", publicRoutes);
 app.route("/api/track", trackRoutes);
@@ -51,8 +51,8 @@ function absoluteAsset(value: string, origin: string): string {
   return `${origin}${value.startsWith("/") ? value : `/${value}`}`;
 }
 
-const HTML_CACHE_VERSION = "domain-hunter-2026-07-19-v3";
-const HTML_CACHE_COOKIE = "wanmi_html_cache";
+const HTML_CACHE_VERSION = "unusedomain-2026-07-20-v1";
+const HTML_CACHE_COOKIE = "unusedomain_html_cache";
 
 /**
  * 所有 SPA/SSR HTML 都必须绕过浏览器与 CDN 缓存。旧版只覆盖了首页，
@@ -66,7 +66,7 @@ function currentHtml(c: Context<AppBindings>, source: Response): Response {
   headers.set("Cloudflare-CDN-Cache-Control", "no-store");
   headers.set("Pragma", "no-cache");
   headers.set("Expires", "0");
-  headers.set("X-Wanmi-Build", HTML_CACHE_VERSION);
+  headers.set("X-UnUseDomain-Build", HTML_CACHE_VERSION);
   headers.delete("ETag");
   headers.delete("Last-Modified");
   headers.delete("CF-Cache-Status");
@@ -98,11 +98,11 @@ app.get("/", async (c) => {
     ).all<{ full_domain: string; description: string }>(),
     c.env.DB.prepare("SELECT COUNT(*) AS total FROM domains WHERE is_listed = 1").first<{ total: number }>(),
   ]);
-  const site = settings?.site_name ?? "玩米";
+  const site = settings?.site_name ?? "UnUseDomain";
   const title = `${site} · 域名展示`;
   const description = settings?.site_description || "精选域名资产展示";
   const canonical = `${url.origin}/`;
-  const image = settings?.logo_url ? absoluteAsset(settings.logo_url, url.origin) : `${url.origin}/favicon.svg`;
+  const image = settings?.logo_url ? absoluteAsset(settings.logo_url, url.origin) : `${url.origin}/unusedomain-logo.png`;
   const favicon = settings?.favicon_url || null;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -156,7 +156,7 @@ app.get("/sitemap.xml", async (c) => {
   );
 });
 
-app.get("/robots.txt", (c) => c.text("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/track\nSitemap: https://wanmi.org/sitemap.xml\n"));
+app.get("/robots.txt", (c) => c.text("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/track\nSitemap: https://unusedomain.com/sitemap.xml\n"));
 
 app.get("/d/:name", async (c) => {
   const url = new URL(c.req.url);
@@ -223,7 +223,7 @@ app.notFound((c) => {
 });
 
 app.onError((error, c) => {
-  console.error("WanMi request failed", error);
+  console.error("UnUseDomain request failed", error);
   return fail(c, 500, "INTERNAL_ERROR", "服务器内部错误");
 });
 

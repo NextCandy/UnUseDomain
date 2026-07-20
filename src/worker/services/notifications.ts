@@ -252,8 +252,8 @@ export function sendTestNotification(
   settings: NotificationSettingsRow,
 ): Promise<{ providerMessageId: string | null }> {
   return sendNotification(env, channel, settings, {
-    title: "玩米通知测试",
-    content: "这是一条由玩米后台真实发送的测试通知。",
+    title: "UnUseDomain 通知测试",
+    content: "这是一条由 UnUseDomain 后台真实发送的测试通知。",
   });
 }
 

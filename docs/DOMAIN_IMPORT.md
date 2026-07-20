@@ -2,9 +2,9 @@
 
 ## 唯一数据源
 
-原始附件名：`WanMi.csv`
+原始附件名：`UnUseDomain.csv`
 
-仓库保留路径：`data/source/WanMi.csv`
+仓库保留路径：`data/source/UnUseDomain.csv`
 
 生产初始域名不得来自原型数组、测试 Fixture、LocalStorage、README 或人工 Seed。
 

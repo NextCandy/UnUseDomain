@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
 const outputDirectory = join(process.cwd(), "backups");
-const outputPath = join(outputDirectory, `wanmi-${stamp}.sql`);
+const outputPath = join(outputDirectory, `unusedomain-${stamp}.sql`);
 
 mkdirSync(outputDirectory, { recursive: true });
 

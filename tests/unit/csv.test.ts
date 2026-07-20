@@ -26,7 +26,7 @@ function csvRow(overrides: Partial<Record<DomainCsvHeader, string>> = {}): strin
 
 describe("真实 CSV", () => {
   it("完整解析本次中文表头 CSV", async () => {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     const result = parseDomainCsv(source);
     expect(result.report).toMatchObject({ rawRecordCount: 859, parsedCount: 859, uniqueCount: 859, duplicateCount: 0, invalidCount: 0 });
     expect(result.report.headers).toEqual(["域名", "注册日期", "到期日期", "注册商", "后缀", "简介", "Premium"]);

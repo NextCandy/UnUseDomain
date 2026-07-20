@@ -242,7 +242,7 @@ domainAdminRoutes.get("/export", async (c) => {
   return new Response(`\uFEFF${lines.join("\r\n")}\r\n`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="WanMi-domains-${date}.csv"`,
+      "Content-Disposition": `attachment; filename="UnUseDomain-domains-${date}.csv"`,
       "Cache-Control": "no-store",
     },
   });
@@ -330,7 +330,7 @@ domainAdminRoutes.get("/import-errors/:id", async (c) => {
     return [row.row_number, row.domain, row.code, row.reason].map(csvCell).join(",");
   })];
   return new Response(`\uFEFF${lines.join("\r\n")}\r\n`, {
-    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="WanMi-import-errors-${c.req.param("id")}.csv"` },
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="UnUseDomain-import-errors-${c.req.param("id")}.csv"` },
   });
 });
 

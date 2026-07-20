@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-const STORAGE_KEY = "wanmi-search-history";
+const STORAGE_KEY = "unusedomain-search-history";
 const STORAGE_VERSION = 1;
 const MAX_HISTORY = 5;
 

@@ -1,4 +1,4 @@
--- 0005: 玩米只保留域名资产本身，不再保留售卖平台元数据
+-- 0005: UnUseDomain 只保留域名资产本身，不再保留售卖平台元数据
 PRAGMA foreign_keys = ON;
 
 DELETE FROM domain_marketplace_listings;

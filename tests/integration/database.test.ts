@@ -19,11 +19,11 @@ describe("D1 schema 与 CSV 幂等导入", () => {
   let importSql: string;
 
   beforeAll(async () => {
-    directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-d1-"));
-    databasePath = path.join(directory, "wanmi.sqlite");
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "unusedomain-d1-"));
+    databasePath = path.join(directory, "unusedomain.sqlite");
     const [migration, source] = await Promise.all([
       readAllMigrations(),
-      fs.readFile("data/source/WanMi.csv", "utf8"),
+      fs.readFile("data/source/UnUseDomain.csv", "utf8"),
     ]);
     executeSql(databasePath, migration);
     importSql = statementsToSql(buildImportStatements(parseDomainCsv(source).records, { importId: "integration-import-1" }));

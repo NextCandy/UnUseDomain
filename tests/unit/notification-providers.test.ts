@@ -25,8 +25,8 @@ describe("通知渠道", () => {
   });
 
   it("Bark 完整自建推送地址保留服务器和设备 Key", () => {
-    const url = buildBarkPushUrl("https://bark.example.com/device-key/", "玩米通知", "同步完成");
-    expect(url).toBe("https://bark.example.com/device-key/%E7%8E%A9%E7%B1%B3%E9%80%9A%E7%9F%A5/%E5%90%8C%E6%AD%A5%E5%AE%8C%E6%88%90");
+    const url = buildBarkPushUrl("https://bark.example.com/device-key/", "UnUseDomain 通知", "同步完成");
+    expect(url).toBe("https://bark.example.com/device-key/UnUseDomain%20%E9%80%9A%E7%9F%A5/%E5%90%8C%E6%AD%A5%E5%AE%8C%E6%88%90");
   });
 
   it("Bark 兼容迁移前密文中的 deviceKey 字段", async () => {

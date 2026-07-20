@@ -3,7 +3,7 @@ import { useCallback, useEffect } from "react";
 type TrackKind = "page_view" | "domain_click";
 
 function visitorId(): string {
-  const key = "wanmi-visitor-id";
+  const key = "unusedomain-visitor-id";
   const existing = localStorage.getItem(key);
   if (existing) return existing;
   const created = crypto.randomUUID();

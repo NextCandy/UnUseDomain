@@ -5,7 +5,7 @@ import { parseDomainCsv } from "../src/shared/csv";
 import { buildImportStatements, statementsToSql } from "../src/shared/import-plan";
 import type { DomainCsvParseResult } from "../src/shared/types/domain";
 
-export const SOURCE_PATH = path.resolve("data/source/WanMi.csv");
+export const SOURCE_PATH = path.resolve("data/source/UnUseDomain.csv");
 export const NORMALIZED_PATH = path.resolve("data/generated/domains.normalized.json");
 export const REPORT_PATH = path.resolve("data/generated/domains.report.json");
 export const IMPORT_SQL_PATH = path.resolve("data/generated/domains.import.sql");
@@ -44,7 +44,7 @@ export async function writeGenerated(result: DomainCsvParseResult): Promise<void
     // 首次生成时不存在旧产物，使用本次解析时间。
   }
   const report = { ...result.report, generatedAt };
-  const importSql = statementsToSql(buildImportStatements(result.records, { importId: "wanmi-generated-import" }));
+  const importSql = statementsToSql(buildImportStatements(result.records, { importId: "unusedomain-generated-import" }));
   await Promise.all([
     fs.writeFile(NORMALIZED_PATH, normalized, "utf8"),
     fs.writeFile(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`, "utf8"),

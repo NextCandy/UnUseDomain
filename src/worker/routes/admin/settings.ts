@@ -187,7 +187,7 @@ settingsRoutes.post("/notifications/test", async (c) => {
   if (!settings) return fail(c, 503, "SETTINGS_UNAVAILABLE", "通知渠道尚未初始化");
   const user = c.get("authUser");
   try {
-    const result = await sendChannelNotification(c.env, settings, { title: "玩米通知测试", content: "这是一条由玩米后台真实发送的测试通知。" });
+    const result = await sendChannelNotification(c.env, settings, { title: "UnUseDomain 通知测试", content: "这是一条由 UnUseDomain 后台真实发送的测试通知。" });
     const lastTest = { ok: true, at: new Date().toISOString(), error: null };
     await c.env.DB.prepare("UPDATE notify_channels SET last_test = ?, updated_at = CURRENT_TIMESTAMP WHERE channel = ?").bind(JSON.stringify(lastTest), channel).run();
     await writeOperationLog(c.env.DB, {

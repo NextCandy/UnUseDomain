@@ -347,9 +347,9 @@ export function PublicPage() {
     <div className={`public-shell density-${settings?.display_density ?? "comfortable"}`}>
       <header className="public-header">
         <div className="public-header-inner">
-          <a className="brand" href="/" aria-label={`${settings?.site_name ?? "玩米"}首页`}>
-            <img className="brand-icon" src={settings?.logo_url || "/logo.svg"} alt="" decoding="async" fetchPriority="high" />
-            <span className="brand-title">{settings?.site_name ?? "玩米"}</span>
+          <a className="brand" href="/" aria-label={`${settings?.site_name ?? "UnUseDomain"}首页`}>
+            <img className="brand-icon" src={settings?.logo_url || "/unusedomain-logo.png"} alt="" decoding="async" fetchPriority="high" />
+            <span className="brand-title">{settings?.site_name ?? "UnUseDomain"}</span>
           </a>
           <div className="header-actions">
             <span className="domain-total-pill" aria-label="域名总数">{facets ? facets.total_domains.toLocaleString("zh-CN") : "—"} 个域名</span>
@@ -361,7 +361,7 @@ export function PublicPage() {
 
       <main className="catalogue-layout">
         <section className="domain-section" id="domains" aria-label="全部资产">
-          <h1 className="visually-hidden">{settings?.site_name ?? "玩米"}</h1>
+          <h1 className="visually-hidden">{settings?.site_name ?? "UnUseDomain"}</h1>
           <div className="catalogue-toolbar">
             <div className="toolbar-controls">
               <div
@@ -372,7 +372,7 @@ export function PublicPage() {
                 }}
               >
                 <form className="filter-search" onSubmit={submitSearch}>
-                  <SearchIcon /><input value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="输入域名或关键词，例如 wanmi" aria-label="搜索域名" autoComplete="off" />
+                  <SearchIcon /><input value={draftSearch} onChange={(event) => setDraftSearch(event.target.value)} placeholder="输入域名或关键词，例如 unusedomain" aria-label="搜索域名" autoComplete="off" />
                   {draftSearch && <button className="search-clear" type="button" aria-label="清空搜索" onClick={() => { setDraftSearch(""); setFilters((current) => ({ ...current, q: "", page: 1 })); }}>×</button>}
                   <button className="search-submit" type="submit">搜索</button>
                 </form>
@@ -420,8 +420,8 @@ export function PublicPage() {
 
       <footer className="public-footer">
         <div className="footer-copyright">
-          <img className="footer-logo" src={settings?.logo_url || "/logo.svg"} alt={`${settings?.site_name ?? "玩米"} Logo`} decoding="async" />
-          <span>{settings?.copyright_text ?? "© WanMi · 玩米"}</span>
+          <img className="footer-logo" src={settings?.logo_url || "/unusedomain-logo.png"} alt={`${settings?.site_name ?? "UnUseDomain"} Logo`} decoding="async" />
+          <span>{settings?.copyright_text ?? "© 2026 UnUseDomain. All rights reserved."}</span>
         </div>
       </footer>
 

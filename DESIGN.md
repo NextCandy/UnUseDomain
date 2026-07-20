@@ -1,4 +1,4 @@
-# DESIGN.md — WanMi / 玩米
+# DESIGN.md — UnUseDomain
 
 > 域名展示与管理系统 · Warm Craft 拟物暖色主题 · v3.0(2026-07-18,配色对齐拟物化风格指南参考图)
 
@@ -238,7 +238,7 @@ background: radial-gradient(circle at 0% 0%, color-mix(in oklab, var(--brand) 16
 | 加载态(.brand-mark-img)| 34×34px | 裸放 |
 | Favicon | 32×32px | 居中优化版 viewBox |
 
-资源:`/public/logo.svg` 与 `/public/favicon.svg` 均为**居中 viewBox 版**(`viewBox="98 100 200 200"`),小尺寸下图形饱满居中。`settings.logo_url` 优先,未配置回退 `/logo.svg`。卡片内 `<Star>` = 精品标记,**非**收藏。
+资源：`public/unusedomain-logo.png` 为 512×512 品牌图，`public/favicon.ico`、16/32/48 PNG、Apple Touch Icon 与 192/512 PWA 图标由同一附件确定性裁切缩放生成。`settings.logo_url` 优先，未配置回退 `/unusedomain-logo.png`。卡片内 `<Star>` = 精品标记，**非**收藏。
 
 **UI 图标**:lucide 全局 `stroke-width 1.75` 圆头;手写图标补全 `fill="none" stroke="currentColor"`;普通图标禁用珊瑚红。
 
@@ -307,7 +307,7 @@ background: radial-gradient(circle at 0% 0%, color-mix(in oklab, var(--brand) 16
 
 ### Quick Reference
 
-> WanMi 是部署在 Cloudflare Workers 上的中文域名展示与管理系统。**单一浅色拟物暖调主题(Warm Craft)**:米白纸感底(#f5e9d6)、奶油卡片(#fbf5ea)、皮革深棕主操作(#5a3e2b 实底配白字,前景直接可用)、金色精品(#d4af37,浅底文字用 #7d641c)、深棕墨文字(#2e1e13)。后台侧栏深棕皮革渐变 + 金色 active。字体:Manrope + Cormorant Garamond + Noto Sans SC + IBM Plex Mono。圆角 8pt 网格,动效 ≤300ms 只用 transform/opacity。产品边界:只有域名展示和到期提醒,不含售卖/报价/求购/收藏。
+> UnUseDomain 是部署在 Cloudflare Workers 上的中文域名展示与管理系统。**单一浅色拟物暖调主题(Warm Craft)**:米白纸感底(#f5e9d6)、奶油卡片(#fbf5ea)、皮革深棕主操作(#5a3e2b 实底配白字,前景直接可用)、金色精品(#d4af37,浅底文字用 #7d641c)、深棕墨文字(#2e1e13)。后台侧栏深棕皮革渐变 + 金色 active。字体:Manrope + Cormorant Garamond + Noto Sans SC + IBM Plex Mono。圆角 8pt 网格,动效 ≤300ms 只用 transform/opacity。产品边界:只有域名展示和到期提醒,不含售卖/报价/求购/收藏。
 
 ### 组件生成提示词速查
 
@@ -343,7 +343,7 @@ viewBox="98 100 200 200"(居中优化版,logo 与 favicon 统一)
 
 - 固定配色,不随 `accent_color`/主题变色
 - 米白底裸放;深棕侧栏上加 `var(--surface)` 奶油底板
-- `PublicPage` 头部 `settings?.logo_url || "/logo.svg"`;`FeaturedDomainPage` 加载态与后台品牌标统一用 `.brand-mark-img`
+- `PublicPage` 头部 `settings?.logo_url || "/unusedomain-logo.png"`；`FeaturedDomainPage` 加载态与后台品牌标统一用 `.brand-mark-img`
 
 **动态品牌色注入**(`PublicPage.tsx`):`accent_color` 合法 6 位 hex 且**不在旧默认集** `{#2fbf9a, #c4a242, #b89530, #d4b252}` 时才注入 `--brand`;否则回退 CSS 深棕。
 

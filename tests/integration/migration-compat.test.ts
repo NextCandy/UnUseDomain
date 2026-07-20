@@ -60,8 +60,8 @@ describe("0016 历史生产兼容迁移", () => {
   let databasePath: string;
 
   beforeAll(async () => {
-    directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-migration-compat-"));
-    databasePath = path.join(directory, "wanmi.sqlite");
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "unusedomain-migration-compat-"));
+    databasePath = path.join(directory, "unusedomain.sqlite");
     const baseNames = [
       "0001_initial_schema.sql",
       "0002_leads_categories_indexes.sql",

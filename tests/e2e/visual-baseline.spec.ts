@@ -18,7 +18,7 @@ test.describe("视觉基线", () => {
     // reduce 下产品自身会走无动画退化分支（Hero 与其计数动画已删，保留此设置
     // 以稳定余下的 CSS 过渡与将来新增动画的截图）。
     await page.emulateMedia({ reducedMotion: "reduce" });
-    // 与 wanmi.spec.ts 保持一致：不依赖外网字体，否则截图随网络波动
+    // 与 unusedomain.spec.ts 保持一致：不依赖外网字体，否则截图随网络波动
     await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
     await page.route("https://fonts.gstatic.com/**", (route) => route.abort());
     // 首页精选区用 Math.random 洗牌（PublicPage.tsx:156），不固定住则每次截图都不同

@@ -1,4 +1,4 @@
-# WanMi HANDOFF
+# UnUseDomain HANDOFF
 
 ## 最新进度（2026-07-20 · Elegant Green Gold 雅致绿金主题）
 
@@ -8,10 +8,10 @@
 - 后台：登录页重做为深墨绿场景 + 左右分栏白卡（左品牌介绍区深绿 + 金点缀、右白表单，手机自动单栏）；侧栏深墨绿渐变（从 `--brand` color-mix 派生，accent 覆盖时整体跟随），active 为白 10% 底 + 左侧 3px 香槟金短条 + 金图标；概览统计卡白卡 + 顶部语义细线（总数墨绿/展示绿/隐藏灰/精品金）+ 语义数值色；表头米白 `--background-soft`、行悬停 `--surface-hover`。admin.css 的黑金基础层与浅色覆盖层合并为单层。
 - 概览 PV/UV 图修复既有 bug：UV 线原用 `var(--ink)`（浅色主题下=白色，白卡上不可见），改香槟金 `--gold-deep` 作第二数据线。
 - accent_color 机制重做：新增 `src/client/lib/accent-color.ts`，历史默认色（含黑金 `#d8b638`、暖金 `#c4a242` 等 5 个）视为「未定制」清除覆盖；真自定义色整套派生 brand/strong/hover/bg/bg-strong/border/ring，配 5 项单测。新增迁移 `0022_elegant_green_accent.sql` 把历史默认值归一为 `#133429`（沿 0014 惯例，不动真自定义色）。**远程执行该迁移会把生产 accent_color 从 `#c4a242` 更新为 `#133429`，属主题配套变更。**
-- 品牌资产同步：`favicon.svg` 墨绿底白菱金芯；`manifest.webmanifest` theme_color `#133429`；`index.html` theme-color `#f6f5f0`；精品 OG 图由黑底金字改墨绿底金字。
+- 品牌资产同步：附件已生成 `unusedomain-logo.png`、多尺寸 PNG、`favicon.ico`、Apple Touch Icon 与 PWA 图标；`manifest.webmanifest` theme_color `#133429`；`index.html` theme-color `#f6f5f0`；精品 OG 图使用 UnUseDomain 品牌文字。
 - CSS 清理：删除 hero-*、header-discover、premium-corner、copy-button、group-tabs、section-kicker、mobile-stats、domain-featured-dot、keyword-pill/domain-keywords、copy-filter-link、contact-modal/contact-list/qr-code、domain-list-head、catalogue-intro、row-details、integration-details、bulk-keywords、status-list、highlighted 等确认死类（TSX 全量交叉验证，含动态拼接 `density-${…}`/`badge-…` 检查后保留活类）；棕色系历史阴影（rgba(64,42,20) 等 6 处）与纯黑阴影全部换绿倾向令牌；`--cream-*`、`--glow-gold`、`--gold-muted`、`--premium-fg`、`--ink`、`--foreground` 等死令牌删除；`--fg-3` 补定义（原引用 8 处但从未定义）。app.css 2110→1936 行，前台 CSS 产物 100.63→90.00KB（gzip 17.68→15.85）。
 - 已知限制：管理员在站点设置输入过浅的自定义强调色仍可能破坏主按钮白字对比度（schema 仅校验 hex 格式）；`--gold-bg`/`--gold-soft`/`--brand-secondary` 等主题 API 令牌暂无 CSS 引用，保留作设计系统接口。
-- 生产数据核验（经 Cloudflare MCP 只读查询）发现两处生产侧问题并已随本轮修复：① `site_settings.site_name` 仍是历史品牌 `DOMAIN HUNTER`（copyright 同），新增 `0023_unify_brand_names.sql` 精确匹配修正为 `WanMi` / `© WanMi · 玩米`；② 生产 `/logo.svg`（藏蓝橙点图形）不在 git 中——是上次部署时构建机上未跟踪的本地文件被打进产物，下次从 git 构建部署必然 404 导致页首 Logo 死链，已新增绿金品牌 `public/logo.svg`（与 favicon 同构）补位。
+- 生产品牌已由 `0026_unusedomain_rebrand.sql` 统一为 `UnUseDomain`，并将 Logo、Favicon 与版权指向仓库内的附件衍生静态资源；旧品牌迁移只作为兼容历史保留。
 - 部署前备份：本地 wrangler OAuth 过期无法跑 `pnpm db:backup`，改经 Cloudflare MCP 完成增量逻辑备份 `backups/wanmi-20260720-mcp-pre-green-gold.sql`——以 7-17 全量备份为基线，全表 `updated_at` 核验后仅 3 行变更（mx.ooo、site_settings、notification_settings），两份文件合并即完整现状；敏感表（sessions/密码哈希/渠道密文）本次部署零触碰，由 D1 Time Travel 30 天兜底。
 
 ## 前序进度（2026-07-18 · Dark Vault 改版 + 国内访问卡顿修复）
@@ -60,7 +60,7 @@
 - 品牌声明句修正：`862 个精选域名` 改为 `N 个域名，覆盖 M 个后缀，其中 K 个精选`（862 是全部，87 才是精选）。
 - 生产 `site_settings.accent_color` 已是 `#c4a242` 与 `--gold` 一致，无需变更；`pnpm check` 全绿；桌面/手机/暗色/速览/详情页截图人工复核通过。
 
-## 前序进度（2026-07-17 · wanmi-final-prompt 方案落地）
+## 前序进度（2026-07-17 · unusedomain-final-prompt 方案落地）
 
 - 依用户提供的最终优化方案执行，先逐项核实再实施；两项方案内容已过时（列表页 ItemList JSON-LD 与卡片 hover 位移均已存在），一项明确拒绝：LXGW WenKai（楷体风格与目录信息密度矛盾，3MB + font-display:optional 意味着慢网用户白下载还看不到；保持系统中文字体回退）。
 - 字体替换：display 字体 Instrument Serif → Cormorant Garamond（tokens/--font-display、fonts.css 由 fetch-fonts 重新生成、og.ts 的 TTF 与 font-family、api.test.ts 同步、旧文件删除、OFL 补齐）。fetch-fonts.ts 新增 EXTRA_TTF：用旧版 UA 请求 css2 拿 gstatic 静态 Regular TTF（290KB，google/fonts 仓库只有 1.1MB 变量字体，resvg 吃静态更稳）。
@@ -155,7 +155,7 @@
 - SEO 已包含详情页 canonical、Open Graph、Twitter Card 和 Product JSON-LD；动态 OG 接口 `/api/public/og/:domain` 返回 1200×630 PNG，并缓存 1 小时。
 - `sitemap.xml` 当前包含首页与 87 个精品详情页，共 88 条 URL；速览弹窗仅为精品域名显示“查看详情页”链接。
 - 桌面与 390px 手机视口已核验；长域名会换行且没有横向溢出，页脚内容保持居中。
-- `pnpm check` 通过：13 个 Vitest 文件、78 项测试全部成功；新增公开链路 Playwright E2E 在本地和 `https://wanmi.org` 均通过。
+- `pnpm check` 通过：13 个 Vitest 文件、78 项测试全部成功；新增公开链路 Playwright E2E 在本地和 `https://unusedomain.com` 均通过。
 - GitHub `main` 功能提交为 `a82418e`；本次功能验收时的 Cloudflare 生产版本为 `ca31cbfb-9be2-471a-b921-f9ed8d6bf6e7`，生产验收脚本已通过。
 
 ## 前序背景

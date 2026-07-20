@@ -10,8 +10,8 @@ describe("0017 域名关键词兼容迁移", () => {
   let databasePath: string;
 
   beforeAll(async () => {
-    directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-keywords-migration-"));
-    databasePath = path.join(directory, "wanmi.sqlite");
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "unusedomain-keywords-migration-"));
+    databasePath = path.join(directory, "unusedomain.sqlite");
     const names = (await fs.readdir("migrations"))
       .filter((name) => name.endsWith(".sql") && name < "0017_domain_keywords_field.sql")
       .sort();

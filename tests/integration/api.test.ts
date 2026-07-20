@@ -16,7 +16,7 @@ async function readAllMigrations(): Promise<string> {
   return contents.join("\n");
 }
 
-describe.sequential("WanMi API 集成", () => {
+describe.sequential("UnUseDomain API 集成", () => {
   let directory: string;
   let env: Env;
   let cookie = "";
@@ -26,14 +26,14 @@ describe.sequential("WanMi API 集成", () => {
   const password = "Integration-Test-Password-2026";
 
   beforeAll(async () => {
-    directory = await fs.mkdtemp(path.join(os.tmpdir(), "wanmi-api-"));
-    const databasePath = path.join(directory, "wanmi.sqlite");
+    directory = await fs.mkdtemp(path.join(os.tmpdir(), "unusedomain-api-"));
+    const databasePath = path.join(directory, "unusedomain.sqlite");
     const [migration, source, htmlShell, cormorantGaramond, notoSansSc] = await Promise.all([
       readAllMigrations(),
-      fs.readFile("data/source/WanMi.csv", "utf8"),
+      fs.readFile("data/source/UnUseDomain.csv", "utf8"),
       fs.readFile("index.html", "utf8"),
       fs.readFile("public/fonts/CormorantGaramond-Regular.ttf"),
-      fs.readFile("public/fonts/NotoSansSC-WanMi.ttf"),
+      fs.readFile("public/fonts/NotoSansSC-UnUseDomain.ttf"),
     ]);
     executeSql(databasePath, migration);
     const records = parseDomainCsv(source).records;
@@ -53,7 +53,7 @@ describe.sequential("WanMi API 集成", () => {
         fetch: (input: RequestInfo | URL) => {
           const requestUrl = new URL(input instanceof Request ? input.url : String(input));
           if (requestUrl.pathname === "/fonts/CormorantGaramond-Regular.ttf") return Promise.resolve(assetResponse(cormorantGaramond, "font/ttf"));
-          if (requestUrl.pathname === "/fonts/NotoSansSC-WanMi.ttf") return Promise.resolve(assetResponse(notoSansSc, "font/ttf"));
+          if (requestUrl.pathname === "/fonts/NotoSansSC-UnUseDomain.ttf") return Promise.resolve(assetResponse(notoSansSc, "font/ttf"));
           return Promise.resolve(new Response(htmlShell, { headers: { "Content-Type": "text/html; charset=utf-8" } }));
         },
       } as unknown as Fetcher,
@@ -67,7 +67,7 @@ describe.sequential("WanMi API 集成", () => {
   it("SPA 文档允许品牌字体且 API 保持严格 CSP", async () => {
     const [documentResponse, productionDocumentResponse, apiResponse] = await Promise.all([
       request("/"),
-      app.request("https://wanmi.org/", {}, env),
+      app.request("https://unusedomain.com/", {}, env),
       request("/api/health"),
     ]);
     const documentPolicy = documentResponse.headers.get("content-security-policy") ?? "";
@@ -91,15 +91,15 @@ describe.sequential("WanMi API 集成", () => {
     expect(first.headers.get("cdn-cache-control")).toBe("no-store");
     expect(first.headers.get("cloudflare-cdn-cache-control")).toBe("no-store");
     expect(first.headers.get("clear-site-data")).toBe('"cache"');
-    expect(first.headers.get("x-wanmi-build")).toBe("domain-hunter-2026-07-19-v3");
+    expect(first.headers.get("x-unusedomain-build")).toBe("unusedomain-2026-07-20-v1");
     expect(first.headers.get("etag")).toBeNull();
 
     const cacheCookie = first.headers.get("set-cookie")?.split(";", 1)[0];
-    expect(cacheCookie).toBe("wanmi_html_cache=domain-hunter-2026-07-19-v3");
+    expect(cacheCookie).toBe("unusedomain_html_cache=unusedomain-2026-07-20-v1");
     const subsequent = await request("/admin", { headers: { Cookie: cacheCookie! } });
     expect(subsequent.headers.get("cache-control")).toBe("no-store, no-cache, must-revalidate");
     expect(subsequent.headers.get("clear-site-data")).toBeNull();
-    expect(subsequent.headers.get("x-wanmi-build")).toBe("domain-hunter-2026-07-19-v3");
+    expect(subsequent.headers.get("x-unusedomain-build")).toBe("unusedomain-2026-07-20-v1");
   });
 
   it("精品域名详情查询与 SSR 标记包含完整内容和两组推荐", async () => {
@@ -169,10 +169,10 @@ describe.sequential("WanMi API 集成", () => {
     const response = await request("/api/auth/login", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ email: "admin@example.com", password }) });
     expect(response.status).toBe(200);
     const setCookie = response.headers.get("set-cookie") ?? "";
-    const sessionValue = /wanmi_session=([^;]+)/.exec(setCookie)?.[1];
-    const csrfValue = /wanmi_csrf=([^;]+)/.exec(setCookie)?.[1];
+    const sessionValue = /unusedomain_session=([^;]+)/.exec(setCookie)?.[1];
+    const csrfValue = /unusedomain_csrf=([^;]+)/.exec(setCookie)?.[1];
     expect(sessionValue).toBeTruthy(); expect(csrfValue).toBeTruthy();
-    cookie = `wanmi_session=${sessionValue}; wanmi_csrf=${csrfValue}`;
+    cookie = `unusedomain_session=${sessionValue}; unusedomain_csrf=${csrfValue}`;
     csrf = decodeURIComponent(csrfValue!);
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("SameSite=Lax");
@@ -284,9 +284,9 @@ describe.sequential("WanMi API 集成", () => {
   });
 
   it("CSV API dry-run 完整解析本次数据", async () => {
-    const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+    const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
     const form = new FormData();
-    form.set("file", new File([source], "WanMi.csv", { type: "text/csv" }));
+    form.set("file", new File([source], "UnUseDomain.csv", { type: "text/csv" }));
     form.set("dryRun", "true");
     const response = await request("/api/admin/domains/import", {
       method: "POST",
@@ -300,7 +300,7 @@ describe.sequential("WanMi API 集成", () => {
   });
 
   it("CSV 预览区分新增与冲突，默认跳过不会归档文件外数据", async () => {
-    const source = "Domain,TLD\n02cloud.com,com\ncodexwanmi.com,com\n";
+    const source = "Domain,TLD\n02cloud.com,com\ncodexunusedomain.com,com\n";
     const headers = { Origin: origin, Cookie: cookie, "X-CSRF-Token": csrf };
     const previewForm = new FormData();
     previewForm.set("file", new File([source], "preview.csv", { type: "text/csv" }));
@@ -317,7 +317,7 @@ describe.sequential("WanMi API 集成", () => {
     expect(imported.data).toMatchObject({ inserted: 1, updated: 0, skipped: 1 });
     const all = await (await request("/api/public/domains?pageSize=1")).json() as { data: { total: number } };
     expect(all.data.total).toBe(860);
-    const added = await (await request("/api/public/domains?q=codexwanmi.com")).json() as { data: { items: Array<{ id: number }> } };
+    const added = await (await request("/api/public/domains?q=codexunusedomain.com")).json() as { data: { items: Array<{ id: number }> } };
     expect(added.data.items).toHaveLength(1);
     expect((await request(`/api/admin/domains/${added.data.items[0].id}`, { method: "DELETE", headers })).status).toBe(200);
     const restored = await (await request("/api/public/domains?pageSize=1")).json() as { data: { total: number } };

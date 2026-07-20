@@ -207,7 +207,7 @@ function parseMinimalDomainCsv(
 
 export function parseDomainCsv(
   csvText: string,
-  sourceFile = "WanMi.csv",
+  sourceFile = "UnUseDomain.csv",
 ): DomainCsvParseResult {
   const matrix = parse(csvText, {
     bom: true,

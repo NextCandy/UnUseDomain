@@ -1,6 +1,6 @@
 # Cloudflare 部署
 
-WanMi 使用单一 Cloudflare Worker：Vite 构建 React Static Assets，Hono 处理 `/api/*`、首页 SEO、`/sitemap.xml`、`robots.txt` 和旧 `/d/*` 重定向；D1 保存业务数据，R2 保存站点图片，Cron 每天 `01:00 UTC` 检查到期提醒。
+UnUseDomain 使用单一 Cloudflare Worker：Vite 构建 React Static Assets，Hono 处理 `/api/*`、首页 SEO、`/sitemap.xml`、`robots.txt` 和旧 `/d/*` 重定向；D1 保存业务数据，R2 保存站点图片，Cron 每天 `01:00 UTC` 检查到期提醒。
 
 ## 1. 认证与资源
 
@@ -12,12 +12,12 @@ pnpm exec wrangler whoami
 
 生产资源：
 
-- Worker：`wanmi`
-- D1：`wanmi-db`，绑定 `DB`
-- R2：`wanmi-assets`，绑定 `UPLOADS`
+- Worker：`wanmi`（保留的历史生产资源 ID）
+- D1：`wanmi-db`，绑定 `DB`（保留现有生产数据）
+- R2：`wanmi-assets`，绑定 `UPLOADS`（保留现有上传文件）
 - Static Assets：绑定 `ASSETS`
 - Cron：`0 1 * * *`
-- 域名：<https://wanmi.org>
+- 域名：<https://unusedomain.com>
 
 ## 2. Secret
 
@@ -46,7 +46,7 @@ pnpm verify:production
 
 必须先备份再迁移。`pnpm db:backup` 将完整 D1 导出到被 Git 忽略的 `backups/`；输出中的临时下载 URL 也不得粘贴到公开渠道。
 
-## 4. 当前迁移
+## 4. 历史关键迁移
 
 ### `0015_restore_domain_management_schema.sql`
 
@@ -56,7 +56,7 @@ pnpm verify:production
 
 ### `0016_remove_registrar_dns_leads.sql`
 
-这是当前唯一待执行迁移：
+该迁移已在生产环境执行，用于：
 
 - 规范化 `domains.registrar_name`；
 - 重建临时导入表为统一列名；
@@ -66,12 +66,16 @@ pnpm verify:production
 
 迁移前必须记录以下基线：域名总量、公开量、精品量、分类关联量、通知历史量，以及待删除表数量。迁移后再次执行同样查询，并确认 `PRAGMA foreign_key_check` 无结果。
 
+### `0026_unusedomain_rebrand.sql`
+
+当前品牌迁移会把站点名称、说明、Logo、favicon 与版权统一为 `UnUseDomain`，不会改动域名库存、联系方式、主题设置或通知配置。生产发布仍必须遵守“先备份、再迁移、最后部署并验收”的顺序。
+
 ## 5. 生产验收
 
 ```bash
-curl -fsS https://wanmi.org/api/health
-curl -fsS 'https://wanmi.org/api/public/domains?q=wanmi.org'
-curl -fsS 'https://wanmi.org/api/public/domains?pageSize=36'
+curl -fsS https://unusedomain.com/api/health
+curl -fsS 'https://unusedomain.com/api/public/domains?q=wanmi.org'
+curl -fsS 'https://unusedomain.com/api/public/domains?pageSize=36'
 pnpm verify:production
 ```
 
@@ -98,8 +102,8 @@ pnpm verify:production -- --write
 
 ## 当前生产状态
 
-- 发布日期：2026-07-15
-- Worker 版本：每次 `main` 自动部署都会变化，以最新 `WanMi Cloudflare` Actions 的 `deploy` 日志为准
+- 发布日期：2026-07-20
+- Worker 版本：每次 `main` 自动部署都会变化，以最新 `UnUseDomain Cloudflare` Actions 的 `deploy` 日志为准
 - 已核验数据：862 个域名、862 个公开、87 个精品、1992 条分类关联
 - 被删除业务表：`registrar_accounts`、`dns_records_cache`、`domain_leads`
-- 回滚备份：`backups/wanmi-20260715T043546Z.sql`（仅本机、Git 忽略）
+- 回滚备份：以本次执行 `pnpm db:backup` 生成的 `backups/unusedomain-*.sql` 为准（仅本机、Git 忽略）

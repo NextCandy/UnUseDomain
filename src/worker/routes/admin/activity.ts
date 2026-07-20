@@ -99,7 +99,7 @@ activityRoutes.get("/logs/export", async (c) => {
   return new Response(`\uFEFF${lines.join("\r\n")}\r\n`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="WanMi-logs-${date}.csv"`,
+      "Content-Disposition": `attachment; filename="UnUseDomain-logs-${date}.csv"`,
       "Cache-Control": "no-store",
     },
   });

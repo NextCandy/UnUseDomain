@@ -20,7 +20,7 @@ async function loadOgFonts(c: Context<AppBindings>): Promise<[Uint8Array, Uint8A
     const origin = new URL(c.req.url).origin;
     fontPromise = Promise.all([
       c.env.ASSETS.fetch(new Request(`${origin}/fonts/CormorantGaramond-Regular.ttf`)).then(loadFont),
-      c.env.ASSETS.fetch(new Request(`${origin}/fonts/NotoSansSC-WanMi.ttf`)).then(loadFont),
+      c.env.ASSETS.fetch(new Request(`${origin}/fonts/NotoSansSC-UnUseDomain.ttf`)).then(loadFont),
     ]).catch((error: unknown) => {
       fontPromise = null;
       throw error;
@@ -65,7 +65,7 @@ export async function renderFeaturedDomainOg(c: Context<AppBindings>): Promise<R
     <circle cx="82" cy="82" r="4" fill="#c89848"/>
     <text x="600" y="326" text-anchor="middle" dominant-baseline="middle" fill="#d8b66f" font-family="Cormorant Garamond" font-size="${fontSize}" font-weight="400" letter-spacing="-2">${safeDomain}</text>
     <line x1="516" y1="444" x2="684" y2="444" stroke="#3d6152" stroke-width="2"/>
-    <text x="600" y="508" text-anchor="middle" fill="#cfd9d3" font-family="Noto Sans SC" font-size="24" font-weight="600" letter-spacing="4">玩米 · 精选域名资产</text>
+    <text x="600" y="508" text-anchor="middle" fill="#cfd9d3" font-family="Noto Sans SC" font-size="24" font-weight="600" letter-spacing="4">UnUseDomain · 精选域名资产</text>
   </svg>`;
   const resvg = await Resvg.async(svg, {
     fitTo: { mode: "width", value: 1200 },

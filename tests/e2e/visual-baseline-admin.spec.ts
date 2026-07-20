@@ -47,6 +47,9 @@ test.describe("后台视觉基线", () => {
       await login(page);
       await page.locator(".stat-card").first().waitFor();
       await page.evaluate(() => document.fonts.ready);
+      // Recharts 会保留最近一次指针位置；即使遮罩 Tooltip，遮罩矩形本身也会随位置漂移。
+      // 视觉基线不验证 Tooltip 内容，直接隐藏其包装层，避免稳定复现的 1% 像素假阳性。
+      await page.addStyleTag({ content: ".recharts-tooltip-wrapper { visibility: hidden !important; }" });
       // 概览页有三处真实动态数据，遮盖内容但保留布局检测：
       // .stats-overview 今日 PV/UV 每次访问都增长（AdminApp.tsx:140）
       // .admin-two-columns 访客地区 visitors 与域名点击 clicks/相对时间同样随访问变化（AdminApp.tsx:141）
@@ -58,8 +61,6 @@ test.describe("后台视觉基线", () => {
           page.locator(".stats-overview"),
           page.locator(".admin-two-columns"),
           page.locator(".activity-list"),
-          // recharts Tooltip 会因指针残留在截图瞬间偶发渲染，遮盖避免抖动
-          page.locator(".recharts-tooltip-wrapper"),
         ],
       });
     });

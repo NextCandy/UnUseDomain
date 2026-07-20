@@ -4,7 +4,7 @@
 
 
 /* ============================================================
-   WanMi Design System · Warm Craft 拟物暖色主题 · v3.0
+   UnUseDomain Design System · Warm Craft 拟物暖色主题 · v3.0
    —— 颜色/圆角/阴影/动效全部由 token 驱动，组件内禁止硬编码色值
    —— --brand（皮革深棕）由站点设置动态注入（hex 覆盖），其余派生色 color-mix
    —— 米白纸感底 + 奶油卡片；主操作深棕实底配白字；精品/强调用金色
@@ -1060,7 +1060,7 @@ svg.lucide {
 }
 
 /* ============================================================
-   WanMi discovery 2026 · black-gold catalogue interaction layer
+   UnUseDomain discovery 2026 · black-gold catalogue interaction layer
    Keep this block last so it cleanly resolves historical catalogue CSS.
    ============================================================ */
 .visually-hidden {
@@ -1563,7 +1563,7 @@ svg.lucide {
 }
 
 /* ============================================================
-   WanMi 首页三段式展厅 · Hero / Featured / Catalogue
+   UnUseDomain 首页三段式展厅 · Hero / Featured / Catalogue
    仅使用 tokens.css 的黑金令牌；本区块保持在文件末尾以收敛历史前台样式。
    ============================================================ */
 .public-shell .public-header {
@@ -2026,7 +2026,7 @@ svg.lucide {
 }
 
 /* ============================================================
-   2026-07-17 · wanmi-final-prompt 方案落地
+   2026-07-17 · unusedomain-final-prompt 方案落地
    品牌声明区 / 后台入口弱化 / 移动筛选 grid / 速览与详情微调
    ============================================================ */
 .brand-statement {

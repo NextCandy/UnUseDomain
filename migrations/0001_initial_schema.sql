@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
 INSERT OR IGNORE INTO site_settings (
   id, site_name, site_description, accent_color, display_density, featured_first, show_prices
 ) VALUES (
-  1, 'WanMi', '发现值得珍藏的域名', '#f97316', 'comfortable', 1, 0
+  1, 'UnUseDomain', 'Unused Domains List', '#133429', 'comfortable', 1, 0
 );
 
 CREATE TABLE IF NOT EXISTS notification_settings (

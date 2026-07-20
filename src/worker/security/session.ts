@@ -4,8 +4,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { AppBindings, AuthUser, Env } from "../types";
 import { hashPassword, hmacSha256, randomToken } from "./crypto";
 
-export const SESSION_COOKIE = "wanmi_session";
-export const CSRF_COOKIE = "wanmi_csrf";
+export const SESSION_COOKIE = "unusedomain_session";
+export const CSRF_COOKIE = "unusedomain_csrf";
 const SESSION_SECONDS = 7 * 24 * 60 * 60;
 
 interface AdminSessionRow {

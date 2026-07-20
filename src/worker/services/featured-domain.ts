@@ -56,7 +56,7 @@ function serializeRecommendation(row: RecommendationRow): FeaturedDomainRecommen
 }
 
 export function featuredDomainDescription(domain: FeaturedDomainRecord): string {
-  return domain.description || `${domain.domain} 是玩米精选域名资产，主体简洁、辨识度高，适合品牌、产品或数字项目使用。`;
+  return domain.description || `${domain.domain} 是 UnUseDomain 精选域名资产，主体简洁、辨识度高，适合品牌、产品或数字项目使用。`;
 }
 
 export async function loadFeaturedDomainDetail(db: D1Database, normalizedDomain: string): Promise<FeaturedDomainDetail | null> {
@@ -106,7 +106,7 @@ export async function loadFeaturedDomainDetail(db: D1Database, normalizedDomain:
     same_tld: (sameTldResult.results as unknown as RecommendationRow[]).map(serializeRecommendation),
     same_length: (sameLengthResult.results as unknown as RecommendationRow[]).map(serializeRecommendation),
     site: {
-      name: settings?.site_name || "玩米",
+      name: settings?.site_name || "UnUseDomain",
       description: settings?.site_description || "精选域名资产展示",
       logo_url: settings?.logo_url ?? null,
       favicon_url: settings?.favicon_url ?? null,
@@ -147,7 +147,7 @@ export function renderFeaturedDomainSsr(detail: FeaturedDomainDetail): string {
 
   return `<div class="featured-detail-shell" data-featured-detail-ssr>
     <header class="featured-detail-header">
-      <a class="brand" href="/" aria-label="${escapeHtml(detail.site.name)}首页"><img src="${escapeHtml(detail.site.logo_url || "/logo.svg")}" alt="" decoding="async" /><span>${escapeHtml(detail.site.name)}</span></a>
+      <a class="brand" href="/" aria-label="${escapeHtml(detail.site.name)}首页"><img src="${escapeHtml(detail.site.logo_url || "/unusedomain-logo.png")}" alt="" decoding="async" /><span>${escapeHtml(detail.site.name)}</span></a>
       <nav aria-label="详情页导航"><a href="/">首页</a><a href="/domains">域名目录</a></nav>
       <a class="featured-detail-browse" href="/domains">浏览全部域名</a>
     </header>
@@ -173,6 +173,6 @@ export function renderFeaturedDomainSsr(detail: FeaturedDomainDetail): string {
         ${detailRecommendationMarkup(`同为 ${domain.character_count} 字符`, detail.same_length)}
       </section>
     </main>
-    <footer class="featured-detail-footer"><span>${escapeHtml(detail.site.name)} · 精选域名资产</span><a href="/">wanmi.org</a></footer>
+    <footer class="featured-detail-footer"><span>${escapeHtml(detail.site.name)} · 精选域名资产</span><a href="/">unusedomain.com</a></footer>
   </div>`;
 }

@@ -39,7 +39,7 @@ export function FeaturedDomainPage() {
   useTracker(window.location.pathname);
 
   if (!detail) {
-    return <div className="app-loading"><img className="brand-mark-img" src="/logo.svg" alt="玩米" /><p>正在打开精选域名…</p></div>;
+    return <div className="app-loading"><img className="brand-mark-img" src="/unusedomain-logo.png" alt="UnUseDomain" /><p>正在打开精选域名…</p></div>;
   }
 
   const domain = detail.domain;
@@ -49,7 +49,7 @@ export function FeaturedDomainPage() {
   return (
     <div className="featured-detail-shell">
       <header className="featured-detail-header">
-        <a className="brand" href="/" aria-label={`${detail.site.name}首页`}>{detail.site.logo_url ? <img src={detail.site.logo_url} alt="" decoding="async" /> : <img className="brand-mark-img" src="/logo.svg" alt="" decoding="async" />}<span>{detail.site.name}</span></a>
+        <a className="brand" href="/" aria-label={`${detail.site.name}首页`}>{detail.site.logo_url ? <img src={detail.site.logo_url} alt="" decoding="async" /> : <img className="brand-mark-img" src="/unusedomain-logo.png" alt="" decoding="async" />}<span>{detail.site.name}</span></a>
         <nav aria-label="详情页导航"><a href="/">首页</a><a href="/domains">域名目录</a></nav>
         <a className="featured-detail-browse" href="/domains">浏览全部域名</a>
       </header>
@@ -75,7 +75,7 @@ export function FeaturedDomainPage() {
           <RecommendationGroup title={`同为 ${domain.character_count} 字符`} items={detail.same_length} />
         </section>
       </main>
-      <footer className="featured-detail-footer"><span>{detail.site.name} · 精选域名资产</span><a href="/">wanmi.org</a></footer>
+      <footer className="featured-detail-footer"><span>{detail.site.name} · 精选域名资产</span><a href="/">unusedomain.com</a></footer>
     </div>
   );
 }

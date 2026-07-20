@@ -26,7 +26,7 @@ function localCredentials(): { email: string; password: string } {
   return { email: vars.ADMIN_EMAIL, password: vars.BOOTSTRAP_ADMIN_PASSWORD };
 }
 
-test.describe.serial("WanMi 生产流程", () => {
+test.describe.serial("UnUseDomain 生产流程", () => {
   test.beforeEach(async ({ page }) => {
     await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
     await page.route("https://fonts.gstatic.com/**", (route) => route.abort());
@@ -75,12 +75,12 @@ test.describe.serial("WanMi 生产流程", () => {
       await route.fulfill({ response, json: { ...body, data: { ...body.data, contact_email: "955555@gmail.com", contact_x: "iWangGang", contact_qq: "307203" } } });
     });
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveTitle("WanMi · 域名展示");
-    await expect(page.locator('meta[name="wanmi-build"]')).toHaveAttribute("content", "elegant-green-gold-2026-07-20-v4");
+    await expect(page).toHaveTitle("UnUseDomain · 域名展示");
+    await expect(page.locator('meta[name="unusedomain-build"]')).toHaveAttribute("content", "unusedomain-2026-07-20-v1");
     await expect(page.locator(".domain-total-pill")).toHaveText("859 个域名");
-    await expect(page.locator(".public-header .brand-title")).toHaveText("WanMi");
+    await expect(page.locator(".public-header .brand-title")).toHaveText("UnUseDomain");
     await expect(page.locator(".public-header .brand-title")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "WanMi", exact: true })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "UnUseDomain", exact: true })).toHaveCount(1);
     await expect(page.locator(".brand-statement, .hero-stats")).toHaveCount(0);
     await expect(page.getByRole("group", { name: "状态筛选" })).toHaveCount(0);
     await expect(page.getByText("DOMAIN ASSET GALLERY", { exact: true })).toHaveCount(0);
@@ -191,8 +191,8 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.getByRole("link", { name: "在 X 联系 iWangGang" })).toHaveAttribute("href", "https://x.com/iWangGang");
     await expect(page.getByRole("link", { name: "通过 QQ 联系 307203" })).toHaveAttribute("href", "https://wpa.qq.com/msgrd?v=3&uin=307203&site=qq&menu=yes");
     await expect(page.locator(".public-footer .contact-icons-wrap")).toHaveCount(0);
-    await expect(page.locator(".footer-logo")).toHaveAttribute("src", "/logo.svg");
-    await expect(page.locator(".footer-copyright")).toHaveText("© WanMi · 玩米");
+    await expect(page.locator(".footer-logo")).toHaveAttribute("src", "/unusedomain-logo.png");
+    await expect(page.locator(".footer-copyright")).toHaveText("© 2026 UnUseDomain. All rights reserved.");
     const footerGeometry = await page.locator(".public-footer").evaluate((footer) => {
       const logo = footer.querySelector(".footer-logo")!.getBoundingClientRect();
       const content = footer.querySelector(".footer-copyright")!.getBoundingClientRect();
@@ -234,7 +234,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".brand-statement")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "WanMi", level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "UnUseDomain", level: 1 })).toHaveCount(1);
     await expect(page.locator(".public-header .brand-title")).toBeVisible();
     await expect(page.locator(".public-header .brand-icon")).toBeVisible();
     await expect(page.locator(".public-header .header-actions")).toBeHidden();
@@ -243,7 +243,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.locator(".domain-list.compact-view")).toBeVisible();
     await expect(page.locator(".domain-list.card-view")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "移动端快捷导航" })).toHaveCount(0);
-    await expect(page.locator(".footer-copyright")).toHaveText("© WanMi · 玩米");
+    await expect(page.locator(".footer-copyright")).toHaveText("© 2026 UnUseDomain. All rights reserved.");
     expect(await page.locator(".toolbar-filters option:checked").allInnerTexts()).toEqual(["分类", "后缀", "位数", "排序"]);
     const metrics = await page.evaluate(() => ({
       viewportWidth: window.innerWidth,
@@ -256,7 +256,7 @@ test.describe.serial("WanMi 生产流程", () => {
 
   test("前台搜索历史、空结果推荐与筛选链接可以完整复用", async ({ page, context }) => {
     await page.addInitScript(() => {
-      window.localStorage.setItem("wanmi-search-history", JSON.stringify({
+      window.localStorage.setItem("unusedomain-search-history", JSON.stringify({
         version: 1,
         items: ["wanmi.org", "02cloud.com", "mx.ooo", "aa.am", "ai.cat", "extra.example"],
       }));
@@ -272,7 +272,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page).toHaveURL(/q=wanmi\.org/);
     await expect(page.getByTitle("复制 wanmi.org")).toBeVisible();
 
-    await search.fill("definitely-no-such-wanmi-domain");
+    await search.fill("definitely-no-such-unusedomain-domain");
     await page.getByRole("button", { name: "搜索", exact: true }).click();
     await expect(page.getByRole("heading", { name: "未找到匹配的域名" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "试试这些精选域名" })).toBeVisible();
@@ -287,7 +287,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await search.focus();
     await page.getByRole("button", { name: "清除搜索历史" }).click();
     await expect(page.locator(".search-history")).toHaveCount(0);
-    expect(await page.evaluate(() => window.localStorage.getItem("wanmi-search-history"))).toBe('{"version":1,"items":[]}');
+    expect(await page.evaluate(() => window.localStorage.getItem("unusedomain-search-history"))).toBe('{"version":1,"items":[]}');
   });
 
   test("前台位数筛选、搜索历史与域名速览", async ({ page }) => {
@@ -329,8 +329,8 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.getByLabel("密码").fill(credentials.password);
     await page.getByRole("button", { name: "登录", exact: true }).click();
     await expect(page.getByRole("heading", { name: "概览", exact: true })).toBeVisible();
-    await expect(page.locator(".admin-brand")).toContainText("WanMi");
-    await expect(page.locator(".admin-header")).toContainText("WanMi 管理后台");
+    await expect(page.locator(".admin-brand")).toContainText("UnUseDomain");
+    await expect(page.locator(".admin-header")).toContainText("UnUseDomain 管理后台");
     await expect(page.getByRole("link", { name: "查看前台" })).toHaveText("");
     await expect(page.getByRole("link", { name: "查看前台" }).locator("svg")).toHaveCount(1);
     const adminNavigation = page.locator(".admin-sidebar nav");
@@ -347,11 +347,11 @@ test.describe.serial("WanMi 生产流程", () => {
     await expect(page.locator(".quick-actions button").filter({ hasText: "导出 CSV" })).toBeVisible();
 
     await adminNavigation.getByRole("button", { name: "站点设置", exact: true }).click();
-    await expect(page.getByLabel("站点名称")).toHaveValue("WanMi");
-    await expect(page.getByLabel("站点 Slogan")).toHaveValue("精选域名资产展示");
-    await expect(page.locator(".upload-card").nth(0).locator("img")).toHaveAttribute("src", "/logo.svg");
-    await expect(page.locator(".upload-card").nth(1).locator("img")).toHaveAttribute("src", "/favicon.svg");
-    await expect(page.getByLabel("版权文字")).toHaveValue("© WanMi · 玩米");
+    await expect(page.getByLabel("站点名称")).toHaveValue("UnUseDomain");
+    await expect(page.getByLabel("站点 Slogan")).toHaveValue("Unused Domains List");
+    await expect(page.locator(".upload-card").nth(0).locator("img")).toHaveAttribute("src", "/unusedomain-logo.png");
+    await expect(page.locator(".upload-card").nth(1).locator("img")).toHaveAttribute("src", "/favicon-32x32.png");
+    await expect(page.getByLabel("版权文字")).toHaveValue("© 2026 UnUseDomain. All rights reserved.");
     await expect(page.getByText("页首显示管理入口", { exact: true })).toBeVisible();
     await expect(page.getByText("页脚显示管理入口", { exact: true })).toHaveCount(0);
 
@@ -386,7 +386,7 @@ test.describe.serial("WanMi 生产流程", () => {
     await page.locator('input[type="file"]').setInputFiles({
       name: "preview.csv",
       mimeType: "text/csv",
-      buffer: Buffer.from("Domain,TLD\n02cloud.com,com\ncodexwanmi.com,com\n"),
+      buffer: Buffer.from("Domain,TLD\n02cloud.com,com\ncodexunusedomain.com,com\n"),
     });
     const preview = page.getByRole("dialog", { name: /确认导入 preview\.csv/ });
     await expect(preview).toBeVisible();

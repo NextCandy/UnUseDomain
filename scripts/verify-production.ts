@@ -89,7 +89,7 @@ async function eventually<T>(
   throw new Error(message);
 }
 
-const origin = (process.env.WANMI_ORIGIN ?? "https://wanmi.org").replace(/\/$/, "");
+const origin = (process.env.UNUSEDOMAIN_ORIGIN ?? "https://unusedomain.com").replace(/\/$/, "");
 const write = process.argv.includes("--write");
 
 const [health, settings, domains, facets, rootResponse, featuredDetailResponse, ordinaryDetailResponse, ogResponse, sitemapResponse, adminResponse] = await Promise.all([
@@ -164,7 +164,7 @@ const report: Record<string, unknown> = {
 };
 
 if (write) {
-  invariant(origin === "https://wanmi.org" || process.env.WANMI_ALLOW_WRITE_ORIGIN === "1", "非生产域名写入需显式设置 WANMI_ALLOW_WRITE_ORIGIN=1");
+  invariant(origin === "https://unusedomain.com" || process.env.UNUSEDOMAIN_ALLOW_WRITE_ORIGIN === "1", "非生产域名写入需显式设置 UNUSEDOMAIN_ALLOW_WRITE_ORIGIN=1");
   const email = process.env.ADMIN_EMAIL;
   const password = process.env.ADMIN_PASSWORD;
   invariant(email && password, "写入冒烟需要 ADMIN_EMAIL 与 ADMIN_PASSWORD");
@@ -175,11 +175,11 @@ if (write) {
     body: JSON.stringify({ email, password }),
   });
   const setCookies = splitSetCookies(login.response.headers);
-  const session = cookieValue(setCookies, "wanmi_session");
-  const csrfCookie = cookieValue(setCookies, "wanmi_csrf");
+  const session = cookieValue(setCookies, "unusedomain_session");
+  const csrfCookie = cookieValue(setCookies, "unusedomain_csrf");
   invariant(session && csrfCookie, "登录响应缺少安全 Cookie");
   const csrf = decodeURIComponent(csrfCookie);
-  const authenticatedHeaders = { Cookie: `wanmi_session=${session}; wanmi_csrf=${csrfCookie}` };
+  const authenticatedHeaders = { Cookie: `unusedomain_session=${session}; unusedomain_csrf=${csrfCookie}` };
   const writeHeaders = { ...authenticatedHeaders, Origin: origin, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
   const nonce = Date.now().toString(36);
   const temporaryDomain = `codex-qa-${nonce}.com`;

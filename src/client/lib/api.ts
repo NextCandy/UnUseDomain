@@ -13,7 +13,7 @@ export class ApiError extends Error {
 }
 
 function csrfToken(): string | null {
-  const match = document.cookie.match(/(?:^|; )wanmi_csrf=([^;]*)/);
+  const match = document.cookie.match(/(?:^|; )unusedomain_csrf=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
@@ -44,7 +44,7 @@ export async function download(url: string): Promise<void> {
   }
   const blob = await response.blob();
   const disposition = response.headers.get("content-disposition") ?? "";
-  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "WanMi-export.csv";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? "UnUseDomain-export.csv";
   const anchor = document.createElement("a");
   const objectUrl = URL.createObjectURL(blob);
   anchor.href = objectUrl;

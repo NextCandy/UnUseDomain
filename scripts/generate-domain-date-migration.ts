@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import { parse } from "csv-parse/sync";
 
-const source = await fs.readFile("data/source/WanMi.csv", "utf8");
+const source = await fs.readFile("data/source/UnUseDomain.csv", "utf8");
 const rows: Array<Record<string, string>> = parse(source, { columns: true, bom: true, skip_empty_lines: true });
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 const isoDate = (value: string) => {
