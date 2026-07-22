@@ -101,7 +101,7 @@ function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
       <div className="domain-name"><a id={`domain-${domain.id}`} href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer nofollow"><strong>{domain.name}</strong><span className="domain-tld">.{domain.tld}</span></a></div>
       {domain.description ? <p className="domain-description annotation-target annotation-target-description">{domain.description}</p> : <p className="domain-description placeholder annotation-target annotation-target-description" aria-hidden="true" />}
       <div className="card-expiry-row">
-        <span className="registration-range">
+        <span className={`registration-range${registeredOn && expiresOn ? "" : " date-unknown"}`}>
           {registeredOn && expiresOn ? `${registeredOn}-${expiresOn}` : "日期待补充"}
         </span>
         <span className={`remaining-days annotation-target annotation-target-remaining${expired ? " is-expired" : urgent ? " is-urgent" : warning ? " is-warning" : remaining === null ? " expiry-unknown" : ""}`}>
