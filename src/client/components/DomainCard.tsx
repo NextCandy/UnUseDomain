@@ -39,6 +39,8 @@ function ageInYears(value: string | null): number | null {
 
 const WARNING_DAYS = 30;
 const URGENT_DAYS = 7;
+/** 手机紧凑列表一行放两条；含后缀超过这个字符数的域名改为独占整行 */
+const HALF_ROW_MAX_CHARS = 15;
 
 function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
   const tld = domain.domain.split(".").at(-1) || domain.tld;
@@ -51,7 +53,7 @@ function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
   const age = ageInYears(domain.registered_at);
 
   return (
-    <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}`} aria-labelledby={`domain-${domain.id}`}>
+    <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}${domain.domain.length > HALF_ROW_MAX_CHARS ? " full-row" : ""}`} aria-labelledby={`domain-${domain.id}`}>
       <div className="card-badge-row">
         {domain.is_featured ? <span className="featured-star" aria-label="Featured" title="Featured"><Star aria-hidden="true" /></span> : null}
         <span className="tld-badge">.{tld}</span>

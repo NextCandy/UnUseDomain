@@ -2325,26 +2325,31 @@ svg.lucide {
   .public-shell .filter-search .search-submit {
     width: 58px; min-width: 58px; max-width: 58px; min-height: 44px; padding-inline: 8px; border-radius: 0 10px 10px 0;
   }
-  .public-shell .toolbar-filters { gap: 6px; }
-  .public-shell .toolbar-filters label { min-height: 40px; border-radius: 10px; }
-  .public-shell .toolbar-filters select { height: 40px; min-height: 40px; padding: 0 24px 0 6px; font-size: 11px; }
   .public-shell .toolbar-summary { min-height: 28px; gap: 8px; font-size: 11px; }
   .public-shell .clear-filter { min-height: 28px; padding-inline: 4px; }
   /* 手机域名条只留域名 + 简介 + 查看：后缀徽章、剩余天数、复制按钮全部收起 */
-  .public-shell .domain-list.compact-view { gap: 6px; }
+  /* 一行两条；含后缀超过 15 字符的域名占满整行。dense 让后面的短域名回填
+     长域名跳过留下的半格，不必在 JS 里重排列表。 */
+  .public-shell .domain-list.compact-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row dense;
+    gap: 6px;
+  }
+  .public-shell .domain-list.compact-view .domain-card.full-row { grid-column: 1 / -1; }
   .public-shell .domain-list.compact-view .domain-card,
   .public-shell .domain-list.compact-view .domain-card:not(:has(.domain-keywords)) {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "name view";
     align-items: center;
     min-height: 0;
-    padding: 8px 12px;
-    gap: 2px 10px;
+    padding: 8px 6px;
+    gap: 2px 5px;
     border: 1px solid var(--border);
     border-radius: 13px;
     background: var(--surface);
     contain-intrinsic-size: 0 54px;
   }
+  .public-shell .domain-list.compact-view .domain-card.full-row { padding: 8px 12px; gap: 2px 10px; }
   /* 有简介才补第二行，简介只占左列，查看按钮始终与域名齐平 */
   .public-shell .domain-list.compact-view .domain-card:has(.domain-description),
   .public-shell .domain-list.compact-view .domain-card:not(:has(.domain-keywords)):has(.domain-description) {
@@ -2355,8 +2360,22 @@ svg.lucide {
   .public-shell .domain-list.compact-view .tld-badge { display: none; }
   .public-shell .domain-list.compact-view .card-expiry-row { display: none; }
   .public-shell .domain-list.compact-view .domain-name { grid-area: name; align-self: center; }
-  .public-shell .domain-list.compact-view .domain-name strong { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
-  .public-shell .domain-list.compact-view .domain-name .domain-tld { font-family: var(--font-display); font-size: 16px; }
+  /* 半格只有约 110px 放域名。实测 15 字符在 14px 下最宽 106px，刚好一行读完；
+     再大一号就要吃省略号，所以这个字号是被阈值定死的，不要随手调大。 */
+  .public-shell .domain-list.compact-view .domain-name strong { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+  .public-shell .domain-list.compact-view .domain-name .domain-tld { font-family: var(--font-display); font-size: 11.5px; }
+  .public-shell .domain-list.compact-view .domain-card.full-row .domain-name strong { font-size: 20px; }
+  .public-shell .domain-list.compact-view .domain-card.full-row .domain-name .domain-tld { font-size: 16px; }
+  /* 半格不拆行。strong 与 tld 各自带着 white-space: normal 和 overflow-wrap:
+     anywhere，只在 a 上写 nowrap 会被它们盖掉，把 .com 甩到第二行，所以三个一起关。 */
+  .public-shell .domain-list.compact-view .domain-card:not(.full-row) .domain-name a,
+  .public-shell .domain-list.compact-view .domain-card:not(.full-row) .domain-name strong,
+  .public-shell .domain-list.compact-view .domain-card:not(.full-row) .domain-name .domain-tld {
+    white-space: nowrap; overflow-wrap: normal; word-break: normal;
+  }
+  .public-shell .domain-list.compact-view .domain-card:not(.full-row) .domain-name a {
+    overflow: hidden; text-overflow: ellipsis;
+  }
   .public-shell .domain-list.compact-view .domain-description {
     grid-area: desc; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
     margin: 0; min-height: 0; overflow: hidden; font-size: 12px; line-height: 1.45;
@@ -2365,7 +2384,10 @@ svg.lucide {
     grid-area: view; align-self: center; justify-content: flex-end; margin: 0; min-width: 0;
   }
   .public-shell .domain-list.compact-view .domain-actions button:first-child { display: none; }
-  .public-shell .domain-list.compact-view .domain-actions button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
+  .public-shell .domain-list.compact-view .domain-actions button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; }
+  .public-shell .domain-list.compact-view .domain-card.full-row .domain-actions button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
+  .public-shell .domain-list.compact-view .domain-description { font-size: 11px; }
+  .public-shell .domain-list.compact-view .domain-card.full-row .domain-description { font-size: 12px; }
 }
 
 .public-shell .pagination button.active {
@@ -2695,10 +2717,18 @@ svg.lucide {
   .public-shell .public-header .header-actions { display: none; }
   .public-shell .catalogue-layout { padding-top: 6px; }
   .public-shell .catalogue-toolbar { gap: 6px; padding: 8px; }
-  .public-shell .catalogue-toolbar .toolbar-controls { gap: 6px; }
+  /* 工具栏是 flex，控件列不撑开就只有内容宽（约 280px），四项挤不进一行 */
+  .public-shell .catalogue-toolbar .toolbar-controls { gap: 6px; flex: 1 1 100%; width: 100%; }
   .public-shell .catalogue-toolbar .toolbar-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .public-shell .catalogue-toolbar .toolbar-filters label { height: 38px; min-height: 38px; border-radius: 9px; }
+  .public-shell .catalogue-toolbar .toolbar-filters label::after { right: 5px; }
+  .public-shell .catalogue-toolbar .toolbar-filters select,
+  .public-shell .catalogue-toolbar .toolbar-filters .category-control select,
+  .public-shell .catalogue-toolbar .toolbar-filters .sort-control select {
+    height: 36px; min-height: 36px; padding: 0 13px 0 5px; font-size: 10.5px;
   }
   .public-shell .catalogue-toolbar .toolbar-summary { min-height: 28px; justify-content: flex-end; }
 }
