@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 
 import { ContactLinks } from "../../components/ContactIcons";
 import { DomainCard } from "../../components/DomainCard";
+import { FriendLinks } from "../../components/FriendLinks";
 import { DomainDetailDialog } from "../../components/DomainDetailDialog";
 import { Toast, type ToastMessage } from "../../components/Toast";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
@@ -11,7 +12,7 @@ import { applyAccentColor } from "../../lib/accent-color";
 import { api } from "../../lib/api";
 import { clearCatalogueCache, loadCatalogue } from "../../lib/catalogue-cache";
 import { copyText } from "../../lib/clipboard";
-import type { Paginated, PublicDomain, PublicHomeData } from "../../../shared/types/api";
+import type { FriendLink, Paginated, PublicDomain, PublicHomeData } from "../../../shared/types/api";
 
 interface SiteSettings {
   site_name: string;
@@ -32,6 +33,7 @@ interface SiteSettings {
   contact_x: string | null;
   contact_xiaohongshu: string | null;
   contact_qq: string | null;
+  friend_links: FriendLink[];
 }
 
 type SortKey = "default" | "added_desc" | "length_asc" | "length_desc" | "tld_asc" | "random";
@@ -353,7 +355,6 @@ export function PublicPage() {
           </a>
           <div className="header-actions">
             <span className="domain-total-pill" aria-label="域名总数">{facets ? facets.total_domains.toLocaleString("zh-CN") : "—"} 个域名</span>
-            <ContactLinks settings={settings} />
             {settings?.show_admin_link_in_footer && <a className="admin-link" href="/admin" aria-label="后台"><Settings aria-hidden="true" /></a>}
           </div>
         </div>
@@ -419,10 +420,12 @@ export function PublicPage() {
 
 
       <footer className="public-footer">
+        <FriendLinks links={settings?.friend_links} />
         <div className="footer-copyright">
           <img className="footer-logo" src={settings?.logo_url || "/unusedomain-logo.png"} alt={`${settings?.site_name ?? "UnUseDomain"} Logo`} decoding="async" />
           <span>{settings?.copyright_text ?? "© 2026 UnUseDomain. All rights reserved."}</span>
         </div>
+        <ContactLinks settings={settings} />
       </footer>
 
       <DomainDetailDialog domain={selectedDomain} candidates={catalogueItems} onClose={() => setSelectedDomain(null)} onCopy={copyDomain} onSelect={setSelectedDomain} />

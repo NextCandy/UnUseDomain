@@ -2,7 +2,7 @@ import { Hono } from "hono";
 
 import { AUTO_CATEGORY_ORDER } from "../../../shared/auto-classify";
 import { publicDomainQuerySchema } from "../../../shared/schemas/api";
-import type { PublicDomain } from "../../../shared/types/api";
+import type { FriendLink, PublicDomain } from "../../../shared/types/api";
 import { fail, ok } from "../../http";
 import { PUBLIC_CACHE_CONTROL } from "../../middleware/edge-cache";
 import { publicDefaultOrderSql } from "../../services/public-domain-order";
@@ -76,19 +76,25 @@ export const publicRoutes = new Hono<AppBindings>();
 publicRoutes.get("/og/:domain", renderFeaturedDomainOg);
 
 publicRoutes.get("/settings", async (c) => {
-  const settings = await c.env.DB.prepare(
-    `SELECT site_name, site_description, site_bio, logo_url, favicon_url, accent_color, display_density,
-      featured_first, copyright_text, icp_number, contact_email, contact_wechat,
-      contact_telegram, contact_whatsapp, contact_x, contact_xiaohongshu, contact_qq,
-      wechat_qr_url, show_admin_link_in_footer
-     FROM site_settings WHERE id = 1`,
-  ).first<SettingsRow>();
+  const [settings, friendLinks] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT site_name, site_description, site_bio, logo_url, favicon_url, accent_color, display_density,
+        featured_first, copyright_text, icp_number, contact_email, contact_wechat,
+        contact_telegram, contact_whatsapp, contact_x, contact_xiaohongshu, contact_qq,
+        wechat_qr_url, show_admin_link_in_footer
+       FROM site_settings WHERE id = 1`,
+    ).first<SettingsRow>(),
+    c.env.DB.prepare(
+      "SELECT id, name, url, logo_url, display_mode, sort_order FROM friend_links ORDER BY sort_order ASC, id ASC",
+    ).all<FriendLink>(),
+  ]);
   if (!settings) return fail(c, 503, "SETTINGS_UNAVAILABLE", "站点设置尚未初始化");
   c.header("Cache-Control", "no-store");
   return ok(c, {
     ...settings,
     featured_first: settings.featured_first === 1,
     show_admin_link_in_footer: settings.show_admin_link_in_footer === 1,
+    friend_links: friendLinks.results,
   });
 });
 

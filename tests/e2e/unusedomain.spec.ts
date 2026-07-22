@@ -159,15 +159,22 @@ test.describe.serial("UnUseDomain 生产流程", () => {
       const search = rect(".filter-search");
       const category = rect(".toolbar-filters .category-control");
       const footer = rect(".public-footer");
-      const contact = rect(".header-actions > .hero-contact-links");
+      // 联系方式已从页首移到页脚右栏，页首只剩域名总数与后台入口
+      const contact = rect(".public-footer > .hero-contact-links");
+      const friendLinks = rect(".public-footer > .footer-friend-links");
+      const copyright = rect(".public-footer > .footer-copyright");
       const contactLinks = [...document.querySelectorAll(".hero-contact-link")].map((element) => element.getBoundingClientRect());
       return {
         brandItemsCentered: Math.abs((logo.top + logo.bottom) / 2 - (title.top + title.bottom) / 2),
-        headerOrder: total.left > title.right && contact.left > total.right && admin.left > contact.right,
-        headerItemsCentered: [total, contact, admin].every((item) => Math.abs((item.top + item.bottom) / 2 - (logo.top + logo.bottom) / 2) <= 1),
+        headerOrder: total.left > title.right && admin.left > total.right,
+        headerHasNoContacts: document.querySelectorAll(".public-header .hero-contact-link").length,
+        headerItemsCentered: [total, admin].every((item) => Math.abs((item.top + item.bottom) / 2 - (logo.top + logo.bottom) / 2) <= 1),
         controlsShareTopEdge: Math.abs(search.top - category.top),
         controlsShareHeight: Math.abs(search.height - category.height),
-        footerCenterGap: Math.abs((footer.left + footer.right) / 2 - document.documentElement.clientWidth / 2),
+        // 页脚三栏：友情链接靠左、版权居中、联系方式靠右，且三栏在同一水平线
+        footerOrder: copyright.left > friendLinks.right && contact.left > copyright.right,
+        footerCopyrightCentered: Math.abs((copyright.left + copyright.right) / 2 - (footer.left + footer.right) / 2),
+        footerRowCentered: [friendLinks, contact].every((item) => Math.abs((item.top + item.bottom) / 2 - (copyright.top + copyright.bottom) / 2) <= 1),
         contactHeight: contact.height,
         totalHeight: total.height,
         contactsAreHorizontal: contactLinks.every((link, index) => index === 0 || link.left > contactLinks[index - 1].left),
@@ -177,10 +184,13 @@ test.describe.serial("UnUseDomain 生产流程", () => {
     });
     expect(frameGeometry.brandItemsCentered).toBeLessThanOrEqual(1);
     expect(frameGeometry.headerOrder).toBe(true);
+    expect(frameGeometry.headerHasNoContacts).toBe(0);
     expect(frameGeometry.headerItemsCentered).toBe(true);
     expect(frameGeometry.controlsShareTopEdge).toBeLessThanOrEqual(1);
     expect(frameGeometry.controlsShareHeight).toBeLessThanOrEqual(1);
-    expect(frameGeometry.footerCenterGap).toBeLessThanOrEqual(1);
+    expect(frameGeometry.footerOrder).toBe(true);
+    expect(frameGeometry.footerCopyrightCentered).toBeLessThanOrEqual(1);
+    expect(frameGeometry.footerRowCentered).toBe(true);
     expect(frameGeometry.contactHeight).toBeLessThanOrEqual(30);
     expect(frameGeometry.totalHeight).toBeLessThanOrEqual(32);
     expect(frameGeometry.contactsAreHorizontal).toBe(true);
@@ -198,8 +208,9 @@ test.describe.serial("UnUseDomain 生产流程", () => {
       const content = footer.querySelector(".footer-copyright")!.getBoundingClientRect();
       return { footerHeight: footer.getBoundingClientRect().height, footerWidth: footer.getBoundingClientRect().width, logoHeight: logo.height, contentWidth: content.width };
     });
-    expect(footerGeometry.footerHeight - footerGeometry.logoHeight).toBeLessThanOrEqual(12);
-    expect(footerGeometry.footerWidth - footerGeometry.contentWidth).toBeLessThanOrEqual(20);
+    // 页脚从居中胶囊改为三栏铺开，只约束行高不再贴着中栏宽度
+    expect(footerGeometry.footerHeight - footerGeometry.logoHeight).toBeLessThanOrEqual(24);
+    expect(footerGeometry.footerWidth).toBeGreaterThan(footerGeometry.contentWidth);
     const search = page.getByRole("textbox", { name: "搜索域名" });
     await search.fill("wanmi.org");
     await page.getByRole("button", { name: "搜索", exact: true }).click();

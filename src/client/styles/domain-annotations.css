@@ -9,6 +9,11 @@
 }
 
 @media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  .domain-annotation-layer {
+    /* 相邻两条标注浮现的间隔 */
+    --note-step: 110ms;
+  }
+
   .domain-card {
     isolation: isolate;
   }
@@ -36,7 +41,9 @@
     gap: 4px;
     max-width: calc(100% - 20px);
     color: var(--note-color);
-    font-family: "Segoe Print", "Bradley Hand", "Kaiti SC", "STKaiti", "KaiTi", cursive;
+    /* 楷体在前：它同时覆盖中文、数字和拉丁字母，字体栈里把英文手写体放前面会让
+       「剩余时间 640 天」的数字掉到另一套字形上，一条批注里出现两种手写风格。 */
+    font-family: "Kaiti SC", "STKaiti", "KaiTi", "Segoe Print", "Bradley Hand", cursive;
     font-size: 12px;
     font-weight: 600;
     line-height: 1.12;
@@ -56,23 +63,19 @@
   }
 
   .hand-note-label {
-    display: inline-block;
+    flex: 0 0 auto;
     padding: 1px 3px 0;
     border-radius: 3px;
     background: linear-gradient(transparent 45%, var(--note-bg) 45% 88%, transparent 88%);
   }
 
+  /* 简介可以很长，批注只占卡片一角，超出部分截断 */
   .hand-note-value {
-    display: inline-block;
-    max-width: 112px;
+    min-width: 0;
     overflow: hidden;
-    color: var(--fg-2);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0;
+    color: var(--fg);
+    font-weight: 700;
     text-overflow: ellipsis;
-    vertical-align: baseline;
   }
 
   .hand-note svg {
@@ -93,116 +96,111 @@
     transition: stroke-dashoffset var(--dur-3) var(--ease);
   }
 
+  /* 四角各占一条，宽度限死在半幅以内，长简介截断而不是把对角的批注顶开 */
+  .hand-note-tld,
+  .hand-note-remaining,
+  .hand-note-registrar,
+  .hand-note-description {
+    max-width: 46%;
+  }
+
   .hand-note-tld {
     --note-color: var(--info);
     --note-bg: var(--info-bg);
     --note-tilt: -4deg;
-    top: 8px;
-    left: 76px;
+    top: 30px;
+    left: 12px;
   }
 
   .hand-note-tld svg {
-    top: 7px;
-    right: calc(100% - 10px);
+    top: calc(100% - 6px);
+    left: calc(100% - 14px);
+  }
+
+  .hand-note-remaining {
+    --note-color: var(--warning);
+    --note-bg: var(--warning-bg);
+    --note-tilt: 3deg;
+    top: 30px;
+    right: 12px;
+  }
+
+  .hand-note-remaining svg {
+    top: calc(100% - 6px);
+    right: calc(100% - 14px);
+  }
+
+  .hand-note-registrar {
+    --note-color: var(--brand);
+    --note-bg: var(--brand-bg);
+    --note-tilt: 3deg;
+    bottom: 22px;
+    left: 12px;
+  }
+
+  .hand-note-registrar svg {
+    bottom: calc(100% - 6px);
+    left: calc(100% - 14px);
   }
 
   .hand-note-description {
     --note-color: var(--success);
     --note-bg: var(--success-bg);
-    --note-tilt: 3deg;
-    top: 88px;
-    right: 10px;
+    --note-tilt: -3deg;
+    bottom: 22px;
+    right: 12px;
   }
 
   .hand-note-description svg {
-    top: 8px;
-    right: calc(100% - 8px);
+    bottom: calc(100% - 6px);
+    right: calc(100% - 14px);
   }
 
-  /* 简介从卡片顶部排下来、到期行贴着底部，中间空隙随卡片高度伸缩，最矮的一档只剩 22.6px
-     （量到日期文字顶部，到期行本身还有 9.7px 内边距）。旁注按底边锚定落在这段空隙里。 */
-  .hand-note-registrar {
-    --note-color: var(--brand);
-    --note-bg: var(--brand-bg);
-    --note-tilt: -2deg;
-    bottom: 40px;
-    left: 10px;
-  }
-
-  /* 卡片 overflow:hidden，标注贴底会被裁切并压住「余 N 天」；到期行左半段
-     （日期与天数之间）是唯一够宽的空白，标注落在那里，箭头向右指。 */
-  .hand-note-remaining {
-    --note-color: var(--warning);
-    --note-bg: var(--warning-bg);
-    --note-tilt: -2deg;
-    right: 104px;
-    bottom: 20px;
-  }
-
-  .hand-note-remaining svg {
-    top: -9px;
-    left: calc(100% - 4px);
-    transform: scale(.72);
-    transform-origin: left center;
-  }
-
+  /* 批注浮在卡片原内容之上，把被它们覆盖的信息压暗，只留域名和操作按钮清晰——
+     四条箭头都回指域名，域名必须是视线落点。 */
   .tld-badge,
+  .category-badge,
   .domain-description,
-  .remaining-days {
-    transition:
-      box-shadow var(--dur-2) var(--ease),
-      background-color var(--dur-2) var(--ease),
-      color var(--dur-2) var(--ease);
+  .card-expiry-row {
+    transition: opacity var(--dur-2) var(--ease);
   }
 
+  .domain-card:hover .tld-badge,
+  .domain-card:focus-within .tld-badge,
+  .domain-card:hover .category-badge,
+  .domain-card:focus-within .category-badge,
+  .domain-card:hover .domain-description,
+  .domain-card:focus-within .domain-description,
+  .domain-card:hover .card-expiry-row,
+  .domain-card:focus-within .card-expiry-row {
+    opacity: .14;
+  }
+
+  /* 次序由 --note-order 驱动（DomainCard 按实际渲染出的标注编号），不写死在 class 上，
+     否则简介或注册商缺席时中间会空出一拍。移出时不设延迟，四条一起收。 */
   .domain-card:hover .hand-note,
   .domain-card:focus-within .hand-note {
     opacity: 1;
     transform: translateY(0) rotate(var(--note-tilt, -2deg));
+    transition-delay: calc(var(--note-order, 0) * var(--note-step));
   }
 
+  /* 笔画比字略晚起笔，读起来像先写字再画箭头 */
   .domain-card:hover .hand-note path,
   .domain-card:focus-within .hand-note path {
     stroke-dashoffset: 0;
+    transition-delay: calc(var(--note-order, 0) * var(--note-step) + 70ms);
   }
 
-  .domain-card:hover .hand-note-description,
-  .domain-card:focus-within .hand-note-description {
-    transition-delay: 35ms;
-  }
-
-  .domain-card:hover .hand-note-registrar,
-  .domain-card:focus-within .hand-note-registrar {
-    transition-delay: 70ms;
-  }
-
-  .domain-card:hover .hand-note-remaining,
-  .domain-card:focus-within .hand-note-remaining {
-    transition-delay: 105ms;
-  }
-
-  .domain-card:hover .tld-badge,
-  .domain-card:focus-within .tld-badge {
-    box-shadow: inset 0 -.7em 0 var(--info-bg);
-  }
-
-  .domain-card:hover .domain-description,
-  .domain-card:focus-within .domain-description {
-    box-shadow: inset 0 -1.05em 0 var(--success-bg);
-  }
-
-  .domain-card:hover .remaining-days,
-  .domain-card:focus-within .remaining-days {
-    box-shadow: inset 0 -.8em 0 var(--warning-bg);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hand-note,
   .hand-note path,
   .tld-badge,
+  .category-badge,
   .domain-description,
-  .remaining-days {
+  .card-expiry-row {
     transition: none !important;
   }
 }

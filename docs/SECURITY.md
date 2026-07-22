@@ -25,9 +25,16 @@
 - 日志不记录密码、完整 Token、API Key 或加密主密钥。
 - 注册商 API 账户功能已移除，系统不再存储任何注册商凭据。
 
+## 响应头与 CSP
+
+- 页面文档的 `img-src` 为 `'self' data: blob: https:`，其余指令保持 `'self'`。放行 https 图片是为了页脚友情链接——LOGO 由站长填写对方站点的地址，收在 `'self'` 时必然破图。图片不执行脚本，放宽只影响图片来源；友情链接的 `<img>` 带 `referrerpolicy="no-referrer"`，不把访客来源交给对方站点。
+- API 与非文档响应继续用最严格的一档（`img-src 'self' data: blob:`），不受上面放宽的影响。
+- `script-src`、`connect-src`、`frame-src` 的白名单只有 Cloudflare Turnstile 与 Insights，新增第三方脚本或接口前须先评估。
+
 ## 上传与公共数据
 
 - R2 上传仅接受 PNG/JPEG/WebP/ICO，最大 2 MB；对象键由随机 UUID 生成并校验路径。
+- 友情链接的 LOGO 只存地址、不落库图片；地址与站点地址都经 Zod 校验，仅接受 http(s)。
 - 公共 API 仅返回域名 ID、完整域名、主体、TLD、分类、精品；价格只有管理员启用且单域审核后才返回。
 - 管理员邮箱不会自动作为前台联系邮箱。
 - 原始 CSV、市场内部字段、日志和备注不公开。

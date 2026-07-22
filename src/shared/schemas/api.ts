@@ -133,6 +133,19 @@ export const settingsPatchSchema = z
   })
   .partial();
 
+/** 友情链接指向站外，只收 http(s)；LOGO 允许留空或站内上传路径。 */
+const friendLinkFields = {
+  name: z.string().trim().min(1).max(40),
+  url: z.string().trim().url().max(500).refine((value) => /^https?:\/\//i.test(value), "只支持 http(s) 链接"),
+  logo_url: z.union([z.string().trim().max(500), z.literal("")]).nullable(),
+  display_mode: z.enum(["logo_text", "logo_only", "text_only"]),
+  sort_order: z.number().int().min(0).max(9999),
+};
+
+export const friendLinkCreateSchema = z.object(friendLinkFields).partial({ logo_url: true, display_mode: true, sort_order: true });
+
+export const friendLinkPatchSchema = z.object(friendLinkFields).partial();
+
 const webhookUrl = (hosts: string[]) =>
   z
     .string()

@@ -22,6 +22,7 @@ import { ApiError, api, download } from "../../lib/api";
 import { formatExact, formatRelative } from "../../lib/format-time";
 import { chunkIds, hasMoreRows } from "../../lib/virtual-rows";
 import { LOG_GROUP_LABELS, type LogActionGroup } from "../../../shared/log-analytics";
+import type { FriendLinkDisplayMode } from "../../../shared/types/api";
 
 type AdminView = "overview" | "domains" | "categories" | "settings" | "notifications" | "security" | "logs";
 
@@ -799,7 +800,86 @@ function SettingsView({ notify }: { notify: (text: string, tone?: "success" | "e
     <fieldset><legend>联系方式</legend><div className="form-grid"><label>公开邮箱<input type="email" value={form.contact_email ?? ""} onChange={(event) => field("contact_email", event.target.value || null)} /></label><label>微信<input value={form.contact_wechat ?? ""} onChange={(event) => field("contact_wechat", event.target.value || null)} /></label><label>Telegram<input value={form.contact_telegram ?? ""} onChange={(event) => field("contact_telegram", event.target.value || null)} /></label><label>WhatsApp<input value={form.contact_whatsapp ?? ""} onChange={(event) => field("contact_whatsapp", event.target.value || null)} placeholder="国际区号手机号" /></label><label>X<input value={form.contact_x ?? ""} onChange={(event) => field("contact_x", event.target.value || null)} /></label><label>小红书 URL<input value={form.contact_xiaohongshu ?? ""} onChange={(event) => field("contact_xiaohongshu", event.target.value || null)} /></label><label>QQ<input value={form.contact_qq ?? ""} onChange={(event) => field("contact_qq", event.target.value || null)} /></label></div></fieldset>
     <fieldset><legend>展示偏好</legend><div className="form-grid"><label>页面密度<select value={form.display_density} onChange={(event) => field("display_density", event.target.value as SiteSettingsForm["display_density"])}><option value="compact">紧凑</option><option value="comfortable">舒适</option><option value="spacious">宽松</option></select></label><label>ICP备案号<input value={form.icp_number ?? ""} onChange={(event) => field("icp_number", event.target.value || null)} /></label><label>版权文字<input value={form.copyright_text ?? ""} onChange={(event) => field("copyright_text", event.target.value || null)} /></label></div><div className="checkbox-row"><Toggle checked={Boolean(form.featured_first)} label="精品优先" onChange={(checked) => field("featured_first", checked ? 1 : 0)} /><Toggle checked={Boolean(form.show_admin_link_in_footer)} label="页首显示管理入口" onChange={(checked) => field("show_admin_link_in_footer", checked ? 1 : 0)} /></div></fieldset>
     <button className="primary-button align-start">保存全部设置</button>
-  </form></Panel></div>;
+  </form></Panel><FriendLinksPanel notify={notify} /></div>;
+}
+
+interface FriendLinkForm { id: number; name: string; url: string; logo_url: string | null; display_mode: FriendLinkDisplayMode; sort_order: number }
+const DISPLAY_MODE_LABELS: Record<FriendLinkDisplayMode, string> = { logo_text: "LOGO + 文字", logo_only: "仅 LOGO", text_only: "仅文字" };
+const EMPTY_FRIEND_LINK = { name: "", url: "", logo_url: "", display_mode: "logo_text" as FriendLinkDisplayMode };
+
+function FriendLinksPanel({ notify }: { notify: (text: string, tone?: "success" | "error") => void }) {
+  const [items, setItems] = useState<FriendLinkForm[] | null>(null);
+  const [draft, setDraft] = useState(EMPTY_FRIEND_LINK);
+  const [busy, setBusy] = useState(false);
+
+  const reload = useCallback(
+    () => api<{ items: FriendLinkForm[] }>("/api/admin/friend-links")
+      .then((result) => setItems(result.items))
+      .catch((reason: unknown) => notify(reason instanceof Error ? reason.message : "友情链接加载失败", "error")),
+    [notify],
+  );
+  useEffect(() => { void reload(); }, [reload]);
+
+  function edit(id: number, patch: Partial<FriendLinkForm>) {
+    setItems((current) => current?.map((item) => item.id === id ? { ...item, ...patch } : item) ?? current);
+  }
+
+  async function create(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await api("/api/admin/friend-links", { method: "POST", body: JSON.stringify({ ...draft, logo_url: draft.logo_url || null }) });
+      setDraft(EMPTY_FRIEND_LINK);
+      await reload();
+      notify("友情链接已添加");
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "添加失败", "error"); }
+    finally { setBusy(false); }
+  }
+
+  async function save(item: FriendLinkForm) {
+    try {
+      await api(`/api/admin/friend-links/${item.id}`, { method: "PATCH", body: JSON.stringify({ name: item.name, url: item.url, logo_url: item.logo_url || null, display_mode: item.display_mode, sort_order: item.sort_order }) });
+      notify(`「${item.name}」已保存`);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "保存失败", "error"); }
+  }
+
+  async function remove(item: FriendLinkForm) {
+    if (!window.confirm(`删除友情链接「${item.name}」？`)) return;
+    try {
+      await api(`/api/admin/friend-links/${item.id}`, { method: "DELETE" });
+      await reload();
+      notify(`「${item.name}」已删除`);
+    } catch (reason) { notify(reason instanceof Error ? reason.message : "删除失败", "error"); }
+  }
+
+  return <Panel title="友情链接" description="显示在前台页脚左侧，可增删多条，每条单独选择显示形式">
+    {!items ? <div className="state-panel">正在读取友情链接…</div> : <div className="friend-link-admin">
+      {items.length === 0 ? <p className="friend-link-empty">还没有友情链接，用下面的表单添加第一条。</p> : items.map((item) => <div className="friend-link-row" key={item.id}>
+        <div className="friend-link-preview" aria-hidden="true">{item.logo_url ? <img src={item.logo_url} alt="" referrerPolicy="no-referrer" /> : <span>无 LOGO</span>}</div>
+        <div className="form-grid">
+          <label>名称<input value={item.name} onChange={(event) => edit(item.id, { name: event.target.value })} maxLength={40} /></label>
+          <label>地址<input value={item.url} onChange={(event) => edit(item.id, { url: event.target.value })} placeholder="https://" /></label>
+          <label>LOGO 地址<input value={item.logo_url ?? ""} onChange={(event) => edit(item.id, { logo_url: event.target.value })} placeholder="https:// 或留空" /></label>
+          <label>显示形式<select value={item.display_mode} onChange={(event) => edit(item.id, { display_mode: event.target.value as FriendLinkDisplayMode })}>{(Object.keys(DISPLAY_MODE_LABELS) as FriendLinkDisplayMode[]).map((mode) => <option key={mode} value={mode}>{DISPLAY_MODE_LABELS[mode]}</option>)}</select></label>
+          <label>排序<input type="number" min={0} max={9999} value={item.sort_order} onChange={(event) => edit(item.id, { sort_order: Number(event.target.value) })} /></label>
+        </div>
+        <div className="friend-link-actions">
+          <button type="button" className="secondary-button" onClick={() => void save(item)}>保存</button>
+          <button type="button" className="primary-button danger-button" onClick={() => void remove(item)}>删除</button>
+        </div>
+      </div>)}
+
+      <form className="friend-link-create" onSubmit={(event) => void create(event)}>
+        <div className="form-grid">
+          <label>名称<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} maxLength={40} required /></label>
+          <label>地址<input value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} placeholder="https://" required /></label>
+          <label>LOGO 地址<input value={draft.logo_url} onChange={(event) => setDraft({ ...draft, logo_url: event.target.value })} placeholder="https:// 或留空" /></label>
+          <label>显示形式<select value={draft.display_mode} onChange={(event) => setDraft({ ...draft, display_mode: event.target.value as FriendLinkDisplayMode })}>{(Object.keys(DISPLAY_MODE_LABELS) as FriendLinkDisplayMode[]).map((mode) => <option key={mode} value={mode}>{DISPLAY_MODE_LABELS[mode]}</option>)}</select></label>
+        </div>
+        <button className="primary-button align-start" disabled={busy}>添加友情链接</button>
+      </form>
+    </div>}
+  </Panel>;
 }
 
 type NotificationChannelKey = "email" | "telegram" | "bark" | "serverchan" | "wecom" | "feishu" | "discord";

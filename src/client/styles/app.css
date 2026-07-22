@@ -2688,3 +2688,90 @@ svg.lucide {
   }
   .public-shell .catalogue-toolbar .toolbar-summary { min-height: 28px; justify-content: flex-end; }
 }
+
+/* ============================================================
+   2026-07-22 · 页脚三栏：左友情链接、中品牌版权、右联系方式
+   页首右上只留域名总数与后台入口，联系方式整体下移到页脚。
+   原本页脚是 width:fit-content 的居中胶囊，铺开成三栏后左右两栏
+   才有地方落，中间那栏继续保持视觉居中。
+   ============================================================ */
+
+.public-shell .public-footer {
+  width: auto;
+  max-width: none;
+  margin: 24px clamp(18px, 3vw, 44px) 22px;
+  padding: 10px clamp(14px, 2vw, 22px);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  place-items: center stretch;
+  align-items: center;
+  gap: 14px;
+}
+.public-shell .public-footer > .footer-friend-links { justify-self: start; }
+.public-shell .public-footer > .footer-copyright { justify-self: center; }
+.public-shell .public-footer > .hero-contact-links {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.public-shell .public-footer > .hero-contact-links::-webkit-scrollbar { display: none; }
+
+.footer-friend-links {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-width: 0;
+}
+.footer-friend-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 210px;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease);
+}
+.footer-friend-link > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.footer-friend-link:hover,
+.footer-friend-link:focus-visible { color: var(--brand); }
+/* 友链 LOGO 多是横向文字标志，锁死正方形会压扁；限高、宽度随比例走 */
+.friend-link-logo {
+  width: auto;
+  height: 20px;
+  max-width: 104px;
+  flex: 0 0 auto;
+  display: block;
+  object-fit: contain;
+}
+
+/* 窄屏改为三行堆叠居中，与改版前的居中页脚观感一致 */
+@media (max-width: 900px) {
+  .public-shell .public-footer {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 10px;
+  }
+  .public-shell .public-footer > .footer-friend-links,
+  .public-shell .public-footer > .footer-copyright,
+  .public-shell .public-footer > .hero-contact-links { justify-self: center; }
+  .footer-friend-links { justify-content: center; }
+}
+
+@media (max-width: 720px) {
+  .public-shell .public-footer {
+    width: auto;
+    max-width: none;
+    margin: 14px 14px 8px;
+    padding: 9px 12px;
+  }
+}

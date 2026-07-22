@@ -17,10 +17,14 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
   const allowDevelopmentPreamble = ["localhost", "127.0.0.1"].includes(new URL(c.req.url).hostname)
     ? " 'unsafe-inline'"
     : "";
+  // 页面文档放行 https: 图片：友情链接的 LOGO 由站长填写对方站点的地址，
+  // 收在 'self' 时必然破图。图片不执行脚本，放宽仅限 img-src，其余指令不动；
+  // 友情链接的 <img> 带 referrerpolicy="no-referrer"，不把访客来源交给对方站点。
+  // API/JSON 响应继续用最严格的一档。
   c.header(
     "Content-Security-Policy",
     isHtmlDocument
-      ? `default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'${allowDevelopmentPreamble} https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com ws: wss:`
+      ? `default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'${allowDevelopmentPreamble} https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com ws: wss:`
       : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
   );
   if (c.req.path.startsWith("/api/admin/") || c.req.path.startsWith("/api/auth/")) {

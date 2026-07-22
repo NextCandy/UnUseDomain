@@ -23,6 +23,18 @@ export interface PublicDomain {
   public_price?: string | null;
 }
 
+/** 页脚左侧友情链接。display_mode 决定这一条渲染 LOGO、文字还是两者。 */
+export type FriendLinkDisplayMode = "logo_text" | "logo_only" | "text_only";
+
+export interface FriendLink {
+  id: number;
+  name: string;
+  url: string;
+  logo_url: string | null;
+  display_mode: FriendLinkDisplayMode;
+  sort_order: number;
+}
+
 export interface PublicHomeData {
   tlds: string[];
   categories: string[];

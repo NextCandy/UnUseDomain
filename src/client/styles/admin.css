@@ -655,3 +655,51 @@ svg.lucide {
   .switch,
   .switch i { transition: none; }
 }
+
+/* ============================================================
+   友情链接管理：每条一行，左侧 LOGO 预览 + 字段栅格 + 行内操作
+   ============================================================ */
+
+.friend-link-admin { display: grid; gap: 14px; }
+.friend-link-empty { margin: 0; color: var(--muted); font-size: 13px; }
+
+.friend-link-row {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+/* LOGO 多为横向文字标志，给固定高度的框、宽度随比例 */
+.friend-link-preview {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+}
+/* 外链 LOGO 常是没有固有宽高的 SVG，只给 max-* 会塌成 0；锁定高度、宽度随比例 */
+.friend-link-preview img { width: auto; height: 26px; max-width: 92px; object-fit: contain; }
+.friend-link-preview span { color: var(--faint); font-size: 11px; }
+
+.friend-link-actions { display: grid; gap: 8px; align-content: start; }
+.friend-link-actions button { min-height: 36px; white-space: nowrap; }
+
+.friend-link-create {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+@media (max-width: 900px) {
+  .friend-link-row { grid-template-columns: minmax(0, 1fr); }
+  .friend-link-actions { grid-auto-flow: column; justify-content: start; }
+}

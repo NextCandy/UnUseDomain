@@ -1,6 +1,13 @@
 import { Hono } from "hono";
 
-import { notificationChannelPatchSchema, notificationPatchSchema, settingsPatchSchema } from "../../../shared/schemas/api";
+import {
+  friendLinkCreateSchema,
+  friendLinkPatchSchema,
+  notificationChannelPatchSchema,
+  notificationPatchSchema,
+  settingsPatchSchema,
+} from "../../../shared/schemas/api";
+import type { FriendLink } from "../../../shared/types/api";
 import { fail, ok, writeOperationLog } from "../../http";
 import { encryptCredentials } from "../../security/crypto";
 import {
@@ -59,6 +66,88 @@ settingsRoutes.patch("/settings", async (c) => {
     success: true,
   });
   return ok(c, { saved: true });
+});
+
+const FRIEND_LINK_COLUMNS = "id, name, url, logo_url, display_mode, sort_order";
+
+settingsRoutes.get("/friend-links", async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT ${FRIEND_LINK_COLUMNS} FROM friend_links ORDER BY sort_order ASC, id ASC`,
+  ).all<FriendLink>();
+  return ok(c, { items: rows.results });
+});
+
+settingsRoutes.post("/friend-links", async (c) => {
+  const parsed = friendLinkCreateSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return fail(c, 422, "INVALID_FRIEND_LINK", "友情链接无效", parsed.error.issues);
+  const { name, url, logo_url, display_mode, sort_order } = parsed.data;
+  // 未指定排序时排到末尾，避免新链接默认插到第一条
+  const nextOrder = sort_order ?? (((await c.env.DB.prepare("SELECT MAX(sort_order) AS max_order FROM friend_links").first<{ max_order: number | null }>())?.max_order ?? -1) + 1);
+  const created = await c.env.DB.prepare(
+    `INSERT INTO friend_links (name, url, logo_url, display_mode, sort_order) VALUES (?, ?, ?, ?, ?) RETURNING ${FRIEND_LINK_COLUMNS}`,
+  )
+    .bind(name, url, logo_url || null, display_mode ?? "logo_text", nextOrder)
+    .first<FriendLink>();
+  const user = c.get("authUser");
+  await writeOperationLog(c.env.DB, {
+    action: "friend_link.create",
+    resourceType: "friend_link",
+    resourceId: created?.id,
+    message: `新增友情链接 ${name}`,
+    actorUserId: user.id,
+    success: true,
+  });
+  return ok(c, created, 201);
+});
+
+settingsRoutes.patch("/friend-links/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return fail(c, 422, "FRIEND_LINK_ID_INVALID", "友情链接 ID 无效");
+  const parsed = friendLinkPatchSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return fail(c, 422, "INVALID_FRIEND_LINK", "友情链接无效", parsed.error.issues);
+  const fields: string[] = [];
+  const values: Array<string | number | null> = [];
+  for (const [key, value] of Object.entries(parsed.data)) {
+    fields.push(`${key} = ?`);
+    // 空字符串的 LOGO 存成 NULL，前台据此判断是否渲染图片
+    values.push(key === "logo_url" ? value || null : value);
+  }
+  if (fields.length === 0) return fail(c, 422, "NO_CHANGES", "没有可保存的友情链接改动");
+  const updated = await c.env.DB.prepare(
+    `UPDATE friend_links SET ${fields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING ${FRIEND_LINK_COLUMNS}`,
+  )
+    .bind(...values, id)
+    .first<FriendLink>();
+  if (!updated) return fail(c, 404, "FRIEND_LINK_NOT_FOUND", "友情链接不存在");
+  const user = c.get("authUser");
+  await writeOperationLog(c.env.DB, {
+    action: "friend_link.update",
+    resourceType: "friend_link",
+    resourceId: id,
+    message: `更新友情链接 ${updated.name}`,
+    actorUserId: user.id,
+    success: true,
+  });
+  return ok(c, updated);
+});
+
+settingsRoutes.delete("/friend-links/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return fail(c, 422, "FRIEND_LINK_ID_INVALID", "友情链接 ID 无效");
+  const removed = await c.env.DB.prepare(`DELETE FROM friend_links WHERE id = ? RETURNING ${FRIEND_LINK_COLUMNS}`)
+    .bind(id)
+    .first<FriendLink>();
+  if (!removed) return fail(c, 404, "FRIEND_LINK_NOT_FOUND", "友情链接不存在");
+  const user = c.get("authUser");
+  await writeOperationLog(c.env.DB, {
+    action: "friend_link.delete",
+    resourceType: "friend_link",
+    resourceId: id,
+    message: `删除友情链接 ${removed.name}`,
+    actorUserId: user.id,
+    success: true,
+  });
+  return ok(c, { deleted: true });
 });
 
 settingsRoutes.post("/uploads", async (c) => {
