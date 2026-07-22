@@ -24,7 +24,7 @@
 - D1：`wanmi-db`（绑定 `DB`，保留现有生产数据）
 - R2：`wanmi-assets`（绑定 `UPLOADS`，保留现有上传文件）
 - Cron：每天 `01:00 UTC`，即 `Asia/Shanghai 09:00`
-- 当前设计基线：Elegant Green Gold 雅致绿金主题（2026-07-20，由浅色暖金改版）——墨绿为主、暖白为底、香槟金点缀；域名简介为纯手动维护（AI 生成已于 2026-07-17 移除）
+- 当前设计基线：Elegant Green Gold 雅致绿金主题（2026-07-20，由浅色暖金改版）——墨绿为主、暖白为底、香槟金点缀；域名简介由 `0031` 迁移一次性批量写入，后续为纯手动维护（站内 AI 生成能力已于 2026-07-17 移除）
 
 权威业务源为 `data/source/UnUseDomain.csv`：859 条有效唯一记录。生产库还保留 3 条历史人工域名，因此线上合计 862 条；迁移与发布不得覆盖或归档这 3 条记录。
 
@@ -156,6 +156,7 @@ pnpm verify:production
 - `0028_friend_links.sql`：新建 `friend_links` 表承载页脚友情链接（名称、地址、LOGO、显示形式、排序），并写入首条「大佬论坛」；只新增表，不触碰既有数据。
 - `0029_footer_copyright_trim.sql`：把页脚版权的 `. All rights reserved.` 后缀去掉，只保留 `© 2026 UnUseDomain`；用 REPLACE 而非整句覆盖，后台改过前半段时不会被抹掉。
 - `0030_english_descriptions.sql`：把全站仅有的两条中文简介（`mx.ooo`、`namesale.cn`）翻成英文，使前台彻底无汉字；以当前值为条件，后台改过则跳过，不覆盖人工编辑。
+- `0031_domain_descriptions.sql`：为其余 865 条域名批量写入英文简介，每条 8–12 词。一律英文——中文简介会把 815KB 字体子集拉回前台首屏，正是之前专门优化掉的问题。每条 UPDATE 都带 `description` 为空的条件，后台已填写的整句跳过；`domains` 上的 AFTER UPDATE 触发器自增 `public_data_version`，边缘缓存随即换键。简介内容按域名类型分组撰写：数字米讲数字构成与中文彩头，拼音米点出对应汉义，字母米说明缩写来源，英文米直述词义。
 
 所有远程 Token 只能通过环境变量、CI Secret 或交互式输入提供。不得写入 README、`.dev.vars.example`、Wrangler 配置、构建产物、Issue 或日志；聊天中暴露过的长期凭据应在发布后轮换。
 
