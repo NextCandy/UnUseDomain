@@ -1,0 +1,207 @@
+/*
+ * 域名卡片手写标注层
+ * 参考 mdtask 的说明图：手写字段名、曲线箭头、浅色荧光标记。
+ * 仅在支持精确鼠标悬停的桌面设备启用；触屏与移动端完全隐藏。
+ */
+
+.domain-annotation-layer {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  .domain-card {
+    isolation: isolate;
+  }
+
+  .domain-card:hover,
+  .domain-card:focus-within {
+    z-index: 12;
+  }
+
+  .domain-annotation-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .hand-note {
+    --note-color: var(--info);
+    --note-bg: var(--info-bg);
+    position: absolute;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    max-width: calc(100% - 20px);
+    color: var(--note-color);
+    font-family: "Segoe Print", "Bradley Hand", "Kaiti SC", "STKaiti", "KaiTi", cursive;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: .015em;
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(4px) rotate(var(--note-tilt, -2deg));
+    transform-origin: center;
+    text-shadow:
+      0 1px 0 var(--surface-elevated),
+      1px 0 0 var(--surface-elevated),
+      -1px 0 0 var(--surface-elevated),
+      0 -1px 0 var(--surface-elevated);
+    transition:
+      opacity var(--dur-2) var(--ease),
+      transform var(--dur-2) var(--ease);
+  }
+
+  .hand-note-label {
+    display: inline-block;
+    padding: 1px 3px 0;
+    border-radius: 3px;
+    background: linear-gradient(transparent 45%, var(--note-bg) 45% 88%, transparent 88%);
+  }
+
+  .hand-note-value {
+    display: inline-block;
+    max-width: 112px;
+    overflow: hidden;
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    vertical-align: baseline;
+  }
+
+  .hand-note svg {
+    position: absolute;
+    width: 64px;
+    height: 36px;
+    overflow: visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.55;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .hand-note path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset var(--dur-3) var(--ease);
+  }
+
+  .hand-note-tld {
+    --note-color: var(--info);
+    --note-bg: var(--info-bg);
+    --note-tilt: -4deg;
+    top: 8px;
+    left: 76px;
+  }
+
+  .hand-note-tld svg {
+    top: 7px;
+    right: calc(100% - 10px);
+  }
+
+  .hand-note-description {
+    --note-color: var(--success);
+    --note-bg: var(--success-bg);
+    --note-tilt: 3deg;
+    top: 88px;
+    right: 10px;
+  }
+
+  .hand-note-description svg {
+    top: 8px;
+    right: calc(100% - 8px);
+  }
+
+  .hand-note-registrar {
+    --note-color: var(--brand);
+    --note-bg: var(--brand-bg);
+    --note-tilt: -2deg;
+    bottom: 35px;
+    left: 10px;
+  }
+
+  .hand-note-registrar svg {
+    right: -48px;
+    bottom: 2px;
+    transform: rotate(176deg) scale(.82);
+    transform-origin: center;
+  }
+
+  .hand-note-remaining {
+    --note-color: var(--warning);
+    --note-bg: var(--warning-bg);
+    --note-tilt: 3deg;
+    right: 10px;
+    bottom: 8px;
+  }
+
+  .hand-note-remaining svg {
+    right: calc(100% - 8px);
+    bottom: 7px;
+    transform: rotate(178deg) scale(.82);
+    transform-origin: center;
+  }
+
+  .annotation-target {
+    transition:
+      box-shadow var(--dur-2) var(--ease),
+      background-color var(--dur-2) var(--ease),
+      color var(--dur-2) var(--ease);
+  }
+
+  .domain-card:hover .hand-note,
+  .domain-card:focus-within .hand-note {
+    opacity: 1;
+    transform: translateY(0) rotate(var(--note-tilt, -2deg));
+  }
+
+  .domain-card:hover .hand-note path,
+  .domain-card:focus-within .hand-note path {
+    stroke-dashoffset: 0;
+  }
+
+  .domain-card:hover .hand-note-description,
+  .domain-card:focus-within .hand-note-description {
+    transition-delay: 35ms;
+  }
+
+  .domain-card:hover .hand-note-registrar,
+  .domain-card:focus-within .hand-note-registrar {
+    transition-delay: 70ms;
+  }
+
+  .domain-card:hover .hand-note-remaining,
+  .domain-card:focus-within .hand-note-remaining {
+    transition-delay: 105ms;
+  }
+
+  .domain-card:hover .annotation-target-tld,
+  .domain-card:focus-within .annotation-target-tld {
+    box-shadow: inset 0 -.7em 0 var(--info-bg);
+  }
+
+  .domain-card:hover .annotation-target-description,
+  .domain-card:focus-within .annotation-target-description {
+    box-shadow: inset 0 -1.05em 0 var(--success-bg);
+  }
+
+  .domain-card:hover .annotation-target-remaining,
+  .domain-card:focus-within .annotation-target-remaining {
+    box-shadow: inset 0 -.8em 0 var(--warning-bg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-note,
+  .hand-note path,
+  .annotation-target {
+    transition: none !important;
+  }
+}
