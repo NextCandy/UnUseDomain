@@ -55,7 +55,7 @@ function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
       <div className="card-badge-row">
         {domain.is_featured ? <span className="featured-star" aria-label="Featured" title="Featured"><Star aria-hidden="true" /></span> : null}
         <span className="tld-badge">.{tld}</span>
-        {age !== null ? <span className={`age-badge${age >= 10 ? " is-aged" : ""}`}>{age > 0 ? `Age${age}${age === 1 ? "Year" : "Years"}` : "New"}</span> : null}
+        {age !== null ? <span className={`age-badge${age >= 10 ? " is-aged" : ""}`}>{age > 0 ? `${age} ${age === 1 ? "Year" : "Years"}` : "New"}</span> : null}
         <div className="domain-actions">
           <button type="button" aria-label={`Copy ${domain.domain}`} title={`Copy ${domain.domain}`} onClick={() => onCopy(domain.domain)}><Copy aria-hidden="true" /></button>
           <button type="button" aria-label={`View ${domain.domain}`} title={`View ${domain.domain}`} onClick={() => onQuickView(domain)}><Eye aria-hidden="true" /></button>

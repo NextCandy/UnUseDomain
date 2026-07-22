@@ -2269,7 +2269,6 @@ svg.lucide {
   border-color: var(--border);
 }
 .public-shell .domain-list.compact-view .card-badge-row .category-badge { display: none; }
-.public-shell .domain-list.compact-view .domain-description { display: none; }
 .public-shell .domain-list.compact-view .card-expiry-row { padding-top: 0; }
 
 /* —— 状态胶囊筛选组 —— */
@@ -2331,26 +2330,41 @@ svg.lucide {
   .public-shell .toolbar-filters select { height: 40px; min-height: 40px; padding: 0 24px 0 6px; font-size: 11px; }
   .public-shell .toolbar-summary { min-height: 28px; gap: 8px; font-size: 11px; }
   .public-shell .clear-filter { min-height: 28px; padding-inline: 4px; }
+  /* 手机域名条只留域名 + 简介 + 查看：后缀徽章、剩余天数、复制按钮全部收起 */
   .public-shell .domain-list.compact-view { gap: 6px; }
   .public-shell .domain-list.compact-view .domain-card,
   .public-shell .domain-list.compact-view .domain-card:not(:has(.domain-keywords)) {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "badges badges" "name expiry";
-    min-height: 98px;
-    padding: 10px 12px;
-    gap: 7px 10px;
+    grid-template-areas: "name view";
+    align-items: center;
+    min-height: 0;
+    padding: 8px 12px;
+    gap: 2px 10px;
     border: 1px solid var(--border);
     border-radius: 13px;
     background: var(--surface);
-    contain-intrinsic-size: 0 98px;
+    contain-intrinsic-size: 0 54px;
   }
-  .public-shell .domain-list.compact-view .card-badge-row { grid-area: badges; }
+  /* 有简介才补第二行，简介只占左列，查看按钮始终与域名齐平 */
+  .public-shell .domain-list.compact-view .domain-card:has(.domain-description),
+  .public-shell .domain-list.compact-view .domain-card:not(:has(.domain-keywords)):has(.domain-description) {
+    grid-template-areas: "name view" "desc .";
+    contain-intrinsic-size: 0 74px;
+  }
+  .public-shell .domain-list.compact-view .card-badge-row { display: contents; }
+  .public-shell .domain-list.compact-view .tld-badge { display: none; }
+  .public-shell .domain-list.compact-view .card-expiry-row { display: none; }
   .public-shell .domain-list.compact-view .domain-name { grid-area: name; align-self: center; }
-  .public-shell .domain-list.compact-view .domain-name strong { font-family: var(--font-display); font-size: 22px; font-weight: 600; }
-  .public-shell .domain-list.compact-view .domain-name .domain-tld { font-family: var(--font-display); font-size: 17px; }
-  .public-shell .domain-list.compact-view .card-expiry-row { grid-area: expiry; align-self: center; min-height: 0; margin: 0; padding: 0; }
-  .public-shell .domain-list.compact-view .expiry-text { font-size: 11px; }
-  .public-shell .domain-list.compact-view .tld-badge { padding: 4px 10px; font-size: 11px; }
+  .public-shell .domain-list.compact-view .domain-name strong { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .public-shell .domain-list.compact-view .domain-name .domain-tld { font-family: var(--font-display); font-size: 16px; }
+  .public-shell .domain-list.compact-view .domain-description {
+    grid-area: desc; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    margin: 0; min-height: 0; overflow: hidden; font-size: 12px; line-height: 1.45;
+  }
+  .public-shell .domain-list.compact-view .domain-actions {
+    grid-area: view; align-self: center; justify-content: flex-end; margin: 0; min-width: 0;
+  }
+  .public-shell .domain-list.compact-view .domain-actions button:first-child { display: none; }
   .public-shell .domain-list.compact-view .domain-actions button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; }
 }
 
