@@ -19,7 +19,7 @@ interface PublicDomainRow {
   manual_category: string | null;
   auto_categories: string | null;
   is_featured: number;
-  registrar_name: string | null;
+  registrar_name?: string | null;
   registered_at: string | null;
   expires_at: string | null;
 }
@@ -53,7 +53,7 @@ const PUBLIC_SELECT = `SELECT d.id, d.full_domain AS domain, d.name, d.tld, d.de
   d.is_featured, d.registrar_name, d.registered_at, d.expires_at FROM domains d`;
 
 function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, unknown> {
-  return {
+  const serialized: PublicDomain & Record<string, unknown> = {
     id: row.id,
     domain: row.domain,
     name: row.name,
@@ -64,10 +64,11 @@ function serializePublic(row: PublicDomainRow): PublicDomain & Record<string, un
       ? [row.manual_category]
       : (row.auto_categories?.split("|").filter(Boolean) ?? (row.category ? [row.category] : [])),
     is_featured: row.is_featured === 1,
-    registrar_name: row.registrar_name,
     registered_at: row.registered_at,
     expires_at: row.expires_at,
   };
+  if (row.registrar_name !== undefined) serialized.registrar_name = row.registrar_name;
+  return serialized;
 }
 
 export const publicRoutes = new Hono<AppBindings>();
@@ -175,7 +176,7 @@ function publicFilters(query: ReturnType<typeof publicDomainQuerySchema.parse>):
   if (query.excludes) {
     const excludedCharacters = [...new Set(Array.from(query.excludes.toLowerCase()))];
     for (const character of excludedCharacters) {
-      where.push("instr(lower(d.name), ?) = 0");
+      where.push("instr(lower(d.name), ?) > 0");
       params.push(character);
     }
   }
