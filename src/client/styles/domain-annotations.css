@@ -62,6 +62,19 @@
     background: linear-gradient(transparent 45%, var(--note-bg) 45% 88%, transparent 88%);
   }
 
+  .hand-note-value {
+    display: inline-block;
+    max-width: 112px;
+    overflow: hidden;
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    vertical-align: baseline;
+  }
+
   .hand-note svg {
     position: absolute;
     width: 64px;
@@ -106,8 +119,18 @@
     right: calc(100% - 8px);
   }
 
-  /* 卡片 overflow:hidden，简介与到期行之间只有 12px 空隙，标注放上下都会被压住或裁切。
-     到期行左半段（日期与「余 N 天」之间）是唯一够宽的空白，标注落在那里，箭头向右指。 */
+  /* 简介从卡片顶部排下来、到期行贴着底部，中间空隙随卡片高度伸缩，最矮的一档只剩 22.6px
+     （量到日期文字顶部，到期行本身还有 9.7px 内边距）。旁注按底边锚定落在这段空隙里。 */
+  .hand-note-registrar {
+    --note-color: var(--brand);
+    --note-bg: var(--brand-bg);
+    --note-tilt: -2deg;
+    bottom: 40px;
+    left: 10px;
+  }
+
+  /* 卡片 overflow:hidden，标注贴底会被裁切并压住「余 N 天」；到期行左半段
+     （日期与天数之间）是唯一够宽的空白，标注落在那里，箭头向右指。 */
   .hand-note-remaining {
     --note-color: var(--warning);
     --note-bg: var(--warning-bg);
@@ -148,9 +171,14 @@
     transition-delay: 35ms;
   }
 
+  .domain-card:hover .hand-note-registrar,
+  .domain-card:focus-within .hand-note-registrar {
+    transition-delay: 70ms;
+  }
+
   .domain-card:hover .hand-note-remaining,
   .domain-card:focus-within .hand-note-remaining {
-    transition-delay: 70ms;
+    transition-delay: 105ms;
   }
 
   .domain-card:hover .tld-badge,

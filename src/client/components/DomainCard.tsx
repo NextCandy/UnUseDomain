@@ -9,14 +9,16 @@ interface DomainCardProps {
   onQuickView: (domain: PublicDomain) => void;
 }
 
-type HandNoteKind = "tld" | "description" | "remaining";
+type HandNoteKind = "tld" | "description" | "registrar" | "remaining";
 
 interface HandNoteProps {
   kind: HandNoteKind;
   label: string;
+  value?: string | null;
 }
 
-const HAND_NOTE_PATHS: Record<HandNoteKind, { curve: string; head: string }> = {
+/** 注册商在卡片上没有对应的可视元素，箭头无处可指，因此只有它没有笔画。 */
+const HAND_NOTE_PATHS: Partial<Record<HandNoteKind, { curve: string; head: string }>> = {
   tld: {
     curve: "M58 8 C42 7 27 12 8 27",
     head: "M15 25 L8 27 L11 20",
@@ -31,15 +33,18 @@ const HAND_NOTE_PATHS: Record<HandNoteKind, { curve: string; head: string }> = {
   },
 };
 
-function HandNote({ kind, label }: HandNoteProps) {
+function HandNote({ kind, label, value }: HandNoteProps) {
   const path = HAND_NOTE_PATHS[kind];
   return (
     <span className={`hand-note hand-note-${kind}`}>
       <span className="hand-note-label">{label}</span>
-      <svg viewBox="0 0 64 36" aria-hidden="true" focusable="false">
-        <path pathLength="1" d={path.curve} />
-        <path pathLength="1" d={path.head} />
-      </svg>
+      {value ? <span className="hand-note-value">{value}</span> : null}
+      {path ? (
+        <svg viewBox="0 0 64 36" aria-hidden="true" focusable="false">
+          <path pathLength="1" d={path.curve} />
+          <path pathLength="1" d={path.head} />
+        </svg>
+      ) : null}
     </span>
   );
 }
@@ -74,12 +79,14 @@ function DomainCardComponent({ domain, onCopy, onQuickView }: DomainCardProps) {
   const urgent = remaining !== null && remaining >= 0 && remaining <= URGENT_DAYS;
   const warning = remaining !== null && remaining > URGENT_DAYS && remaining <= WARNING_DAYS;
   const category = domain.categories[0] ?? domain.category;
+  const registrar = domain.registrar_name?.trim() || null;
 
   return (
     <article id={`domain-card-${domain.id}`} className={`domain-card${domain.is_featured ? " featured" : ""}`} aria-labelledby={`domain-${domain.id}`}>
       <div className="domain-annotation-layer" aria-hidden="true">
         <HandNote kind="tld" label="后缀" />
         {domain.description ? <HandNote kind="description" label="简介" /> : null}
+        {registrar ? <HandNote kind="registrar" label="注册商" value={registrar} /> : null}
         <HandNote kind="remaining" label="剩余时间" />
       </div>
       <div className="card-badge-row">
