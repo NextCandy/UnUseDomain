@@ -16,7 +16,10 @@ describe("CSP 主题脚本哈希", () => {
     const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
     expect(inline).toHaveLength(1);
 
-    const actual = `sha256-${createHash("sha256").update(inline[0], "utf8").digest("base64")}`;
+    // 按 LF 归一后再算：CI 与线上服务的都是 LF，Windows 工作副本是 CRLF，
+    // 不归一会得到一个线上永远对不上的哈希。
+    const served = inline[0].replaceAll("\r\n", "\n");
+    const actual = `sha256-${createHash("sha256").update(served, "utf8").digest("base64")}`;
     expect(security).toContain(`'${actual}'`);
   });
 

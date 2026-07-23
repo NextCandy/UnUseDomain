@@ -19,9 +19,12 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
     : "";
   // index.html 里定主题的同步脚本必须在首帧前跑，只能内联；用哈希放行而不是
   // 'unsafe-inline'，后者会把整份文档的内联脚本全部打开。
-  // 脚本内容一改哈希就失效，届时主题会静默退回浅色——security.test.ts 会重算
-  // index.html 的哈希并比对这里的常量，改坏了测试直接红。
-  const THEME_INIT_HASH = "'sha256-lRESmU3m6e9jU2JXSTaN++F1+mb5Ik55XpXASnHI2Jk='";
+  //
+  // 哈希按 LF 行尾计算：CI 在 Linux 上检出，产物与线上服务的都是 LF；Windows
+  // 工作副本是 CRLF，直接拿本地文件算会多出 \r 而对不上（本轮就这么错过一次）。
+  // 脚本内容一改哈希就失效，主题会静默退回浅色——security-csp.test.ts 会按 LF
+  // 归一后重算并比对这里的常量，改坏了测试直接红。
+  const THEME_INIT_HASH = "'sha256-Z5eIDX9K8IgRGVjwnlPW7rPXUifElizUQ3DKP+jw9gw='";
   // 页面文档放行 https: 图片：友情链接的 LOGO 由站长填写对方站点的地址，
   // 收在 'self' 时必然破图。图片不执行脚本，放宽仅限 img-src，其余指令不动；
   // 友情链接的 <img> 带 referrerpolicy="no-referrer"，不把访客来源交给对方站点。
