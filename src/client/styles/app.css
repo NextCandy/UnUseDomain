@@ -166,8 +166,8 @@ svg.lucide {
   height: 72px; padding: 0 42px;
   display: flex; align-items: center; justify-content: space-between;
   background: color-mix(in oklab, var(--bg) 76%, transparent);
-  backdrop-filter: blur(14px) saturate(1.5);
   -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
   border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
 }
 
@@ -215,7 +215,7 @@ svg.lucide {
   display: flex; gap: 8px; align-items: center;
   border: 1px solid var(--border); border-radius: var(--radius-m);
   background: color-mix(in oklab, var(--surface-2) 72%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   box-shadow: var(--shadow-s);
 }
 .filter-bar select {
@@ -421,7 +421,7 @@ svg.lucide {
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 80; padding: 20px;
   background: color-mix(in oklab, oklch(15% .01 55) 45%, transparent);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   display: grid; place-items: center;
   animation: fade-in var(--dur-1) var(--ease);
 }
@@ -570,7 +570,7 @@ svg.lucide {
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .public-header, .modal-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .public-header, .modal-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .public-header { background: var(--surface-2); }
 }
 
@@ -993,8 +993,8 @@ svg.lucide {
   border-bottom: 0;
   background: color-mix(in oklab, var(--surface-2) 88%, transparent);
   box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 54%, transparent), 0 16px 42px -34px rgba(17, 38, 30, 0.34);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .public-shell .filter-search {
   width: 100%;
@@ -1352,7 +1352,7 @@ svg.lucide {
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .domain-detail-dialog::backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .domain-detail-dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .keyword-pill { border-color: var(--gold-muted); }
 }
 
@@ -1568,8 +1568,8 @@ svg.lucide {
    ============================================================ */
 .public-shell .public-header {
   background: var(--background);
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .public-shell .catalogue-layout {
@@ -3012,8 +3012,8 @@ svg.lucide {
 .public-shell .public-header {
   height: 64px;
   background: color-mix(in oklab, var(--background) 72%, transparent);
-  backdrop-filter: saturate(180%) blur(12px);
   -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--border-subtle);
   transition:
     height var(--dur-3) var(--ease),
@@ -3206,8 +3206,8 @@ svg.lucide {
 
 .domain-detail-dialog::backdrop {
   background: oklch(0.16 0.02 150 / 0.42);
-  backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   opacity: 1;
   transition: opacity var(--dur-2) var(--ease), display var(--dur-2) var(--ease) allow-discrete;
 }
