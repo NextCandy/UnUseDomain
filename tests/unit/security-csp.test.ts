@@ -23,13 +23,14 @@ describe("CSP 主题脚本哈希", () => {
     expect(security).toContain(`'${actual}'`);
   });
 
-  it("哈希进入了 HTML 文档的 script-src，且没有顺带放开 unsafe-inline", () => {
-    const scriptSrc = security.match(/script-src 'self'\$\{allowDevelopmentPreamble\} \$\{THEME_INIT_HASH\}/);
-    expect(scriptSrc).not.toBeNull();
-    // 'unsafe-inline' 只允许出现在按 hostname 判断的开发分支里
-    const unsafeOccurrences = [...security.matchAll(/'unsafe-inline'/g)];
-    const inScriptSrcLiteral = [...security.matchAll(/script-src[^`]*'unsafe-inline'/g)];
-    expect(unsafeOccurrences.length).toBeGreaterThan(0);
-    expect(inScriptSrcLiteral).toHaveLength(0);
+  it("script-src 的内联策略是开发/生产二选一，不能同时给出哈希和 unsafe-inline", () => {
+    // CSP 规定：出现 hash 或 nonce 时 'unsafe-inline' 会被忽略。两者并存等于
+    // 在开发环境把 Vite 的 React refresh preamble 一起拦掉，HMR 直接失效。
+    expect(security).toMatch(/script-src 'self' \$\{inlineScriptPolicy\}/);
+    expect(security).toMatch(/const inlineScriptPolicy = isDevelopmentHost \? "'unsafe-inline'" : THEME_INIT_HASH;/);
+
+    // script-src 的字面量里不得直接写 'unsafe-inline'（只能经由上面的三元）
+    const scriptSrcLiteral = security.match(/script-src [^;]*/g) ?? [];
+    expect(scriptSrcLiteral.some((piece) => piece.includes("'unsafe-inline'"))).toBe(false);
   });
 });

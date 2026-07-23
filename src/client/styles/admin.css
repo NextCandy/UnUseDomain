@@ -786,3 +786,44 @@ svg.lucide {
   background: var(--gradient-gold);
 }
 /* strong 的 tabular-nums 原本就有；count-up 每帧位数不同，靠它避免整卡左右抖 */
+
+/* ---- 图表 tooltip：不透底卡片，跟随主题 ---- */
+.chart-tooltip {
+  min-width: 118px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  /* 必须不透底：图表线会从半透明背景后透出来，数值读不清 */
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+  font-size: 12px;
+}
+.chart-tooltip-label {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chart-tooltip-row + .chart-tooltip-row { margin-top: 4px; }
+.chart-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: var(--radius-pill);
+}
+.chart-tooltip-name {
+  flex: 1 1 auto;
+  color: var(--text-secondary);
+}
+.chart-tooltip b {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

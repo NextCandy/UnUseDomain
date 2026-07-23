@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
+import { ChartTooltip, GradientAreaChart } from "../../components/ChartKit";
+
 import { Toast, type ToastMessage } from "../../components/Toast";
 // 后台专属样式：AdminApp 本身是懒加载的，样式随 admin chunk 一起按需加载，不进前台首屏
 import "../../styles/admin.css";
@@ -207,8 +209,8 @@ function OverviewView({ onTldClick, onDomainClick, onNavigate, notify }: { onTld
   ];
   const trendData = data.expiringTrend.map((point) => ({ ...point, label: `${Number(point.month.slice(5))} 月` }));
   const expiryShare = [
-    { name: "即将到期", value: Math.max(0, data.expiringSoonCount), fill: "var(--warning)" },
-    { name: "正常", value: Math.max(0, data.counts.total - data.expiringSoonCount), fill: "var(--brand)" },
+    { name: "即将到期", value: Math.max(0, data.expiringSoonCount), fill: "var(--chart-2)" },
+    { name: "正常", value: Math.max(0, data.counts.total - data.expiringSoonCount), fill: "var(--chart-1)" },
   ];
   const maxCategory = Math.max(1, ...data.categorySpread.map((item) => Number(item.count)));
   async function exportAll() {
@@ -226,18 +228,18 @@ function OverviewView({ onTldClick, onDomainClick, onNavigate, notify }: { onTld
     <div className="overview-analytics-grid">
       <Panel title="到期占比" description="90 天内到期与正常域名">
         <div className="expiry-donut">
-          <ResponsiveContainer width="100%" height={190}><PieChart><Pie data={expiryShare} dataKey="value" nameKey="name" innerRadius={52} outerRadius={76} paddingAngle={data.counts.total ? 2 : 0} stroke="var(--surface)" strokeWidth={2}>{expiryShare.map((item) => <Cell key={item.name} fill={item.fill} />)}</Pie><Tooltip formatter={(value) => [`${Number(value ?? 0)} 个`, "域名"]} /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={190}><PieChart><Pie data={expiryShare} dataKey="value" nameKey="name" innerRadius={52} outerRadius={76} paddingAngle={data.counts.total ? 2 : 0} stroke="var(--surface)" strokeWidth={2}>{expiryShare.map((item) => <Cell key={item.name} fill={item.fill} />)}</Pie><Tooltip content={<ChartTooltip unit=" 个" />} /></PieChart></ResponsiveContainer>
           <div><strong>{data.expiringSoonCount.toLocaleString("zh-CN")}</strong><span>即将到期</span></div>
         </div>
       </Panel>
       <Panel title="到期趋势" description="未来 6 个月按月统计">
-        {trendData.length ? <ResponsiveContainer width="100%" height={200}><LineChart data={trendData} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} /><Tooltip formatter={(value) => [`${Number(value ?? 0)} 个`, "到期域名"]} /><Line type="monotone" dataKey="count" name="到期域名" stroke="var(--brand)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--brand)" }} /></LineChart></ResponsiveContainer> : <div className="empty-inline">暂无未来 6 个月内到期的域名</div>}
+        {trendData.length ? <GradientAreaChart data={trendData} xKey="label" unit=" 个" series={[{ dataKey: "count", name: "到期域名", tone: 1 }]} /> : <div className="empty-inline">暂无未来 6 个月内到期的域名</div>}
       </Panel>
       <Panel title="分类分布" description="人工分类优先，其余按自动标签">
         <div className="distribution-list">{data.categorySpread.map((item) => <div className="distribution-static" key={item.category}><span>{item.category}</span><div className="bar"><i style={{ width: `${Math.max(4, Number(item.count) / maxCategory * 100)}%` }} /></div><strong>{item.count}</strong></div>)}</div>
       </Panel>
     </div>
-    <div className="stats-overview"><div className="stats-kpis"><div><span>今日 PV</span><strong>{data.stats.today.pv ?? 0}</strong></div><div><span>今日 UV</span><strong>{data.stats.today.uv ?? 0}</strong></div><div><span>域名点击</span><strong>{data.stats.topDomains.reduce((total, item) => total + Number(item.clicks || 0), 0)}</strong></div></div><div className="stats-chart"><ResponsiveContainer width="100%" height={180}><LineChart data={data.stats.sevenDays}><XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={10} /><Tooltip /><Line type="monotone" dataKey="pv" stroke="var(--brand)" strokeWidth={2} dot={false} /><Line type="monotone" dataKey="uv" stroke="var(--premium)" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div></div>
+    <div className="stats-overview"><div className="stats-kpis"><div><span>今日 PV</span><strong>{data.stats.today.pv ?? 0}</strong></div><div><span>今日 UV</span><strong>{data.stats.today.uv ?? 0}</strong></div><div><span>域名点击</span><strong>{data.stats.topDomains.reduce((total, item) => total + Number(item.clicks || 0), 0)}</strong></div></div><div className="stats-chart"><GradientAreaChart data={data.stats.sevenDays} xKey="day" height={180} series={[{ dataKey: "pv", name: "PV", tone: 1 }, { dataKey: "uv", name: "UV", tone: 2 }]} /></div></div>
     <div className="admin-two-columns"><Panel title="域名点击 Top 10"><div className="kpi-list">{data.stats.topDomains.length ? data.stats.topDomains.map((item) => <button key={item.domain} onClick={() => onDomainClick?.(item.domain)}><span className="mono">{item.domain}</span><b>{item.clicks} 次</b><small title={formatExact(item.latest * 1000)}>{formatRelative(item.latest * 1000)}</small></button>) : <div className="empty-inline">尚无域名点击</div>}</div></Panel><Panel title="访客地区 Top 5"><div className="kpi-list">{data.stats.countries.map((item) => <div key={item.country}><span>{item.country}</span><b>{item.visitors}</b></div>)}</div></Panel></div>
     <Panel title="后缀分布" description="点击跳转到筛选后的域名管理"><div className="distribution-list">{data.tlds.slice(0, 12).map((item) => <a key={item.tld} onClick={() => onTldClick(item.tld)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onTldClick(item.tld); }}><span>.{item.tld}</span><div className="bar"><i style={{ width: `${Math.max(4, item.count / Math.max(data.counts.total, 1) * 100)}%` }} /></div><strong>{item.count}</strong></a>)}</div></Panel>
     <div className="admin-two-columns">
@@ -1003,8 +1005,8 @@ function LogsTrendPanel() {
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={trend.days} margin={{ top: 8, right: 10, bottom: 0, left: 0 }}>
           <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={10} />
-          <Tooltip />
-          <Line type="monotone" dataKey="total" name="操作数" stroke="var(--brand)" strokeWidth={2} dot={false} />
+          <Tooltip content={<ChartTooltip unit=" 次" />} />
+          <Line type="monotone" dataKey="total" name="操作数" stroke="var(--chart-1)" strokeWidth={2} dot={false} isAnimationActive animationDuration={600} />
         </LineChart>
       </ResponsiveContainer>
     </div>

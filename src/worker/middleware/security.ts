@@ -14,9 +14,7 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
     || c.req.path === "/domains"
     || c.req.path.startsWith("/admin")
     || c.req.path.startsWith("/d/");
-  const allowDevelopmentPreamble = ["localhost", "127.0.0.1"].includes(new URL(c.req.url).hostname)
-    ? " 'unsafe-inline'"
-    : "";
+  const isDevelopmentHost = ["localhost", "127.0.0.1"].includes(new URL(c.req.url).hostname);
   // index.html 里定主题的同步脚本必须在首帧前跑，只能内联；用哈希放行而不是
   // 'unsafe-inline'，后者会把整份文档的内联脚本全部打开。
   //
@@ -25,6 +23,11 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
   // 脚本内容一改哈希就失效，主题会静默退回浅色——security-csp.test.ts 会按 LF
   // 归一后重算并比对这里的常量，改坏了测试直接红。
   const THEME_INIT_HASH = "'sha256-Z5eIDX9K8IgRGVjwnlPW7rPXUifElizUQ3DKP+jw9gw='";
+  /* 开发环境走 'unsafe-inline' 且不带哈希。CSP 规定「一旦出现 hash 或 nonce，
+     'unsafe-inline' 即被忽略」，两者同时写会把 Vite 注入的 React refresh preamble
+     一并拦掉、HMR 失效——本轮就先写成了两者并存，控制台报错才发现。
+     dev 的 index.html 还是 CRLF，与 LF 哈希本来也对不上。 */
+  const inlineScriptPolicy = isDevelopmentHost ? "'unsafe-inline'" : THEME_INIT_HASH;
   // 页面文档放行 https: 图片：友情链接的 LOGO 由站长填写对方站点的地址，
   // 收在 'self' 时必然破图。图片不执行脚本，放宽仅限 img-src，其余指令不动；
   // 友情链接的 <img> 带 referrerpolicy="no-referrer"，不把访客来源交给对方站点。
@@ -32,7 +35,7 @@ export const securityHeaders = createMiddleware<AppBindings>(async (c, next) => 
   c.header(
     "Content-Security-Policy",
     isHtmlDocument
-      ? `default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'${allowDevelopmentPreamble} ${THEME_INIT_HASH} https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com ws: wss:`
+      ? `default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' ${inlineScriptPolicy} https://challenges.cloudflare.com https://static.cloudflareinsights.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com ws: wss:`
       : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'",
   );
   if (c.req.path.startsWith("/api/admin/") || c.req.path.startsWith("/api/auth/")) {
